@@ -1,0 +1,201 @@
+fragment CoordinationInfo on CoordinationType {
+    coordinationType
+    coordinationUuid
+    coordinationName
+    coordinationDescription
+    assistantId
+    assistantType
+    updatedBy
+    createdAt
+    updatedAt
+}
+
+fragment CoordinationListInfo on CoordinationListType {
+    coordinationList{
+        ...CoordinationInfo
+    }
+    pageSize
+    pageNumber
+    total
+}
+
+fragment CoordinationAgentInfo on CoordinationAgentType {
+    coordinationUuid
+    agentUuid
+    agentName
+    agentDescription
+    agentInstructions
+    agentAdditionalInstructions
+    coordinationType
+    responseFormat
+    predecessor
+    successor
+    updatedBy
+    createdAt
+    updatedAt
+}
+
+fragment CoordinationAgentListInfo on CoordinationAgentListType {
+    coordinationAgentList{
+        ...CoordinationAgentInfo
+    }
+    pageSize
+    pageNumber
+    total
+}
+
+query ping {
+    ping
+}
+
+query getCoordination(
+    $coordinationType: String!,
+    $coordinationUuid: String!
+) {
+    coordination(
+        coordinationType: $coordinationType,
+        coordinationUuid: $coordinationUuid
+    ) {
+        ...CoordinationInfo
+    }
+}
+
+query getCoordinationList(
+    $pageNumber: Int, 
+    $limit: Int,
+    $coordinationType: String,
+    $coordinationName: String,
+    $coordinationDescription: String,
+    $assistantId: String,
+    $assistantTypes: [String]
+) {
+    coordinationList(
+        pageNumber: $pageNumber,
+        limit: $limit,
+        coordinationType: $coordinationType,
+        coordinationName: $coordinationName,
+        coordinationDescription: $coordinationDescription,
+        assistantId: $assistantId,
+        assistantTypes: $assistantTypes
+    ) {
+        ...CoordinationListInfo
+    }
+}
+
+mutation insertUpdateCoordination(
+    $coordinationType: String!,
+    $coordinationUuid: String,
+    $coordinationName: String,
+    $coordinationDescription: String,
+    $assistantId: String,
+    $assistantType: String,
+    $updatedBy: String!
+) {
+    insertUpdateCoordination(
+        coordinationType: $coordinationType,
+        coordinationUuid: $coordinationUuid,
+        coordinationName: $coordinationName,
+        coordinationDescription: $coordinationDescription,
+        assistantId: $assistantId,
+        assistantType: $assistantType,
+        updatedBy: $updatedBy
+    ) {
+        coordination{
+            ...CoordinationInfo
+        }
+    }
+}
+
+mutation deleteCoordination(
+    $coordinationType: String!,
+    $coordinationUuid: String!
+) {
+    deleteCoordination(
+        coordinationType: $coordinationType,
+        coordinationUuid: $coordinationUuid
+    ) {
+        ok
+    }
+}
+
+query getCoordinationAgent(
+    $coordinationUuid: String!,
+    $agentUuid: String!
+) {
+    coordinationAgent(
+        coordinationUuid: $coordinationUuid,
+        agentUuid: $agentUuid
+    ) {
+        ...CoordinationAgentInfo
+    }
+}
+
+query getCoordinationAgentList(
+    $pageNumber: Int, 
+    $limit: Int,
+    $coordinationUuid: String,
+    $agentName: String,
+    $agentDescription: String,
+    $coordinationTypes: [String],
+    $responseFormat: String,
+    $predecessor: String,
+    $successor: String
+) {
+    coordinationAgentList(
+        pageNumber: $pageNumber,
+        limit: $limit,
+        coordinationUuid: $coordinationUuid,
+        agentName: $agentName,
+        agentDescription: $agentDescription,
+        coordinationTypes: $coordinationTypes,
+        responseFormat: $responseFormat,
+        predecessor: $predecessor,
+        successor: $successor
+    ) {
+        ...CoordinationAgentListInfo
+    }
+}
+
+mutation insertUpdateCoordinationAgent(
+    $coordinationUuid: String!,
+    $agentUuid: String,
+    $agentName: String,
+    $agentDescription: String,
+    $agentInstructions: String,
+    $agentAdditionalInstructions: String,
+    $coordinationType: String,
+    $responseFormat: String,
+    $predecessor: String,
+    $successor: String,
+    $updatedBy: String!
+) {
+    insertUpdateCoordinationAgent(
+        coordinationUuid: $coordinationUuid,
+        agentUuid: $agentUuid,
+        agentName: $agentName,
+        agentDescription: $agentDescription,
+        agentInstructions: $agentInstructions,
+        agentAdditionalInstructions: $agentAdditionalInstructions,
+        coordinationType: $coordinationType,
+        responseFormat: $responseFormat,
+        predecessor: $predecessor,
+        successor: $successor,
+        updatedBy: $updatedBy
+    ) {
+        coordinationAgent{
+            ...CoordinationAgentInfo
+        }
+    }
+}
+
+mutation deleteCoordinationAgent(
+    $coordinationUuid: String!,
+    $agentUuid: String!
+) {
+    deleteCoordinationAgent(
+        coordinationUuid: $coordinationUuid,
+        agentUuid: $agentUuid
+    ) {
+        ok
+    }
+}
