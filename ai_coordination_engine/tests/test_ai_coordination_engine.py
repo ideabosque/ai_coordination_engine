@@ -145,7 +145,7 @@ class AICoordinationEngineTest(unittest.TestCase):
         response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
         logger.info(response)
 
-    # @unittest.skip("demonstrating skipping")
+    @unittest.skip("demonstrating skipping")
     def test_graphql_get_coordination_agent_list(self):
         payload = {
             "query": document,
@@ -153,6 +153,117 @@ class AICoordinationEngineTest(unittest.TestCase):
                 "coordinationUuid": "1057228940262445551",
             },
             "operation_name": "getCoordinationAgentList",
+        }
+        response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
+        logger.info(response)
+
+    @unittest.skip("demonstrating skipping")
+    def test_graphql_insert_update_coordination_session(self):
+        payload = {
+            "query": document,
+            "variables": {
+                "coordinationUuid": "1057228940262445551",
+                "sessionUuid": "11763350835914674671",
+                "coordinationType": "operation",
+                "threadId": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+                "currentAgentUuid": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+                "lastAssistantMessage": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+                "log": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+                "updatedBy": "XYZ",
+            },
+            "operation_name": "insertUpdateCoordinationSession",
+        }
+        response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
+        logger.info(response)
+
+    @unittest.skip("demonstrating skipping")
+    def test_graphql_delete_coordination_session(self):
+        payload = {
+            "query": document,
+            "variables": {
+                "coordinationUuid": "1057228940262445551",
+                "sessionUuid": "2194841317416964591",
+            },
+            "operation_name": "deleteCoordinationSession",
+        }
+        response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
+        logger.info(response)
+
+    @unittest.skip("demonstrating skipping")
+    def test_graphql_coordination_session(self):
+        payload = {
+            "query": document,
+            "variables": {
+                "coordinationUuid": "1057228940262445551",
+                "sessionUuid": "11763350835914674671",
+            },
+            "operation_name": "getCoordinationSession",
+        }
+        response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
+        logger.info(response)
+
+    @unittest.skip("demonstrating skipping")
+    def test_graphql_get_coordination_session_list(self):
+        payload = {
+            "query": document,
+            "variables": {
+                "coordinationUuid": "1057228940262445551",
+            },
+            "operation_name": "getCoordinationSessionList",
+        }
+        response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
+        logger.info(response)
+
+    @unittest.skip("demonstrating skipping")
+    def test_graphql_insert_update_coordination_message(self):
+        payload = {
+            "query": document,
+            "variables": {
+                "sessionUuid": "11763350835914674671",
+                "messageId": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+                "coordinationUuid": "1057228940262445551",
+                "threadId": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+                "agentUuid": "14313717474430489071",
+            },
+            "operation_name": "insertUpdateCoordinationMessage",
+        }
+        response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
+        logger.info(response)
+
+    @unittest.skip("demonstrating skipping")
+    def test_graphql_delete_coordination_message(self):
+        payload = {
+            "query": document,
+            "variables": {
+                "sessionUuid": "11763350835914674671",
+                "messageId": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+            },
+            "operation_name": "deleteCoordinationMessage",
+        }
+        response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
+        logger.info(response)
+
+    @unittest.skip("demonstrating skipping")
+    def test_graphql_coordination_message(self):
+        payload = {
+            "query": document,
+            "variables": {
+                "sessionUuid": "11763350835914674671",
+                "messageId": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+            },
+            "operation_name": "getCoordinationMessage",
+        }
+        response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
+        logger.info(response)
+
+    # @unittest.skip("demonstrating skipping")
+    def test_graphql_get_coordination_message_list(self):
+        payload = {
+            "query": document,
+            "variables": {
+                "sessionUuid": "11763350835914674671",
+            },
+            "operation_name": "getCoordinationMessageList",
         }
         response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
         logger.info(response)
