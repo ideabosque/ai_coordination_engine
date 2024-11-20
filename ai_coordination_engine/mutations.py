@@ -8,7 +8,6 @@ import traceback
 from typing import Any, Dict
 
 from graphene import Boolean, DateTime, Field, Float, Int, List, Mutation, String
-
 from silvaengine_utility import JSON
 
 from .handlers import (
@@ -185,10 +184,10 @@ class InsertUpdateCoordinationMessage(Mutation):
 
     class Arguments:
         session_uuid = String(required=True)
-        message_id = String(required=False)
-        coordination_uuid = String(required=False)
-        thread_id = String(required=False)
-        agent_uuid = String(required=False)
+        message_id = String(required=True)
+        coordination_uuid = String(required=True)
+        thread_id = String(required=True)
+        agent_uuid = String(required=True)
 
     @staticmethod
     def mutate(

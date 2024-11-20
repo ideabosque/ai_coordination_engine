@@ -589,6 +589,7 @@ def resolve_coordination_message_list_handler(
         "hash_key": "session_uuid",
         "range_key": "message_id",
     },
+    range_key_required=True,
     model_funct=get_coordination_message,
     count_funct=get_coordination_message_count,
     type_funct=get_coordination_message_type,
