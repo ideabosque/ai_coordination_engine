@@ -8,7 +8,6 @@ import logging
 from typing import Any, Dict, List
 
 from graphene import Schema
-
 from silvaengine_dynamodb_base import SilvaEngineDynamoDBBase
 
 from .handlers import handlers_init
@@ -26,6 +25,7 @@ def deploy() -> List:
                     "is_static": False,
                     "label": "AI Coordination GraphQL",
                     "query": [
+                        {"action": "ping", "label": "Ping"},
                         {
                             "action": "coordination",
                             "label": "View Coordination",
@@ -33,6 +33,30 @@ def deploy() -> List:
                         {
                             "action": "coordinationList",
                             "label": "View Coordination List",
+                        },
+                        {
+                            "action": "coordinationAgent",
+                            "label": "View Coordination Agent",
+                        },
+                        {
+                            "action": "coordinationAgentList",
+                            "label": "View Coordination Agent List",
+                        },
+                        {
+                            "action": "coordinationSession",
+                            "label": "View Coordination Session",
+                        },
+                        {
+                            "action": "coordinationSessionList",
+                            "label": "View Coordination Session List",
+                        },
+                        {
+                            "action": "coordinationMessage",
+                            "label": "View Coordination Message",
+                        },
+                        {
+                            "action": "coordinationMessageList",
+                            "label": "View Coordination Message List",
                         },
                     ],
                     "mutation": [
@@ -43,6 +67,30 @@ def deploy() -> List:
                         {
                             "action": "deleteCoordination",
                             "label": "Delete Coordination",
+                        },
+                        {
+                            "action": "insertUpdateCoordinationAgent",
+                            "label": "Create Update Coordination Agent",
+                        },
+                        {
+                            "action": "deleteCoordinationAgent",
+                            "label": "Delete Coordination Agent",
+                        },
+                        {
+                            "action": "insertUpdateCoordinationSession",
+                            "label": "Create Update Coordination Session",
+                        },
+                        {
+                            "action": "deleteCoordinationSession",
+                            "label": "Delete Coordination Session",
+                        },
+                        {
+                            "action": "insertUpdateCoordinationMessage",
+                            "label": "Create Update Coordination Message",
+                        },
+                        {
+                            "action": "deleteCoordinationMessage",
+                            "label": "Delete Coordination Message",
                         },
                     ],
                     "type": "RequestResponse",
