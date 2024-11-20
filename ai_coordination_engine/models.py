@@ -14,7 +14,6 @@ from pynamodb.attributes import (
     UTCDateTimeAttribute,
 )
 from pynamodb.indexes import AllProjection, LocalSecondaryIndex
-
 from silvaengine_dynamodb_base import BaseModel
 
 
@@ -77,6 +76,6 @@ class CoordinationMessageModel(BaseModel):
     message_id = UnicodeAttribute(range_key=True)
     coordination_uuid = UnicodeAttribute()
     thread_id = UnicodeAttribute()
-    agent_uuid = UnicodeAttribute()
+    agent_uuid = UnicodeAttribute(null=True)
     created_at = UTCDateTimeAttribute()
     updated_at = UTCDateTimeAttribute()

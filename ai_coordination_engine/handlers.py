@@ -57,6 +57,18 @@ def get_coordination(
     return CoordinationModel.get(coordination_type, coordination_uuid)
 
 
+def _get_coordination(coordination_type: str, coordination_uuid: str) -> Dict[str, Any]:
+    coordination = get_coordination(coordination_type, coordination_uuid)
+    return {
+        "coordination_type": coordination.coordination_type,
+        "coordination_uuid": coordination.coordination_uuid,
+        "coordination_name": coordination.coordination_name,
+        "coordination_description": coordination.coordination_description,
+        "assistant_id": coordination.assistant_id,
+        "assistant_type": coordination.assistant_type,
+    }
+
+
 def get_coordination_count(coordination_type: str, coordination_uuid: str) -> int:
     return CoordinationModel.count(
         coordination_type, CoordinationModel.coordination_uuid == coordination_uuid
@@ -193,6 +205,20 @@ def get_coordination_agent(
     return CoordinationAgentModel.get(coordination_uuid, agent_uuid)
 
 
+def _get_coordination_agent(coordination_uuid: str, agent_uuid: str) -> Dict[str, Any]:
+    coordination_agent = get_coordination_agent(coordination_uuid, agent_uuid)
+    return {
+        "agent_uuid": coordination_agent.agent_uuid,
+        "agent_name": coordination_agent.agent_name,
+        "agent_description": coordination_agent.agent_description,
+        "agent_instructions": coordination_agent.agent_instructions,
+        "agent_additional_instructions": coordination_agent.agent_additional_instructions,
+        "response_format": coordination_agent.response_format,
+        "predecessor": coordination_agent.predecessor,
+        "successor": coordination_agent.successor,
+    }
+
+
 def get_coordination_agent_count(coordination_uuid: str, agent_uuid: str) -> int:
     return CoordinationAgentModel.count(
         coordination_uuid, CoordinationAgentModel.agent_uuid == agent_uuid
@@ -202,7 +228,18 @@ def get_coordination_agent_count(coordination_uuid: str, agent_uuid: str) -> int
 def get_coordination_agent_type(
     info: ResolveInfo, coordination_agent: CoordinationAgentModel
 ) -> CoordinationAgentType:
+    try:
+        coordination = _get_coordination(
+            coordination_agent.coordination_type, coordination_agent.coordination_uuid
+        )
+    except Exception as e:
+        log = traceback.format_exc()
+        info.context.get("logger").exception(log)
+        raise e
     coordination_agent = coordination_agent.__dict__["attribute_values"]
+    coordination_agent["coordination"] = coordination
+    coordination_agent.pop("coordination_type")
+    coordination_agent.pop("coordination_uuid")
     return CoordinationAgentType(
         **Utility.json_loads(Utility.json_dumps(coordination_agent))
     )
@@ -379,7 +416,27 @@ def get_coordination_session_count(coordination_uuid: str, session_uuid: str) ->
 def get_coordination_session_type(
     info: ResolveInfo, coordination_session: CoordinationSessionModel
 ) -> CoordinationSessionType:
+    try:
+        coordination = _get_coordination(
+            coordination_session.coordination_type,
+            coordination_session.coordination_uuid,
+        )
+        current_agent = None
+        if coordination_session.current_agent_uuid is not None:
+            current_agent = _get_coordination_agent(
+                coordination_session.coordination_uuid,
+                coordination_session.current_agent_uuid,
+            )
+    except Exception as e:
+        log = traceback.format_exc()
+        info.context.get("logger").exception(log)
+        raise e
     coordination_session = coordination_session.__dict__["attribute_values"]
+    coordination_session["coordination"] = coordination
+    coordination_session["current_agent"] = current_agent
+    coordination_session.pop("coordination_type")
+    coordination_session.pop("coordination_uuid")
+    coordination_session.pop("current_agent_uuid", None)
     return CoordinationSessionType(
         **Utility.json_loads(Utility.json_dumps(coordination_session))
     )
@@ -605,10 +662,11 @@ def insert_update_coordination_message_handler(
         cols = {
             "coordination_uuid": kwargs["coordination_uuid"],
             "thread_id": kwargs["thread_id"],
-            "agent_uuid": kwargs["agent_uuid"],
             "created_at": pendulum.now("UTC"),
             "updated_at": pendulum.now("UTC"),
         }
+        if kwargs.get("agent_uuid") is not None:
+            cols["agent_uuid"] = kwargs["agent_uuid"]
         CoordinationMessageModel(
             session_uuid,
             message_id,

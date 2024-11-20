@@ -187,7 +187,7 @@ class InsertUpdateCoordinationMessage(Mutation):
         message_id = String(required=True)
         coordination_uuid = String(required=True)
         thread_id = String(required=True)
-        agent_uuid = String(required=True)
+        agent_uuid = String(required=False)
 
     @staticmethod
     def mutate(
