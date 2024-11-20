@@ -407,6 +407,31 @@ def get_coordination_session(
     return CoordinationSessionModel.get(coordination_uuid, session_uuid)
 
 
+def _get_coordination_session(
+    coordination_uuid: str, session_uuid: str
+) -> Dict[str, Any]:
+    coordination_session = get_coordination_session(coordination_uuid, session_uuid)
+    return {
+        "coordination": _get_coordination(
+            coordination_session.coordination_type,
+            coordination_session.coordination_uuid,
+        ),
+        "session_uuid": coordination_session.session_uuid,
+        "thread_id": coordination_session.thread_id,
+        "current_agent": (
+            _get_coordination_agent(
+                coordination_session.coordination_uuid,
+                coordination_session.current_agent_uuid,
+            )
+            if coordination_session.current_agent_uuid is not None
+            else None
+        ),
+        "last_assistant_message": coordination_session.last_assistant_message,
+        "status": coordination_session.status,
+        "log": coordination_session.log,
+    }
+
+
 def get_coordination_session_count(coordination_uuid: str, session_uuid: str) -> int:
     return CoordinationSessionModel.count(
         coordination_uuid, CoordinationSessionModel.session_uuid == session_uuid
@@ -593,7 +618,27 @@ def get_coordination_message_count(session_uuid: str, message_id: str) -> int:
 def get_coordination_message_type(
     info: ResolveInfo, coordination_message: CoordinationMessageModel
 ) -> CoordinationMessageType:
+    try:
+        coordination_session = _get_coordination_session(
+            coordination_message.coordination_uuid,
+            coordination_message.session_uuid,
+        )
+        coordination_agent = None
+        if coordination_message.agent_uuid is not None:
+            coordination_agent = _get_coordination_agent(
+                coordination_message.coordination_uuid,
+                coordination_message.agent_uuid,
+            )
+    except Exception as e:
+        log = traceback.format_exc()
+        info.context.get("logger").exception(log)
+        raise e
     coordination_message = coordination_message.__dict__["attribute_values"]
+    coordination_message["coordination_session"] = coordination_session
+    coordination_message["coordination_agent"] = coordination_agent
+    coordination_message.pop("coordination_uuid")
+    coordination_message.pop("session_uuid")
+    coordination_message.pop("agent_uuid", None)
     return CoordinationMessageType(
         **Utility.json_loads(Utility.json_dumps(coordination_message))
     )
