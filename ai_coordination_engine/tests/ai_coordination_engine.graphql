@@ -20,13 +20,12 @@ fragment CoordinationListInfo on CoordinationListType {
 }
 
 fragment CoordinationAgentInfo on CoordinationAgentType {
-    coordinationUuid
+    coordination
     agentUuid
     agentName
     agentDescription
     agentInstructions
     agentAdditionalInstructions
-    coordinationType
     responseFormat
     predecessor
     successor
@@ -45,11 +44,10 @@ fragment CoordinationAgentListInfo on CoordinationAgentListType {
 }
 
 fragment CoordinationSessionInfo on CoordinationSessionType {
-    coordinationUuid
+    coordination
     sessionUuid
-    coordinationType
     threadId
-    currentAgentUuid
+    currentAgent
     lastAssistantMessage
     status
     log
@@ -353,7 +351,7 @@ mutation insertUpdateCoordinationMessage(
     $messageId: String!,
     $coordinationUuid: String!,
     $threadId: String!,
-    $agentUuid: String!
+    $agentUuid: String
 ) {
     insertUpdateCoordinationMessage(
         sessionUuid: $sessionUuid,

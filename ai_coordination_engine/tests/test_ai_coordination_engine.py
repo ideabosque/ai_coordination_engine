@@ -166,7 +166,7 @@ class AICoordinationEngineTest(unittest.TestCase):
                 "sessionUuid": "11763350835914674671",
                 "coordinationType": "operation",
                 "threadId": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
-                "currentAgentUuid": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+                "currentAgentUuid": "14313717474430489071",
                 "lastAssistantMessage": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
                 "log": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
                 "updatedBy": "XYZ",
@@ -189,7 +189,7 @@ class AICoordinationEngineTest(unittest.TestCase):
         response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
         logger.info(response)
 
-    @unittest.skip("demonstrating skipping")
+    # @unittest.skip("demonstrating skipping")
     def test_graphql_coordination_session(self):
         payload = {
             "query": document,
@@ -256,7 +256,7 @@ class AICoordinationEngineTest(unittest.TestCase):
         response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
         logger.info(response)
 
-    # @unittest.skip("demonstrating skipping")
+    @unittest.skip("demonstrating skipping")
     def test_graphql_get_coordination_message_list(self):
         payload = {
             "query": document,
