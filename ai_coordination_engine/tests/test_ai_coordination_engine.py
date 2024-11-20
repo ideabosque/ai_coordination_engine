@@ -189,7 +189,7 @@ class AICoordinationEngineTest(unittest.TestCase):
         response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
         logger.info(response)
 
-    # @unittest.skip("demonstrating skipping")
+    @unittest.skip("demonstrating skipping")
     def test_graphql_coordination_session(self):
         payload = {
             "query": document,
@@ -243,7 +243,7 @@ class AICoordinationEngineTest(unittest.TestCase):
         response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
         logger.info(response)
 
-    @unittest.skip("demonstrating skipping")
+    # @unittest.skip("demonstrating skipping")
     def test_graphql_coordination_message(self):
         payload = {
             "query": document,

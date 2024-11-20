@@ -60,11 +60,10 @@ class CoordinationSessionType(ObjectType):
 
 
 class CoordinationMessageType(ObjectType):
-    session_uuid = String()
+    coordination_session = JSON()
     message_id = String()
-    coordination_uuid = String()
     thread_id = String()
-    agent_uuid = String()
+    coordination_agent = JSON()
     created_at = DateTime()
     updated_at = DateTime()
 

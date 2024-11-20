@@ -66,11 +66,10 @@ fragment CoordinationSessionListInfo on CoordinationSessionListType {
 }
 
 fragment CoordinationMessageInfo on CoordinationMessageType {
-    sessionUuid
+    coordinationSession
     messageId
-    coordinationUuid
     threadId
-    agentUuid
+    coordinationAgent
     createdAt
     updatedAt
 }
