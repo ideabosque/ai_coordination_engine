@@ -5,6 +5,7 @@ fragment CoordinationInfo on CoordinationType {
     coordinationDescription
     assistantId
     assistantType
+    additionalInstructions
     updatedBy
     createdAt
     updatedAt
@@ -25,7 +26,6 @@ fragment CoordinationAgentInfo on CoordinationAgentType {
     agentName
     agentDescription
     agentInstructions
-    agentAdditionalInstructions
     responseFormat
     predecessor
     successor
@@ -128,6 +128,7 @@ mutation insertUpdateCoordination(
     $coordinationDescription: String,
     $assistantId: String,
     $assistantType: String,
+    $additionalInstructions: String,
     $updatedBy: String!
 ) {
     insertUpdateCoordination(
@@ -137,6 +138,7 @@ mutation insertUpdateCoordination(
         coordinationDescription: $coordinationDescription,
         assistantId: $assistantId,
         assistantType: $assistantType,
+        additionalInstructions: $additionalInstructions,
         updatedBy: $updatedBy
     ) {
         coordination{
@@ -201,7 +203,6 @@ mutation insertUpdateCoordinationAgent(
     $agentName: String,
     $agentDescription: String,
     $agentInstructions: String,
-    $agentAdditionalInstructions: String,
     $coordinationType: String,
     $responseFormat: String,
     $predecessor: String,
@@ -214,7 +215,6 @@ mutation insertUpdateCoordinationAgent(
         agentName: $agentName,
         agentDescription: $agentDescription,
         agentInstructions: $agentInstructions,
-        agentAdditionalInstructions: $agentAdditionalInstructions,
         coordinationType: $coordinationType,
         responseFormat: $responseFormat,
         predecessor: $predecessor,
