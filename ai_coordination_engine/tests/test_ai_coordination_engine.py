@@ -41,7 +41,7 @@ class AICoordinationEngineTest(unittest.TestCase):
     def tearDown(self):
         logger.info("Destory AICoordinationEngineTest ...")
 
-    @unittest.skip("demonstrating skipping")
+    # @unittest.skip("demonstrating skipping")
     def test_graphql_insert_update_coordination(self):
         payload = {
             "query": document,
@@ -52,6 +52,7 @@ class AICoordinationEngineTest(unittest.TestCase):
                 "coordinationDescription": "XXXXXXXXXXXXXXXXXXXX",
                 "assistantId": "asst_CRw6YN4ZAZ2w7fz7LqYetrbm",
                 "assistantType": "conversation",
+                "additionalInstructions": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
                 "updatedBy": "XYZ",
             },
             "operation_name": "insertUpdateCoordination",
@@ -107,7 +108,6 @@ class AICoordinationEngineTest(unittest.TestCase):
                 "agentName": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
                 "agentDescription": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
                 "agentInstructions": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
-                "agentAdditionalInstructions": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
                 "coordinationType": "operation",
                 "responseFormat": "auto",
                 "predecessor": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
@@ -243,7 +243,7 @@ class AICoordinationEngineTest(unittest.TestCase):
         response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
         logger.info(response)
 
-    # @unittest.skip("demonstrating skipping")
+    @unittest.skip("demonstrating skipping")
     def test_graphql_coordination_message(self):
         payload = {
             "query": document,

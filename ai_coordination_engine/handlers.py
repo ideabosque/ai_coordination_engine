@@ -10,6 +10,8 @@ from typing import Any, Dict
 
 import pendulum
 from graphene import ResolveInfo
+from tenacity import retry, stop_after_attempt, wait_exponential
+
 from silvaengine_dynamodb_base import (
     delete_decorator,
     insert_update_decorator,
@@ -17,7 +19,6 @@ from silvaengine_dynamodb_base import (
     resolve_list_decorator,
 )
 from silvaengine_utility import Utility
-from tenacity import retry, stop_after_attempt, wait_exponential
 
 from .models import (
     CoordinationAgentModel,
@@ -66,6 +67,7 @@ def _get_coordination(coordination_type: str, coordination_uuid: str) -> Dict[st
         "coordination_description": coordination.coordination_description,
         "assistant_id": coordination.assistant_id,
         "assistant_type": coordination.assistant_type,
+        "additional_instructions": coordination.additional_instructions,
     }
 
 
@@ -144,18 +146,21 @@ def insert_update_coordination_handler(
     coordination_type = kwargs.get("coordination_type")
     coordination_uuid = kwargs.get("coordination_uuid")
     if kwargs.get("entity") is None:
+        cols = {
+            "coordination_name": kwargs["coordination_name"],
+            "coordination_description": kwargs["coordination_description"],
+            "assistant_id": kwargs["assistant_id"],
+            "assistant_type": kwargs["assistant_type"],
+            "updated_by": kwargs["updated_by"],
+            "created_at": pendulum.now("UTC"),
+            "updated_at": pendulum.now("UTC"),
+        }
+        if kwargs.get("additional_instructions") is not None:
+            cols["additional_instructions"] = kwargs["additional_instructions"]
         CoordinationModel(
             coordination_type,
             coordination_uuid,
-            **{
-                "coordination_name": kwargs["coordination_name"],
-                "coordination_description": kwargs["coordination_description"],
-                "assistant_id": kwargs["assistant_id"],
-                "assistant_type": kwargs["assistant_type"],
-                "updated_by": kwargs["updated_by"],
-                "created_at": pendulum.now("UTC"),
-                "updated_at": pendulum.now("UTC"),
-            },
+            **cols,
         ).save()
         return
 
@@ -178,6 +183,12 @@ def insert_update_coordination_handler(
         actions.append(CoordinationModel.assistant_id.set(kwargs["assistant_id"]))
     if kwargs.get("assistant_type") is not None:
         actions.append(CoordinationModel.assistant_type.set(kwargs["assistant_type"]))
+    if kwargs.get("additional_instructions") is not None:
+        actions.append(
+            CoordinationModel.additional_instructions.set(
+                kwargs["additional_instructions"]
+            )
+        )
     coordination.update(actions=actions)
     return
 
@@ -212,7 +223,6 @@ def _get_coordination_agent(coordination_uuid: str, agent_uuid: str) -> Dict[str
         "agent_name": coordination_agent.agent_name,
         "agent_description": coordination_agent.agent_description,
         "agent_instructions": coordination_agent.agent_instructions,
-        "agent_additional_instructions": coordination_agent.agent_additional_instructions,
         "response_format": coordination_agent.response_format,
         "predecessor": coordination_agent.predecessor,
         "successor": coordination_agent.successor,
@@ -328,10 +338,6 @@ def insert_update_coordination_agent_handler(
         }
         if kwargs.get("agent_instructions") is not None:
             cols["agent_instructions"] = kwargs["agent_instructions"]
-        if kwargs.get("agent_additional_instructions") is not None:
-            cols["agent_additional_instructions"] = kwargs[
-                "agent_additional_instructions"
-            ]
         if kwargs.get("response_format") is not None:
             cols["response_format"] = kwargs["response_format"]
         if kwargs.get("predecessor") is not None:
@@ -363,12 +369,6 @@ def insert_update_coordination_agent_handler(
     if kwargs.get("agent_instructions") is not None:
         actions.append(
             CoordinationAgentModel.agent_instructions.set(kwargs["agent_instructions"])
-        )
-    if kwargs.get("agent_additional_instructions") is not None:
-        actions.append(
-            CoordinationAgentModel.agent_additional_instructions.set(
-                kwargs["agent_additional_instructions"]
-            )
         )
     if kwargs.get("response_format") is not None:
         actions.append(

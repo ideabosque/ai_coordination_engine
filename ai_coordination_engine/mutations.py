@@ -8,6 +8,7 @@ import traceback
 from typing import Any, Dict
 
 from graphene import Boolean, DateTime, Field, Float, Int, List, Mutation, String
+
 from silvaengine_utility import JSON
 
 from .handlers import (
@@ -38,6 +39,7 @@ class InsertUpdateCoordination(Mutation):
         coordination_description = String(required=False)
         assistant_id = String(required=False)
         assistant_type = String(required=False)
+        additional_instructions = String(required=False)
         updated_by = String(required=True)
 
     @staticmethod
@@ -82,7 +84,6 @@ class InsertUpdateCoordinationAgent(Mutation):
         agent_name = String(required=False)
         agent_description = String(required=False)
         agent_instructions = String(required=False)
-        agent_additional_instructions = String(required=False)
         coordination_type = String(required=False)
         response_format = String(required=False)
         predecessor = String(required=False)
