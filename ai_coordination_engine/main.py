@@ -35,27 +35,27 @@ def deploy() -> List:
                             "label": "View Coordination List",
                         },
                         {
-                            "action": "coordinationAgent",
+                            "action": "agent",
                             "label": "View Coordination Agent",
                         },
                         {
-                            "action": "coordinationAgentList",
+                            "action": "agentList",
                             "label": "View Coordination Agent List",
                         },
                         {
-                            "action": "coordinationSession",
+                            "action": "session",
                             "label": "View Coordination Session",
                         },
                         {
-                            "action": "coordinationSessionList",
+                            "action": "sessionList",
                             "label": "View Coordination Session List",
                         },
                         {
-                            "action": "coordinationMessage",
+                            "action": "thread",
                             "label": "View Coordination Message",
                         },
                         {
-                            "action": "coordinationMessageList",
+                            "action": "threadList",
                             "label": "View Coordination Message List",
                         },
                     ],
@@ -69,27 +69,27 @@ def deploy() -> List:
                             "label": "Delete Coordination",
                         },
                         {
-                            "action": "insertUpdateCoordinationAgent",
+                            "action": "insertUpdateAgent",
                             "label": "Create Update Coordination Agent",
                         },
                         {
-                            "action": "deleteCoordinationAgent",
+                            "action": "deleteAgent",
                             "label": "Delete Coordination Agent",
                         },
                         {
-                            "action": "insertUpdateCoordinationSession",
+                            "action": "insertUpdateSession",
                             "label": "Create Update Coordination Session",
                         },
                         {
-                            "action": "deleteCoordinationSession",
+                            "action": "deleteSession",
                             "label": "Delete Coordination Session",
                         },
                         {
-                            "action": "insertUpdateCoordinationMessage",
+                            "action": "insertUpdateThread",
                             "label": "Create Update Coordination Message",
                         },
                         {
-                            "action": "deleteCoordinationMessage",
+                            "action": "deleteThread",
                             "label": "Delete Coordination Message",
                         },
                     ],

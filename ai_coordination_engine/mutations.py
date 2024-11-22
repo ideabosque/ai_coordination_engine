@@ -8,25 +8,19 @@ import traceback
 from typing import Any, Dict
 
 from graphene import Boolean, DateTime, Field, Float, Int, List, Mutation, String
-
 from silvaengine_utility import JSON
 
 from .handlers import (
-    delete_coordination_agent_handler,
+    delete_agent_handler,
     delete_coordination_handler,
-    delete_coordination_message_handler,
-    delete_coordination_session_handler,
-    insert_update_coordination_agent_handler,
+    delete_session_handler,
+    delete_thread_handler,
+    insert_update_agent_handler,
     insert_update_coordination_handler,
-    insert_update_coordination_message_handler,
-    insert_update_coordination_session_handler,
+    insert_update_session_handler,
+    insert_update_thread_handler,
 )
-from .types import (
-    CoordinationAgentType,
-    CoordinationMessageType,
-    CoordinationSessionType,
-    CoordinationType,
-)
+from .types import AgentType, CoordinationType, SessionType, ThreadType
 
 
 class InsertUpdateCoordination(Mutation):
@@ -75,8 +69,8 @@ class DeleteCoordination(Mutation):
         return DeleteCoordination(ok=ok)
 
 
-class InsertUpdateCoordinationAgent(Mutation):
-    coordination_agent = Field(CoordinationAgentType)
+class InsertUpdateAgent(Mutation):
+    agent = Field(AgentType)
 
     class Arguments:
         coordination_uuid = String(required=True)
@@ -92,22 +86,18 @@ class InsertUpdateCoordinationAgent(Mutation):
         updated_by = String(required=True)
 
     @staticmethod
-    def mutate(
-        root: Any, info: Any, **kwargs: Dict[str, Any]
-    ) -> "InsertUpdateCoordinationAgent":
+    def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "InsertUpdateAgent":
         try:
-            coordination_agent = insert_update_coordination_agent_handler(
-                info, **kwargs
-            )
+            agent = insert_update_agent_handler(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
             info.context.get("logger").error(log)
             raise e
 
-        return InsertUpdateCoordinationAgent(coordination_agent=coordination_agent)
+        return InsertUpdateAgent(agent=agent)
 
 
-class DeleteCoordinationAgent(Mutation):
+class DeleteAgent(Mutation):
     ok = Boolean()
 
     class Arguments:
@@ -115,101 +105,85 @@ class DeleteCoordinationAgent(Mutation):
         agent_uuid = String(required=True)
 
     @staticmethod
-    def mutate(
-        root: Any, info: Any, **kwargs: Dict[str, Any]
-    ) -> "DeleteCoordinationAgent":
+    def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "DeleteAgent":
         try:
-            ok = delete_coordination_agent_handler(info, **kwargs)
+            ok = delete_agent_handler(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
             info.context.get("logger").error(log)
             raise e
 
-        return DeleteCoordinationAgent(ok=ok)
+        return DeleteAgent(ok=ok)
 
 
-class InsertUpdateCoordinationSession(Mutation):
-    coordination_session = Field(CoordinationSessionType)
+class InsertUpdateSession(Mutation):
+    session = Field(SessionType)
 
     class Arguments:
         coordination_uuid = String(required=True)
         session_uuid = String(required=False)
         coordination_type = String(required=False)
-        thread_id = String(required=False)
-        current_agent_uuid = String(required=False)
+        status = String(required=False)
+        notes = String(required=False)
+        updated_by = String(required=True)
+
+    @staticmethod
+    def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "InsertUpdateSession":
+        try:
+            session = insert_update_session_handler(info, **kwargs)
+        except Exception as e:
+            log = traceback.format_exc()
+            info.context.get("logger").error(log)
+            raise e
+
+        return InsertUpdateSession(session=session)
+
+
+class DeleteSession(Mutation):
+    ok = Boolean()
+
+    class Arguments:
+        coordination_uuid = String(required=True)
+        session_uuid = String(required=True)
+
+    @staticmethod
+    def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "DeleteSession":
+        try:
+            ok = delete_session_handler(info, **kwargs)
+        except Exception as e:
+            log = traceback.format_exc()
+            info.context.get("logger").error(log)
+            raise e
+
+        return DeleteSession(ok=ok)
+
+
+class InsertUpdateThread(Mutation):
+    thread = Field(ThreadType)
+
+    class Arguments:
+        session_uuid = String(required=True)
+        thread_id = String(required=True)
+        coordination_uuid = String(required=True)
+        agent_uuid = String(required=False)
         last_assistant_message = String(required=False)
         status = String(required=False)
         log = String(required=False)
         updated_by = String(required=True)
 
     @staticmethod
-    def mutate(
-        root: Any, info: Any, **kwargs: Dict[str, Any]
-    ) -> "InsertUpdateCoordinationSession":
+    def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "InsertUpdateThread":
         try:
-            coordination_session = insert_update_coordination_session_handler(
-                info, **kwargs
-            )
+            thread = insert_update_thread_handler(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
             info.context.get("logger").error(log)
             raise e
 
-        return InsertUpdateCoordinationSession(
-            coordination_session=coordination_session
-        )
+        return InsertUpdateThread(thread=thread)
 
 
-class DeleteCoordinationSession(Mutation):
-    ok = Boolean()
-
-    class Arguments:
-        coordination_uuid = String(required=True)
-        session_uuid = String(required=True)
-
-    @staticmethod
-    def mutate(
-        root: Any, info: Any, **kwargs: Dict[str, Any]
-    ) -> "DeleteCoordinationSession":
-        try:
-            ok = delete_coordination_session_handler(info, **kwargs)
-        except Exception as e:
-            log = traceback.format_exc()
-            info.context.get("logger").error(log)
-            raise e
-
-        return DeleteCoordinationSession(ok=ok)
-
-
-class InsertUpdateCoordinationMessage(Mutation):
-    coordination_message = Field(CoordinationMessageType)
-
-    class Arguments:
-        session_uuid = String(required=True)
-        message_id = String(required=True)
-        coordination_uuid = String(required=True)
-        thread_id = String(required=True)
-        agent_uuid = String(required=False)
-
-    @staticmethod
-    def mutate(
-        root: Any, info: Any, **kwargs: Dict[str, Any]
-    ) -> "InsertUpdateCoordinationMessage":
-        try:
-            coordination_message = insert_update_coordination_message_handler(
-                info, **kwargs
-            )
-        except Exception as e:
-            log = traceback.format_exc()
-            info.context.get("logger").error(log)
-            raise e
-
-        return InsertUpdateCoordinationMessage(
-            coordination_message=coordination_message
-        )
-
-
-class DeleteCoordinationMessage(Mutation):
+class DeleteThread(Mutation):
     ok = Boolean()
 
     class Arguments:
@@ -217,14 +191,12 @@ class DeleteCoordinationMessage(Mutation):
         message_id = String(required=True)
 
     @staticmethod
-    def mutate(
-        root: Any, info: Any, **kwargs: Dict[str, Any]
-    ) -> "DeleteCoordinationMessage":
+    def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "DeleteThread":
         try:
-            ok = delete_coordination_message_handler(info, **kwargs)
+            ok = delete_thread_handler(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
             info.context.get("logger").error(log)
             raise e
 
-        return DeleteCoordinationMessage(ok=ok)
+        return DeleteThread(ok=ok)

@@ -15,7 +15,6 @@ from graphene import (
     ObjectType,
     String,
 )
-
 from silvaengine_dynamodb_base import ListObjectType
 from silvaengine_utility import JSON
 
@@ -33,7 +32,7 @@ class CoordinationType(ObjectType):
     updated_at = DateTime()
 
 
-class CoordinationAgentType(ObjectType):
+class AgentType(ObjectType):
     coordination = JSON()
     agent_uuid = String()
     agent_name = String()
@@ -48,11 +47,21 @@ class CoordinationAgentType(ObjectType):
     updated_at = DateTime()
 
 
-class CoordinationSessionType(ObjectType):
+class SessionType(ObjectType):
     coordination = JSON()
     session_uuid = String()
+    thread_ids = List(String)
+    status = String()
+    notes = String()
+    updated_by = String()
+    created_at = DateTime()
+    updated_at = DateTime()
+
+
+class ThreadType(ObjectType):
+    session = JSON()
     thread_id = String()
-    current_agent = JSON()
+    agent = JSON()
     last_assistant_message = String()
     status = String()
     log = String()
@@ -61,26 +70,17 @@ class CoordinationSessionType(ObjectType):
     updated_at = DateTime()
 
 
-class CoordinationMessageType(ObjectType):
-    coordination_session = JSON()
-    message_id = String()
-    thread_id = String()
-    coordination_agent = JSON()
-    created_at = DateTime()
-    updated_at = DateTime()
-
-
 class CoordinationListType(ListObjectType):
     coordination_list = List(CoordinationType)
 
 
-class CoordinationAgentListType(ListObjectType):
-    coordination_agent_list = List(CoordinationAgentType)
+class AgentListType(ListObjectType):
+    agent_list = List(AgentType)
 
 
-class CoordinationSessionListType(ListObjectType):
-    coordination_session_list = List(CoordinationSessionType)
+class SessionListType(ListObjectType):
+    session_list = List(SessionType)
 
 
-class CoordinationMessageListType(ListObjectType):
-    coordination_message_list = List(CoordinationMessageType)
+class ThreadListType(ListObjectType):
+    thread_list = List(ThreadType)
