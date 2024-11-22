@@ -95,7 +95,6 @@ class Query(ObjectType):
         limit=Int(required=False),
         coordination_uuid=String(required=False),
         agent_name=String(required=False),
-        agent_description=String(required=False),
         coordination_types=List(String, required=False),
         response_format=String(required=False),
         predecessor=String(required=False),

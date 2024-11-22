@@ -24,9 +24,9 @@ fragment CoordinationAgentInfo on CoordinationAgentType {
     coordination
     agentUuid
     agentName
-    agentDescription
     agentInstructions
     responseFormat
+    jsonSchema
     predecessor
     successor
     updatedBy
@@ -176,7 +176,6 @@ query getCoordinationAgentList(
     $limit: Int,
     $coordinationUuid: String,
     $agentName: String,
-    $agentDescription: String,
     $coordinationTypes: [String],
     $responseFormat: String,
     $predecessor: String,
@@ -187,7 +186,6 @@ query getCoordinationAgentList(
         limit: $limit,
         coordinationUuid: $coordinationUuid,
         agentName: $agentName,
-        agentDescription: $agentDescription,
         coordinationTypes: $coordinationTypes,
         responseFormat: $responseFormat,
         predecessor: $predecessor,
@@ -201,10 +199,10 @@ mutation insertUpdateCoordinationAgent(
     $coordinationUuid: String!,
     $agentUuid: String,
     $agentName: String,
-    $agentDescription: String,
     $agentInstructions: String,
     $coordinationType: String,
     $responseFormat: String,
+    $jsonSchema: JSON,
     $predecessor: String,
     $successor: String,
     $updatedBy: String!
@@ -213,10 +211,10 @@ mutation insertUpdateCoordinationAgent(
         coordinationUuid: $coordinationUuid,
         agentUuid: $agentUuid,
         agentName: $agentName,
-        agentDescription: $agentDescription,
         agentInstructions: $agentInstructions,
         coordinationType: $coordinationType,
         responseFormat: $responseFormat,
+        jsonSchema: $jsonSchema,
         predecessor: $predecessor,
         successor: $successor,
         updatedBy: $updatedBy
