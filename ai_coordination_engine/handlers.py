@@ -163,26 +163,21 @@ def insert_update_coordination_handler(
         CoordinationModel.updated_by.set(kwargs["updated_by"]),
         CoordinationModel.updated_at.set(pendulum.now("UTC")),
     ]
-    if kwargs.get("coordination_name") is not None:
-        actions.append(
-            CoordinationModel.coordination_name.set(kwargs["coordination_name"])
-        )
-    if kwargs.get("coordination_description") is not None:
-        actions.append(
-            CoordinationModel.coordination_description.set(
-                kwargs.get("coordination_description")
-            )
-        )
-    if kwargs.get("assistant_id") is not None:
-        actions.append(CoordinationModel.assistant_id.set(kwargs["assistant_id"]))
-    if kwargs.get("assistant_type") is not None:
-        actions.append(CoordinationModel.assistant_type.set(kwargs["assistant_type"]))
-    if kwargs.get("additional_instructions") is not None:
-        actions.append(
-            CoordinationModel.additional_instructions.set(
-                kwargs["additional_instructions"]
-            )
-        )
+    # Map of potential keys in kwargs to CoordinationModel attributes
+    field_map = {
+        "coordination_name": CoordinationModel.coordination_name,
+        "coordination_description": CoordinationModel.coordination_description,
+        "assistant_id": CoordinationModel.assistant_id,
+        "assistant_type": CoordinationModel.assistant_type,
+        "additional_instructions": CoordinationModel.additional_instructions,
+    }
+
+    # Check if a key exists in kwargs before adding it to the update actions
+    for key, field in field_map.items():
+        if key in kwargs:  # Only add to actions if the key exists in kwargs
+            actions.append(field.set(None if kwargs[key] == "null" else kwargs[key]))
+
+    # Update the coordination entity
     coordination.update(actions=actions)
     return
 
@@ -335,22 +330,24 @@ def insert_update_agent_handler(info: ResolveInfo, **kwargs: Dict[str, Any]) -> 
         AgentModel.updated_by.set(kwargs["updated_by"]),
         AgentModel.updated_at.set(pendulum.now("UTC")),
     ]
-    if kwargs.get("agent_name") is not None:
-        actions.append(AgentModel.agent_name.set(kwargs["agent_name"]))
-    if kwargs.get("coordination_type") is not None:
-        actions.append(AgentModel.coordination_type.set(kwargs["coordination_type"]))
-    if kwargs.get("agent_instructions") is not None:
-        actions.append(AgentModel.agent_instructions.set(kwargs["agent_instructions"]))
-    if kwargs.get("response_format") is not None:
-        actions.append(AgentModel.response_format.set(kwargs["response_format"]))
-    if kwargs.get("json_schema") is not None:
-        actions.append(AgentModel.json_schema.set(kwargs["json_schema"]))
-    if kwargs.get("tools") is not None:
-        actions.append(AgentModel.tools.set(kwargs["tools"]))
-    if kwargs.get("predecessor") is not None:
-        actions.append(AgentModel.predecessor.set(kwargs["predecessor"]))
-    if kwargs.get("successor") is not None:
-        actions.append(AgentModel.successor.set(kwargs["successor"]))
+    # Map of kwargs keys to AgentModel attributes
+    field_map = {
+        "agent_name": AgentModel.agent_name,
+        "coordination_type": AgentModel.coordination_type,
+        "agent_instructions": AgentModel.agent_instructions,
+        "response_format": AgentModel.response_format,
+        "json_schema": AgentModel.json_schema,
+        "tools": AgentModel.tools,
+        "predecessor": AgentModel.predecessor,
+        "successor": AgentModel.successor,
+    }
+
+    # Build actions dynamically based on the presence of keys in kwargs
+    for key, field in field_map.items():
+        if key in kwargs:  # Check if the key exists in kwargs
+            actions.append(field.set(None if kwargs[key] == "null" else kwargs[key]))
+
+    # Update the agent
     agent.update(actions=actions)
     return
 
@@ -487,12 +484,19 @@ def insert_update_session_handler(info: ResolveInfo, **kwargs: Dict[str, Any]) -
         SessionModel.updated_by.set(kwargs["updated_by"]),
         SessionModel.updated_at.set(pendulum.now("UTC")),
     ]
-    if kwargs.get("coordination_type") is not None:
-        actions.append(SessionModel.coordination_type.set(kwargs["coordination_type"]))
-    if kwargs.get("status") is not None:
-        actions.append(SessionModel.status.set(kwargs["status"]))
-    if kwargs.get("notes") is not None:
-        actions.append(SessionModel.notes.set(kwargs["notes"]))
+    # Map of kwargs keys to SessionModel attributes
+    field_map = {
+        "coordination_type": SessionModel.coordination_type,
+        "status": SessionModel.status,
+        "notes": SessionModel.notes,
+    }
+
+    # Add actions dynamically based on the presence of keys in kwargs
+    for key, field in field_map.items():
+        if key in kwargs:  # Check if the key exists in kwargs
+            actions.append(field.set(None if kwargs[key] == "null" else kwargs[key]))
+
+    # Update the session
     session.update(actions=actions)
     return
 
@@ -624,18 +628,21 @@ def insert_update_thread_handler(info: ResolveInfo, **kwargs: Dict[str, Any]) ->
         SessionModel.updated_by.set(kwargs["updated_by"]),
         ThreadModel.updated_at.set(pendulum.now("UTC")),
     ]
-    if kwargs.get("coordination_uuid") is not None:
-        actions.append(ThreadModel.coordination_uuid.set(kwargs["coordination_uuid"]))
-    if kwargs.get("agent_uuid") is not None:
-        actions.append(ThreadModel.agent_uuid.set(kwargs["agent_uuid"]))
-    if kwargs.get("last_assistant_message") is not None:
-        actions.append(
-            ThreadModel.last_assistant_message.set(kwargs["last_assistant_message"])
-        )
-    if kwargs.get("status") is not None:
-        actions.append(ThreadModel.status.set(kwargs["status"]))
-    if kwargs.get("log") is not None:
-        actions.append(ThreadModel.log.set(kwargs["log"]))
+    # Map of kwargs keys to ThreadModel attributes
+    field_map = {
+        "coordination_uuid": ThreadModel.coordination_uuid,
+        "agent_uuid": ThreadModel.agent_uuid,
+        "last_assistant_message": ThreadModel.last_assistant_message,
+        "status": ThreadModel.status,
+        "log": ThreadModel.log,
+    }
+
+    # Add actions dynamically based on the presence of keys in kwargs
+    for key, field in field_map.items():
+        if key in kwargs:  # Check if the key exists in kwargs
+            actions.append(field.set(None if kwargs[key] == "null" else kwargs[key]))
+
+    # Update the thread
     thread.update(actions=actions)
     return
 

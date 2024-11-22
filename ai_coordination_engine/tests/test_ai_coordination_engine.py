@@ -166,7 +166,7 @@ class AICoordinationEngineTest(unittest.TestCase):
                 "sessionUuid": "7172266856517145071",
                 "coordinationType": "operation",
                 "status": "active",
-                "notes": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+                "notes": "null",
                 "updatedBy": "XYZ",
             },
             "operation_name": "insertUpdateSession",
