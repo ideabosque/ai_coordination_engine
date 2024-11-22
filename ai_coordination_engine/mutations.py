@@ -8,6 +8,7 @@ import traceback
 from typing import Any, Dict
 
 from graphene import Boolean, DateTime, Field, Float, Int, List, Mutation, String
+
 from silvaengine_utility import JSON
 
 from .handlers import (
@@ -85,6 +86,7 @@ class InsertUpdateCoordinationAgent(Mutation):
         coordination_type = String(required=False)
         response_format = String(required=False)
         json_schema = JSON(required=False)
+        tools = List(JSON, required=False)
         predecessor = String(required=False)
         successor = String(required=False)
         updated_by = String(required=True)
