@@ -10,6 +10,8 @@ from typing import Any, Dict
 
 import pendulum
 from graphene import ResolveInfo
+from tenacity import retry, stop_after_attempt, wait_exponential
+
 from silvaengine_dynamodb_base import (
     delete_decorator,
     insert_update_decorator,
@@ -17,7 +19,6 @@ from silvaengine_dynamodb_base import (
     resolve_list_decorator,
 )
 from silvaengine_utility import Utility
-from tenacity import retry, stop_after_attempt, wait_exponential
 
 from .models import (
     CoordinationAgentModel,
@@ -334,6 +335,8 @@ def insert_update_coordination_agent_handler(
             cols["response_format"] = kwargs["response_format"]
         if kwargs.get("json_schema") is not None:
             cols["json_schema"] = kwargs["json_schema"]
+        if kwargs.get("tools") is not None:
+            cols["tools"] = kwargs["tools"]
         if kwargs.get("predecessor") is not None:
             cols["predecessor"] = kwargs["predecessor"]
         if kwargs.get("successor") is not None:
@@ -366,6 +369,8 @@ def insert_update_coordination_agent_handler(
         )
     if kwargs.get("json_schema") is not None:
         actions.append(CoordinationAgentModel.json_schema.set(kwargs["json_schema"]))
+    if kwargs.get("tools") is not None:
+        actions.append(CoordinationAgentModel.tools.set(kwargs["tools"]))
     if kwargs.get("predecessor") is not None:
         actions.append(CoordinationAgentModel.predecessor.set(kwargs["predecessor"]))
     if kwargs.get("successor") is not None:

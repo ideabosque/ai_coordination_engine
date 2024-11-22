@@ -27,6 +27,7 @@ fragment CoordinationAgentInfo on CoordinationAgentType {
     agentInstructions
     responseFormat
     jsonSchema
+    tools
     predecessor
     successor
     updatedBy
@@ -203,6 +204,7 @@ mutation insertUpdateCoordinationAgent(
     $coordinationType: String,
     $responseFormat: String,
     $jsonSchema: JSON,
+    $tools: [JSON],
     $predecessor: String,
     $successor: String,
     $updatedBy: String!
@@ -215,6 +217,7 @@ mutation insertUpdateCoordinationAgent(
         coordinationType: $coordinationType,
         responseFormat: $responseFormat,
         jsonSchema: $jsonSchema,
+        tools: $tools,
         predecessor: $predecessor,
         successor: $successor,
         updatedBy: $updatedBy
