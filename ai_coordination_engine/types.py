@@ -15,7 +15,6 @@ from graphene import (
     ObjectType,
     String,
 )
-
 from silvaengine_dynamodb_base import ListObjectType
 from silvaengine_utility import JSON
 
@@ -37,9 +36,9 @@ class CoordinationAgentType(ObjectType):
     coordination = JSON()
     agent_uuid = String()
     agent_name = String()
-    agent_description = String()
     agent_instructions = String()
     response_format = String()
+    json_schema = JSON()
     predecessor = String()
     successor = String()
     updated_by = String()

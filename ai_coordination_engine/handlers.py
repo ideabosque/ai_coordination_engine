@@ -10,8 +10,6 @@ from typing import Any, Dict
 
 import pendulum
 from graphene import ResolveInfo
-from tenacity import retry, stop_after_attempt, wait_exponential
-
 from silvaengine_dynamodb_base import (
     delete_decorator,
     insert_update_decorator,
@@ -19,6 +17,7 @@ from silvaengine_dynamodb_base import (
     resolve_list_decorator,
 )
 from silvaengine_utility import Utility
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 from .models import (
     CoordinationAgentModel,
@@ -221,7 +220,6 @@ def _get_coordination_agent(coordination_uuid: str, agent_uuid: str) -> Dict[str
     return {
         "agent_uuid": coordination_agent.agent_uuid,
         "agent_name": coordination_agent.agent_name,
-        "agent_description": coordination_agent.agent_description,
         "agent_instructions": coordination_agent.agent_instructions,
         "response_format": coordination_agent.response_format,
         "predecessor": coordination_agent.predecessor,
@@ -275,7 +273,6 @@ def resolve_coordination_agent_list_handler(
 ) -> Any:
     coordination_uuid = kwargs.get("coordination_uuid")
     agent_name = kwargs.get("agent_name")
-    agent_description = kwargs.get("agent_description")
     coordination_types = kwargs.get("coordination_types")
     response_format = kwargs.get("response_format")
     predecessor = kwargs.get("predecessor")
@@ -291,10 +288,6 @@ def resolve_coordination_agent_list_handler(
     the_filters = None  # We can add filters for the query.
     if agent_name is not None:
         the_filters &= CoordinationAgentModel.agent_name.contains(agent_name)
-    if agent_description is not None:
-        the_filters &= CoordinationAgentModel.agent_description.contains(
-            agent_description
-        )
     if coordination_types is not None:
         the_filters &= CoordinationAgentModel.coordination_type.is_in(
             *coordination_types
@@ -330,7 +323,6 @@ def insert_update_coordination_agent_handler(
     if kwargs.get("entity") is None:
         cols = {
             "agent_name": kwargs["agent_name"],
-            "agent_description": kwargs["agent_description"],
             "coordination_type": kwargs["coordination_type"],
             "updated_by": kwargs["updated_by"],
             "created_at": pendulum.now("UTC"),
@@ -340,6 +332,8 @@ def insert_update_coordination_agent_handler(
             cols["agent_instructions"] = kwargs["agent_instructions"]
         if kwargs.get("response_format") is not None:
             cols["response_format"] = kwargs["response_format"]
+        if kwargs.get("json_schema") is not None:
+            cols["json_schema"] = kwargs["json_schema"]
         if kwargs.get("predecessor") is not None:
             cols["predecessor"] = kwargs["predecessor"]
         if kwargs.get("successor") is not None:
@@ -358,10 +352,6 @@ def insert_update_coordination_agent_handler(
     ]
     if kwargs.get("agent_name") is not None:
         actions.append(CoordinationAgentModel.agent_name.set(kwargs["agent_name"]))
-    if kwargs.get("agent_description") is not None:
-        actions.append(
-            CoordinationAgentModel.agent_description.set(kwargs["agent_description"])
-        )
     if kwargs.get("coordination_type") is not None:
         actions.append(
             CoordinationAgentModel.coordination_type.set(kwargs["coordination_type"])
@@ -374,6 +364,8 @@ def insert_update_coordination_agent_handler(
         actions.append(
             CoordinationAgentModel.response_format.set(kwargs["response_format"])
         )
+    if kwargs.get("json_schema") is not None:
+        actions.append(CoordinationAgentModel.json_schema.set(kwargs["json_schema"]))
     if kwargs.get("predecessor") is not None:
         actions.append(CoordinationAgentModel.predecessor.set(kwargs["predecessor"]))
     if kwargs.get("successor") is not None:
