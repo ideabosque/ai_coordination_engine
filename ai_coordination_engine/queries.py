@@ -9,24 +9,24 @@ from typing import Any, Dict
 from graphene import ResolveInfo
 
 from .handlers import (
-    resolve_coordination_agent_handler,
-    resolve_coordination_agent_list_handler,
+    resolve_agent_handler,
+    resolve_agent_list_handler,
     resolve_coordination_handler,
     resolve_coordination_list_handler,
-    resolve_coordination_message_handler,
-    resolve_coordination_message_list_handler,
-    resolve_coordination_session_handler,
-    resolve_coordination_session_list_handler,
+    resolve_session_handler,
+    resolve_session_list_handler,
+    resolve_thread_handler,
+    resolve_thread_list_handler,
 )
 from .types import (
-    CoordinationAgentListType,
-    CoordinationAgentType,
+    AgentListType,
+    AgentType,
     CoordinationListType,
-    CoordinationMessageListType,
-    CoordinationMessageType,
-    CoordinationSessionListType,
-    CoordinationSessionType,
     CoordinationType,
+    SessionListType,
+    SessionType,
+    ThreadListType,
+    ThreadType,
 )
 
 
@@ -42,37 +42,27 @@ def resolve_coordination_list(
     return resolve_coordination_list_handler(info, **kwargs)
 
 
-def resolve_coordination_agent(
+def resolve_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AgentType:
+    return resolve_agent_handler(info, **kwargs)
+
+
+def resolve_agent_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AgentListType:
+    return resolve_agent_list_handler(info, **kwargs)
+
+
+def resolve_session(info: ResolveInfo, **kwargs: Dict[str, Any]) -> SessionType:
+    return resolve_session_handler(info, **kwargs)
+
+
+def resolve_session_list(
     info: ResolveInfo, **kwargs: Dict[str, Any]
-) -> CoordinationAgentType:
-    return resolve_coordination_agent_handler(info, **kwargs)
+) -> SessionListType:
+    return resolve_session_list_handler(info, **kwargs)
 
 
-def resolve_coordination_agent_list(
-    info: ResolveInfo, **kwargs: Dict[str, Any]
-) -> CoordinationAgentListType:
-    return resolve_coordination_agent_list_handler(info, **kwargs)
+def resolve_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> ThreadType:
+    return resolve_thread_handler(info, **kwargs)
 
 
-def resolve_coordination_session(
-    info: ResolveInfo, **kwargs: Dict[str, Any]
-) -> CoordinationSessionType:
-    return resolve_coordination_session_handler(info, **kwargs)
-
-
-def resolve_coordination_session_list(
-    info: ResolveInfo, **kwargs: Dict[str, Any]
-) -> CoordinationSessionListType:
-    return resolve_coordination_session_list_handler(info, **kwargs)
-
-
-def resolve_coordination_message(
-    info: ResolveInfo, **kwargs: Dict[str, Any]
-) -> CoordinationMessageType:
-    return resolve_coordination_message_handler(info, **kwargs)
-
-
-def resolve_coordination_message_list(
-    info: ResolveInfo, **kwargs: Dict[str, Any]
-) -> CoordinationMessageListType:
-    return resolve_coordination_message_list_handler(info, **kwargs)
+def resolve_thread_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> ThreadListType:
+    return resolve_thread_list_handler(info, **kwargs)

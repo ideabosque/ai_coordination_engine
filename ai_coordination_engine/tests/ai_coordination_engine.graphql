@@ -20,7 +20,7 @@ fragment CoordinationListInfo on CoordinationListType {
     total
 }
 
-fragment CoordinationAgentInfo on CoordinationAgentType {
+fragment AgentInfo on AgentType {
     coordination
     agentUuid
     agentName
@@ -35,49 +35,49 @@ fragment CoordinationAgentInfo on CoordinationAgentType {
     updatedAt
 }
 
-fragment CoordinationAgentListInfo on CoordinationAgentListType {
-    coordinationAgentList{
-        ...CoordinationAgentInfo
+fragment AgentListInfo on AgentListType {
+    agentList{
+        ...AgentInfo
     }
     pageSize
     pageNumber
     total
 }
 
-fragment CoordinationSessionInfo on CoordinationSessionType {
+fragment SessionInfo on SessionType {
     coordination
     sessionUuid
-    threadId
-    currentAgent
-    lastAssistantMessage
+    threadIds
     status
-    log
+    notes
     updatedBy
     createdAt
     updatedAt
 }
 
-fragment CoordinationSessionListInfo on CoordinationSessionListType {
-    coordinationSessionList{
-        ...CoordinationSessionInfo
+fragment SessionListInfo on SessionListType {
+    sessionList{
+        ...SessionInfo
     }
     pageSize
     pageNumber
     total
 }
 
-fragment CoordinationMessageInfo on CoordinationMessageType {
-    coordinationSession
-    messageId
+fragment ThreadInfo on ThreadType {
+    session
     threadId
-    coordinationAgent
+    agent
+    lastAssistantMessage
+    status
+    log
     createdAt
     updatedAt
 }
 
-fragment CoordinationMessageListInfo on CoordinationMessageListType {
-    coordinationMessageList{
-        ...CoordinationMessageInfo
+fragment ThreadListInfo on ThreadListType {
+    threadList{
+        ...ThreadInfo
     }
     pageSize
     pageNumber
@@ -160,19 +160,19 @@ mutation deleteCoordination(
     }
 }
 
-query getCoordinationAgent(
+query getAgent(
     $coordinationUuid: String!,
     $agentUuid: String!
 ) {
-    coordinationAgent(
+    agent(
         coordinationUuid: $coordinationUuid,
         agentUuid: $agentUuid
     ) {
-        ...CoordinationAgentInfo
+        ...AgentInfo
     }
 }
 
-query getCoordinationAgentList(
+query getAgentList(
     $pageNumber: Int, 
     $limit: Int,
     $coordinationUuid: String,
@@ -182,7 +182,7 @@ query getCoordinationAgentList(
     $predecessor: String,
     $successor: String
 ) {
-    coordinationAgentList(
+    agentList(
         pageNumber: $pageNumber,
         limit: $limit,
         coordinationUuid: $coordinationUuid,
@@ -192,11 +192,11 @@ query getCoordinationAgentList(
         predecessor: $predecessor,
         successor: $successor
     ) {
-        ...CoordinationAgentListInfo
+        ...AgentListInfo
     }
 }
 
-mutation insertUpdateCoordinationAgent(
+mutation insertUpdateAgent(
     $coordinationUuid: String!,
     $agentUuid: String,
     $agentName: String,
@@ -209,7 +209,7 @@ mutation insertUpdateCoordinationAgent(
     $successor: String,
     $updatedBy: String!
 ) {
-    insertUpdateCoordinationAgent(
+    insertUpdateAgent(
         coordinationUuid: $coordinationUuid,
         agentUuid: $agentUuid,
         agentName: $agentName,
@@ -222,17 +222,17 @@ mutation insertUpdateCoordinationAgent(
         successor: $successor,
         updatedBy: $updatedBy
     ) {
-        coordinationAgent{
-            ...CoordinationAgentInfo
+        agent{
+            ...AgentInfo
         }
     }
 }
 
-mutation deleteCoordinationAgent(
+mutation deleteAgent(
     $coordinationUuid: String!,
     $agentUuid: String!
 ) {
-    deleteCoordinationAgent(
+    deleteAgent(
         coordinationUuid: $coordinationUuid,
         agentUuid: $agentUuid
     ) {
@@ -240,137 +240,131 @@ mutation deleteCoordinationAgent(
     }
 }
 
-query getCoordinationSession(
+query getSession(
     $coordinationUuid: String!,
     $sessionUuid: String!
 ) {
-    coordinationSession(
+    session(
         coordinationUuid: $coordinationUuid,
         sessionUuid: $sessionUuid
     ) {
-        ...CoordinationSessionInfo
+        ...SessionInfo
     }
 }
 
-query getCoordinationSessionList(
+query getSessionList(
     $pageNumber: Int,
     $limit: Int,
     $coordinationUuid: String,
     $coordinationTypes: [String],
-    $threadId: String,
-    $currentAgentUuid: String,
     $statuses: [String],
 ) {
-    coordinationSessionList(
+    sessionList(
         pageNumber: $pageNumber,
         limit: $limit,
         coordinationUuid: $coordinationUuid,
         coordinationTypes: $coordinationTypes,
-        threadId: $threadId,
-        currentAgentUuid: $currentAgentUuid,
         statuses: $statuses
     ) {
-        ...CoordinationSessionListInfo
+        ...SessionListInfo
     }
 }
 
-mutation insertUpdateCoordinationSession(
+mutation insertUpdateSession(
     $coordinationUuid: String!,
     $sessionUuid: String,
     $coordinationType: String,
-    $threadId: String,
-    $currentAgentUuid: String,
+    $status: String,
+    $notes: String,
+    $updatedBy: String!
+) {
+    insertUpdateSession(
+        coordinationUuid: $coordinationUuid,
+        sessionUuid: $sessionUuid,
+        coordinationType: $coordinationType,
+        status: $status,
+        notes: $notes,
+        updatedBy: $updatedBy
+    ) {
+        session{
+            ...SessionInfo
+        }
+    }
+}
+
+mutation deleteSession(
+    $coordinationUuid: String!,
+    $sessionUuid: String!
+) {
+    deleteSession(
+        coordinationUuid: $coordinationUuid,
+        sessionUuid: $sessionUuid
+    ) {
+        ok
+    }
+}
+
+query getThread(
+    $sessionUuid: String!,
+    $messageId: String!
+) {
+    thread(
+        sessionUuid: $sessionUuid,
+        messageId: $messageId
+    ) {
+        ...ThreadInfo
+    }
+}
+
+query getThreadList(
+    $pageNumber: Int,
+    $limit: Int,
+    $sessionUuid: String,
+    $coordinationUuid: String,
+    $agentUuid: String
+) {
+    threadList(
+        pageNumber: $pageNumber,
+        limit: $limit,
+        sessionUuid: $sessionUuid,
+        coordinationUuid: $coordinationUuid,
+        agentUuid: $agentUuid
+    ) {
+        ...ThreadListInfo
+    }
+}
+
+mutation insertUpdateThread(
+    $sessionUuid: String!,
+    $threadId: String!,
+    $coordinationUuid: String!,
+    $agentUuid: String,
     $lastAssistantMessage: String,
     $status: String,
     $log: String,
     $updatedBy: String!
 ) {
-    insertUpdateCoordinationSession(
-        coordinationUuid: $coordinationUuid,
+    insertUpdateThread(
         sessionUuid: $sessionUuid,
-        coordinationType: $coordinationType,
         threadId: $threadId,
-        currentAgentUuid: $currentAgentUuid,
+        coordinationUuid: $coordinationUuid,
+        agentUuid: $agentUuid,
         lastAssistantMessage: $lastAssistantMessage,
         status: $status,
         log: $log,
         updatedBy: $updatedBy
     ) {
-        coordinationSession{
-            ...CoordinationSessionInfo
+        thread{
+            ...ThreadInfo
         }
     }
 }
 
-mutation deleteCoordinationSession(
-    $coordinationUuid: String!,
-    $sessionUuid: String!
-) {
-    deleteCoordinationSession(
-        coordinationUuid: $coordinationUuid,
-        sessionUuid: $sessionUuid
-    ) {
-        ok
-    }
-}
-
-query getCoordinationMessage(
+mutation deleteThread(
     $sessionUuid: String!,
     $messageId: String!
 ) {
-    coordinationMessage(
-        sessionUuid: $sessionUuid,
-        messageId: $messageId
-    ) {
-        ...CoordinationMessageInfo
-    }
-}
-
-query getCoordinationMessageList(
-    $pageNumber: Int,
-    $limit: Int,
-    $sessionUuid: String,
-    $coordinationUuid: String,
-    $threadId: String,
-    $agentUuid: String
-) {
-    coordinationMessageList(
-        pageNumber: $pageNumber,
-        limit: $limit,
-        sessionUuid: $sessionUuid,
-        coordinationUuid: $coordinationUuid,
-        threadId: $threadId,
-        agentUuid: $agentUuid
-    ) {
-        ...CoordinationMessageListInfo
-    }
-}
-
-mutation insertUpdateCoordinationMessage(
-    $sessionUuid: String!,
-    $messageId: String!,
-    $coordinationUuid: String!,
-    $threadId: String!,
-    $agentUuid: String
-) {
-    insertUpdateCoordinationMessage(
-        sessionUuid: $sessionUuid,
-        messageId: $messageId,
-        coordinationUuid: $coordinationUuid,
-        threadId: $threadId,
-        agentUuid: $agentUuid
-    ) {
-        coordinationMessage{
-            ...CoordinationMessageInfo
-        }
-    }
-}
-
-mutation deleteCoordinationMessage(
-    $sessionUuid: String!,
-    $messageId: String!
-) {
-    deleteCoordinationMessage(
+    deleteThread(
         sessionUuid: $sessionUuid,
         messageId: $messageId
     ) {

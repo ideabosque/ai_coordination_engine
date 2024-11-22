@@ -14,7 +14,6 @@ from pynamodb.attributes import (
     UTCDateTimeAttribute,
 )
 from pynamodb.indexes import AllProjection, LocalSecondaryIndex
-
 from silvaengine_dynamodb_base import BaseModel
 
 
@@ -34,9 +33,9 @@ class CoordinationModel(BaseModel):
     updated_at = UTCDateTimeAttribute()
 
 
-class CoordinationAgentModel(BaseModel):
+class AgentModel(BaseModel):
     class Meta(BaseModel.Meta):
-        table_name = "ace-coordination_agents"
+        table_name = "ace-agents"
 
     coordination_uuid = UnicodeAttribute(hash_key=True)
     agent_uuid = UnicodeAttribute(range_key=True)
@@ -53,31 +52,31 @@ class CoordinationAgentModel(BaseModel):
     updated_at = UTCDateTimeAttribute()
 
 
-class CoordinationSessionModel(BaseModel):
+class SessionModel(BaseModel):
     class Meta(BaseModel.Meta):
-        table_name = "ace-coordination_sessions"
+        table_name = "ace-sessions"
 
     coordination_uuid = UnicodeAttribute(hash_key=True)
     session_uuid = UnicodeAttribute(range_key=True)
     coordination_type = UnicodeAttribute()
-    thread_id = UnicodeAttribute()
-    current_agent_uuid = UnicodeAttribute(null=True)
-    last_assistant_message = UnicodeAttribute(null=True)
     status = UnicodeAttribute(default="initial")
-    log = UnicodeAttribute(null=True)
+    notes = UnicodeAttribute(null=True)
     updated_by = UnicodeAttribute()
     created_at = UTCDateTimeAttribute()
     updated_at = UTCDateTimeAttribute()
 
 
-class CoordinationMessageModel(BaseModel):
+class ThreadModel(BaseModel):
     class Meta(BaseModel.Meta):
-        table_name = "ace-coordination_messages"
+        table_name = "ace-threads"
 
     session_uuid = UnicodeAttribute(hash_key=True)
-    message_id = UnicodeAttribute(range_key=True)
+    thread_id = UnicodeAttribute(range_key=True)
     coordination_uuid = UnicodeAttribute()
-    thread_id = UnicodeAttribute()
     agent_uuid = UnicodeAttribute(null=True)
+    last_assistant_message = UnicodeAttribute(null=True)
+    status = UnicodeAttribute(default="initial")
+    log = UnicodeAttribute(null=True)
+    updated_by = UnicodeAttribute()
     created_at = UTCDateTimeAttribute()
     updated_at = UTCDateTimeAttribute()
