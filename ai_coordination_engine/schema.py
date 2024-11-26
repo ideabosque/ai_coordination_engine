@@ -119,7 +119,7 @@ class Query(ObjectType):
     thread = Field(
         ThreadType,
         session_uuid=String(required=True),
-        message_id=String(required=True),
+        thread_id=String(required=True),
     )
 
     thread_list = Field(
