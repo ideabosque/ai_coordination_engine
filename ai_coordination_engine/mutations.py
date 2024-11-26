@@ -8,6 +8,7 @@ import traceback
 from typing import Any, Dict
 
 from graphene import Boolean, DateTime, Field, Float, Int, List, Mutation, String
+
 from silvaengine_utility import JSON
 
 from .handlers import (
@@ -188,7 +189,7 @@ class DeleteThread(Mutation):
 
     class Arguments:
         session_uuid = String(required=True)
-        message_id = String(required=True)
+        thread_id = String(required=True)
 
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "DeleteThread":

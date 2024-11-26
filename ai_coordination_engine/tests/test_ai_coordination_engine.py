@@ -86,13 +86,11 @@ class AICoordinationEngineTest(unittest.TestCase):
         response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
         logger.info(response)
 
-    @unittest.skip("demonstrating skipping")
-    def test_graphql_get_coordination_list(self):
+    # @unittest.skip("demonstrating skipping")
+    def test_graphql_coordination_list(self):
         payload = {
             "query": document,
-            "variables": {
-                "coordinationType": "operation",
-            },
+            "variables": {"coordinationType": "operation"},
             "operation_name": "getCoordinationList",
         }
         response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
@@ -146,7 +144,7 @@ class AICoordinationEngineTest(unittest.TestCase):
         logger.info(response)
 
     @unittest.skip("demonstrating skipping")
-    def test_graphql_get_agent_list(self):
+    def test_graphql_agent_list(self):
         payload = {
             "query": document,
             "variables": {
@@ -157,7 +155,7 @@ class AICoordinationEngineTest(unittest.TestCase):
         response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
         logger.info(response)
 
-    # @unittest.skip("demonstrating skipping")
+    @unittest.skip("demonstrating skipping")
     def test_graphql_insert_update_session(self):
         payload = {
             "query": document,
@@ -201,7 +199,7 @@ class AICoordinationEngineTest(unittest.TestCase):
         logger.info(response)
 
     @unittest.skip("demonstrating skipping")
-    def test_graphql_get_session_list(self):
+    def test_graphql_session_list(self):
         payload = {
             "query": document,
             "variables": {
@@ -257,7 +255,7 @@ class AICoordinationEngineTest(unittest.TestCase):
         logger.info(response)
 
     @unittest.skip("demonstrating skipping")
-    def test_graphql_get_thread_list(self):
+    def test_graphql_thread_list(self):
         payload = {
             "query": document,
             "variables": {

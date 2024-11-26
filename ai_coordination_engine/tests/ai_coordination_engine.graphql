@@ -306,11 +306,11 @@ mutation deleteSession(
 
 query getThread(
     $sessionUuid: String!,
-    $messageId: String!
+    $threadId: String!
 ) {
     thread(
         sessionUuid: $sessionUuid,
-        messageId: $messageId
+        threadId: $threadId
     ) {
         ...ThreadInfo
     }
@@ -362,11 +362,11 @@ mutation insertUpdateThread(
 
 mutation deleteThread(
     $sessionUuid: String!,
-    $messageId: String!
+    $threadId: String!
 ) {
     deleteThread(
         sessionUuid: $sessionUuid,
-        messageId: $messageId
+        threadId: $threadId
     ) {
         ok
     }
