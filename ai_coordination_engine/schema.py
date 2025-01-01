@@ -134,30 +134,40 @@ class Query(ObjectType):
     def resolve_ping(self, info: ResolveInfo) -> str:
         return f"Hello at {time.strftime('%X')}!!"
 
-    def resolve_coordination(self, info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
+    def resolve_coordination(
+        self, info: ResolveInfo, **kwargs: Dict[str, Any]
+    ) -> CoordinationType:
         return resolve_coordination(info, **kwargs)
 
     def resolve_coordination_list(
         self, info: ResolveInfo, **kwargs: Dict[str, Any]
-    ) -> Any:
+    ) -> CoordinationListType:
         return resolve_coordination_list(info, **kwargs)
 
-    def resolve_agent(self, info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
+    def resolve_agent(self, info: ResolveInfo, **kwargs: Dict[str, Any]) -> AgentType:
         return resolve_agent(info, **kwargs)
 
-    def resolve_agent_list(self, info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
+    def resolve_agent_list(
+        self, info: ResolveInfo, **kwargs: Dict[str, Any]
+    ) -> AgentListType:
         return resolve_agent_list(info, **kwargs)
 
-    def resolve_session(self, info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
+    def resolve_session(
+        self, info: ResolveInfo, **kwargs: Dict[str, Any]
+    ) -> SessionType:
         return resolve_session(info, **kwargs)
 
-    def resolve_session_list(self, info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
+    def resolve_session_list(
+        self, info: ResolveInfo, **kwargs: Dict[str, Any]
+    ) -> SessionListType:
         return resolve_session_list(info, **kwargs)
 
-    def resolve_thread(self, info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
+    def resolve_thread(self, info: ResolveInfo, **kwargs: Dict[str, Any]) -> ThreadType:
         return resolve_thread(info, **kwargs)
 
-    def resolve_thread_list(self, info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
+    def resolve_thread_list(
+        self, info: ResolveInfo, **kwargs: Dict[str, Any]
+    ) -> ThreadListType:
         return resolve_thread_list(info, **kwargs)
 
 
