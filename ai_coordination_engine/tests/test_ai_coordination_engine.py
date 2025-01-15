@@ -24,8 +24,8 @@ setting = {
 document = Path(
     os.path.join(os.path.dirname(__file__), "ai_coordination_engine.graphql")
 ).read_text()
-sys.path.insert(0, "/var/www/projects/ai_coordination_engine")
-sys.path.insert(1, "/var/www/projects/silvaengine_dynamodb_base")
+sys.path.insert(0, f"{os.getenv('base_dir')}/ai_coordination_engine")
+sys.path.insert(1, f"{os.getenv('base_dir')}/silvaengine_dynamodb_base")
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 logger = logging.getLogger()
@@ -47,7 +47,7 @@ class AICoordinationEngineTest(unittest.TestCase):
             "query": document,
             "variables": {
                 "coordinationType": "operation",
-                "coordinationUuid": "1057228940262445551",
+                # "coordinationUuid": "1057228940262445551",
                 "coordinationName": "RFQ Op",
                 "coordinationDescription": "XXXXXXXXXXXXXXXXXXXX",
                 "assistantId": "asst_CRw6YN4ZAZ2w7fz7LqYetrbm",
@@ -66,7 +66,7 @@ class AICoordinationEngineTest(unittest.TestCase):
             "query": document,
             "variables": {
                 "coordinationType": "operation",
-                "coordinationUuid": "11097893215860822511",
+                "coordinationUuid": "5795829138505404911",
             },
             "operation_name": "deleteCoordination",
         }
@@ -86,7 +86,7 @@ class AICoordinationEngineTest(unittest.TestCase):
         response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
         logger.info(response)
 
-    # @unittest.skip("demonstrating skipping")
+    @unittest.skip("demonstrating skipping")
     def test_graphql_coordination_list(self):
         payload = {
             "query": document,
@@ -198,7 +198,7 @@ class AICoordinationEngineTest(unittest.TestCase):
         response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
         logger.info(response)
 
-    @unittest.skip("demonstrating skipping")
+    # @unittest.skip("demonstrating skipping")
     def test_graphql_session_list(self):
         payload = {
             "query": document,
@@ -246,8 +246,8 @@ class AICoordinationEngineTest(unittest.TestCase):
         payload = {
             "query": document,
             "variables": {
-                "sessionUuid": "11763350835914674671",
-                "messageId": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+                "sessionUuid": "13393439109748756975",
+                "threadId": "thread_BITniZMWRWXj6kFuVg5vsnPj",
             },
             "operation_name": "getThread",
         }
@@ -259,7 +259,7 @@ class AICoordinationEngineTest(unittest.TestCase):
         payload = {
             "query": document,
             "variables": {
-                "sessionUuid": "11763350835914674671",
+                "sessionUuid": "13393439109748756975",
             },
             "operation_name": "getThreadList",
         }

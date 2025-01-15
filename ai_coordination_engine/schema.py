@@ -7,47 +7,20 @@ __author__ = "bibow"
 import time
 from typing import Any, Dict
 
-from graphene import (
-    Boolean,
-    DateTime,
-    Field,
-    Int,
-    List,
-    ObjectType,
-    ResolveInfo,
-    String,
-)
+from graphene import Field, Int, List, ObjectType, ResolveInfo, String
 
-from .mutations import (
-    DeleteAgent,
-    DeleteCoordination,
-    DeleteSession,
-    DeleteThread,
-    InsertUpdateAgent,
-    InsertUpdateCoordination,
-    InsertUpdateSession,
-    InsertUpdateThread,
-)
-from .queries import (
-    resolve_agent,
-    resolve_agent_list,
-    resolve_coordination,
-    resolve_coordination_list,
-    resolve_session,
-    resolve_session_list,
-    resolve_thread,
-    resolve_thread_list,
-)
-from .types import (
-    AgentListType,
-    AgentType,
-    CoordinationListType,
-    CoordinationType,
-    SessionListType,
-    SessionType,
-    ThreadListType,
-    ThreadType,
-)
+from .mutations.agent import DeleteAgent, InsertUpdateAgent
+from .mutations.coordination import DeleteCoordination, InsertUpdateCoordination
+from .mutations.session import DeleteSession, InsertUpdateSession
+from .mutations.thread import DeleteThread, InsertUpdateThread
+from .queries.agent import resolve_agent, resolve_agent_list
+from .queries.coordination import resolve_coordination, resolve_coordination_list
+from .queries.session import resolve_session, resolve_session_list
+from .queries.thread import resolve_thread, resolve_thread_list
+from .types.agent import AgentListType, AgentType
+from .types.coordination import CoordinationListType, CoordinationType
+from .types.session import SessionListType, SessionType
+from .types.thread import ThreadListType, ThreadType
 
 
 def type_class():
