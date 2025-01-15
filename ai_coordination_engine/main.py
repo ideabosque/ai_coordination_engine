@@ -8,10 +8,9 @@ import logging
 from typing import Any, Dict, List
 
 from graphene import Schema
-
 from silvaengine_dynamodb_base import SilvaEngineDynamoDBBase
 
-from .handlers import handlers_init
+from .handlers.config import Config
 from .schema import Mutations, Query, type_class
 
 
@@ -108,7 +107,8 @@ def deploy() -> List:
 
 class AICoordinationEngine(SilvaEngineDynamoDBBase):
     def __init__(self, logger: logging.Logger, **setting: Dict[str, Any]) -> None:
-        handlers_init(logger, **setting)
+        # Initialize configuration via the Config class
+        Config.initialize(logger, **setting)
 
         self.logger = logger
         self.setting = setting
