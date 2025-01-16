@@ -10,6 +10,8 @@ from typing import Any, Dict
 import pendulum
 from graphene import ResolveInfo
 from pynamodb.attributes import UnicodeAttribute, UTCDateTimeAttribute
+from tenacity import retry, stop_after_attempt, wait_exponential
+
 from silvaengine_dynamodb_base import (
     BaseModel,
     delete_decorator,
@@ -18,7 +20,6 @@ from silvaengine_dynamodb_base import (
     resolve_list_decorator,
 )
 from silvaengine_utility import Utility
-from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..types.coordination import CoordinationListType, CoordinationType
 
@@ -75,7 +76,6 @@ def resolve_coordination(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     attributes_to_get=["coordination_type", "coordination_uuid"],
     list_type_class=CoordinationListType,
     type_funct=get_coordination_type,
-    suffix="_list",
 )
 def resolve_coordination_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     coordination_type = kwargs.get("coordination_type")

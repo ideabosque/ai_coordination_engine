@@ -11,6 +11,8 @@ from typing import Any, Dict
 import pendulum
 from graphene import ResolveInfo
 from pynamodb.attributes import UnicodeAttribute, UTCDateTimeAttribute
+from tenacity import retry, stop_after_attempt, wait_exponential
+
 from silvaengine_dynamodb_base import (
     BaseModel,
     delete_decorator,
@@ -19,7 +21,6 @@ from silvaengine_dynamodb_base import (
     resolve_list_decorator,
 )
 from silvaengine_utility import Utility
-from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..types.thread import ThreadListType, ThreadType
 from .utils import _get_agent, _get_session
@@ -91,7 +92,6 @@ def resolve_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> ThreadType:
     attributes_to_get=["session_uuid", "thread_id"],
     list_type_class=ThreadListType,
     type_funct=get_thread_type,
-    suffix="_list",
 )
 def resolve_thread_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     session_uuid = kwargs.get("session_uuid")
