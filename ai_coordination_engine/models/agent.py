@@ -15,6 +15,8 @@ from pynamodb.attributes import (
     UnicodeAttribute,
     UTCDateTimeAttribute,
 )
+from tenacity import retry, stop_after_attempt, wait_exponential
+
 from silvaengine_dynamodb_base import (
     BaseModel,
     delete_decorator,
@@ -23,7 +25,6 @@ from silvaengine_dynamodb_base import (
     resolve_list_decorator,
 )
 from silvaengine_utility import Utility
-from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..types.agent import AgentListType, AgentType
 from .utils import _get_coordination
@@ -89,7 +90,6 @@ def resolve_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> AgentType:
     attributes_to_get=["coordination_uuid", "agent_uuid"],
     list_type_class=AgentListType,
     type_funct=get_agent_type,
-    suffix="_list",
 )
 def resolve_agent_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     coordination_uuid = kwargs.get("coordination_uuid")
