@@ -1,10 +1,9 @@
 fragment CoordinationInfo on CoordinationType {
-    coordinationType
+    endpointId
     coordinationUuid
     coordinationName
     coordinationDescription
     assistantId
-    assistantType
     additionalInstructions
     updatedBy
     createdAt
@@ -22,7 +21,7 @@ fragment CoordinationListInfo on CoordinationListType {
 
 fragment AgentInfo on AgentType {
     coordination
-    agentUuid
+    agentVersionUuid
     agentName
     agentInstructions
     responseFormat
@@ -30,6 +29,7 @@ fragment AgentInfo on AgentType {
     tools
     predecessor
     successor
+    status
     updatedBy
     createdAt
     updatedAt
@@ -89,11 +89,9 @@ query ping {
 }
 
 query getCoordination(
-    $coordinationType: String!,
     $coordinationUuid: String!
 ) {
     coordination(
-        coordinationType: $coordinationType,
         coordinationUuid: $coordinationUuid
     ) {
         ...CoordinationInfo
@@ -103,42 +101,34 @@ query getCoordination(
 query getCoordinationList(
     $pageNumber: Int, 
     $limit: Int,
-    $coordinationType: String,
     $coordinationName: String,
     $coordinationDescription: String,
-    $assistantId: String,
-    $assistantTypes: [String]
+    $assistantId: String
 ) {
     coordinationList(
         pageNumber: $pageNumber,
         limit: $limit,
-        coordinationType: $coordinationType,
         coordinationName: $coordinationName,
         coordinationDescription: $coordinationDescription,
-        assistantId: $assistantId,
-        assistantTypes: $assistantTypes
+        assistantId: $assistantId
     ) {
         ...CoordinationListInfo
     }
 }
 
 mutation insertUpdateCoordination(
-    $coordinationType: String!,
     $coordinationUuid: String,
     $coordinationName: String,
     $coordinationDescription: String,
     $assistantId: String,
-    $assistantType: String,
     $additionalInstructions: String,
     $updatedBy: String!
 ) {
     insertUpdateCoordination(
-        coordinationType: $coordinationType,
         coordinationUuid: $coordinationUuid,
         coordinationName: $coordinationName,
         coordinationDescription: $coordinationDescription,
         assistantId: $assistantId,
-        assistantType: $assistantType,
         additionalInstructions: $additionalInstructions,
         updatedBy: $updatedBy
     ) {
@@ -149,11 +139,9 @@ mutation insertUpdateCoordination(
 }
 
 mutation deleteCoordination(
-    $coordinationType: String!,
     $coordinationUuid: String!
 ) {
     deleteCoordination(
-        coordinationType: $coordinationType,
         coordinationUuid: $coordinationUuid
     ) {
         ok
@@ -162,11 +150,13 @@ mutation deleteCoordination(
 
 query getAgent(
     $coordinationUuid: String!,
-    $agentUuid: String!
+    $agentName: String,
+    $agentVersionUuid: String
 ) {
     agent(
         coordinationUuid: $coordinationUuid,
-        agentUuid: $agentUuid
+        agentName: $agentName,
+        agentVersionUuid: $agentVersionUuid
     ) {
         ...AgentInfo
     }
@@ -177,7 +167,6 @@ query getAgentList(
     $limit: Int,
     $coordinationUuid: String,
     $agentName: String,
-    $coordinationTypes: [String],
     $responseFormat: String,
     $predecessor: String,
     $successor: String
@@ -187,7 +176,6 @@ query getAgentList(
         limit: $limit,
         coordinationUuid: $coordinationUuid,
         agentName: $agentName,
-        coordinationTypes: $coordinationTypes,
         responseFormat: $responseFormat,
         predecessor: $predecessor,
         successor: $successor
@@ -198,28 +186,28 @@ query getAgentList(
 
 mutation insertUpdateAgent(
     $coordinationUuid: String!,
-    $agentUuid: String,
-    $agentName: String,
+    $agentVersionUuid: String,
+    $agentName: String!,
     $agentInstructions: String,
-    $coordinationType: String,
     $responseFormat: String,
     $jsonSchema: JSON,
     $tools: [JSON],
     $predecessor: String,
     $successor: String,
+    $status: String,
     $updatedBy: String!
 ) {
     insertUpdateAgent(
         coordinationUuid: $coordinationUuid,
-        agentUuid: $agentUuid,
+        agentVersionUuid: $agentVersionUuid,
         agentName: $agentName,
         agentInstructions: $agentInstructions,
-        coordinationType: $coordinationType,
         responseFormat: $responseFormat,
         jsonSchema: $jsonSchema,
         tools: $tools,
         predecessor: $predecessor,
         successor: $successor,
+        status: $status,
         updatedBy: $updatedBy
     ) {
         agent{
@@ -230,11 +218,11 @@ mutation insertUpdateAgent(
 
 mutation deleteAgent(
     $coordinationUuid: String!,
-    $agentUuid: String!
+    $agentVersionUuid: String!
 ) {
     deleteAgent(
         coordinationUuid: $coordinationUuid,
-        agentUuid: $agentUuid
+        agentVersionUuid: $agentVersionUuid
     ) {
         ok
     }
@@ -256,14 +244,12 @@ query getSessionList(
     $pageNumber: Int,
     $limit: Int,
     $coordinationUuid: String,
-    $coordinationTypes: [String],
     $statuses: [String],
 ) {
     sessionList(
         pageNumber: $pageNumber,
         limit: $limit,
         coordinationUuid: $coordinationUuid,
-        coordinationTypes: $coordinationTypes,
         statuses: $statuses
     ) {
         ...SessionListInfo
@@ -273,7 +259,6 @@ query getSessionList(
 mutation insertUpdateSession(
     $coordinationUuid: String!,
     $sessionUuid: String,
-    $coordinationType: String,
     $status: String,
     $notes: String,
     $updatedBy: String!
@@ -281,7 +266,6 @@ mutation insertUpdateSession(
     insertUpdateSession(
         coordinationUuid: $coordinationUuid,
         sessionUuid: $sessionUuid,
-        coordinationType: $coordinationType,
         status: $status,
         notes: $notes,
         updatedBy: $updatedBy
@@ -321,14 +305,14 @@ query getThreadList(
     $limit: Int,
     $sessionUuid: String,
     $coordinationUuid: String,
-    $agentUuid: String
+    $agentName: String
 ) {
     threadList(
         pageNumber: $pageNumber,
         limit: $limit,
         sessionUuid: $sessionUuid,
         coordinationUuid: $coordinationUuid,
-        agentUuid: $agentUuid
+        agentName: $agentName
     ) {
         ...ThreadListInfo
     }
@@ -338,7 +322,7 @@ mutation insertUpdateThread(
     $sessionUuid: String!,
     $threadId: String!,
     $coordinationUuid: String!,
-    $agentUuid: String,
+    $agentName: String,
     $lastAssistantMessage: String,
     $status: String,
     $log: String,
@@ -348,7 +332,7 @@ mutation insertUpdateThread(
         sessionUuid: $sessionUuid,
         threadId: $threadId,
         coordinationUuid: $coordinationUuid,
-        agentUuid: $agentUuid,
+        agentName: $agentName,
         lastAssistantMessage: $lastAssistantMessage,
         status: $status,
         log: $log,

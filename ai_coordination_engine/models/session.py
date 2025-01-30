@@ -32,7 +32,7 @@ class SessionModel(BaseModel):
 
     coordination_uuid = UnicodeAttribute(hash_key=True)
     session_uuid = UnicodeAttribute(range_key=True)
-    coordination_type = UnicodeAttribute()
+    endpoint_id = UnicodeAttribute()
     status = UnicodeAttribute(default="initial")
     notes = UnicodeAttribute(null=True)
     updated_by = UnicodeAttribute()
@@ -58,7 +58,7 @@ def get_session_count(coordination_uuid: str, session_uuid: str) -> int:
 def get_session_type(info: ResolveInfo, session: SessionModel) -> SessionType:
     try:
         coordination = _get_coordination(
-            session.coordination_type,
+            session.endpoint_id,
             session.coordination_uuid,
         )
         thread_ids = _get_thread_ids(session.session_uuid)
@@ -69,7 +69,7 @@ def get_session_type(info: ResolveInfo, session: SessionModel) -> SessionType:
     session = session.__dict__["attribute_values"]
     session["coordination"] = coordination
     session["thread_ids"] = thread_ids
-    session.pop("coordination_type")
+    session.pop("endpoint_id")
     session.pop("coordination_uuid")
     return SessionType(**Utility.json_loads(Utility.json_dumps(session)))
 
@@ -89,7 +89,7 @@ def resolve_session(info: ResolveInfo, **kwargs: Dict[str, Any]) -> SessionType:
 )
 def resolve_session_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     coordination_uuid = kwargs.get("coordination_uuid")
-    coordination_types = kwargs.get("coordination_types")
+    endpoint_id = info.context["endpoint_id"]
     statuses = kwargs.get("statuses")
     args = []
     inquiry_funct = SessionModel.scan
@@ -99,8 +99,8 @@ def resolve_session_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
         inquiry_funct = SessionModel.query
 
     the_filters = None  # We can add filters for the query.
-    if coordination_types is not None:
-        the_filters &= SessionModel.coordination_type.is_in(*coordination_types)
+    if endpoint_id is not None:
+        the_filters &= SessionModel.endpoint_id == endpoint_id
     if statuses is not None:
         the_filters &= SessionModel.status.is_in(*statuses)
     if the_filters is not None:
@@ -125,15 +125,17 @@ def insert_update_session(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     session_uuid = kwargs.get("session_uuid")
     if kwargs.get("entity") is None:
         cols = {
-            "coordination_type": kwargs["coordination_type"],
+            "endpoint_id": info.context["endpoint_id"],
             "updated_by": kwargs["updated_by"],
             "created_at": pendulum.now("UTC"),
             "updated_at": pendulum.now("UTC"),
         }
-        if kwargs.get("status") is not None:
-            cols["status"] = kwargs["status"]
-        if kwargs.get("notes") is not None:
-            cols["notes"] = kwargs["notes"]
+        for key in [
+            "status",
+            "notes",
+        ]:
+            if key in kwargs:
+                cols[key] = kwargs[key]
         SessionModel(
             coordination_uuid,
             session_uuid,

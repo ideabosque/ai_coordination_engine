@@ -33,7 +33,7 @@ class ThreadModel(BaseModel):
     session_uuid = UnicodeAttribute(hash_key=True)
     thread_id = UnicodeAttribute(range_key=True)
     coordination_uuid = UnicodeAttribute()
-    agent_uuid = UnicodeAttribute(null=True)
+    agent_name = UnicodeAttribute(null=True)
     last_assistant_message = UnicodeAttribute(null=True)
     status = UnicodeAttribute(default="initial")
     log = UnicodeAttribute(null=True)
@@ -62,10 +62,10 @@ def get_thread_type(info: ResolveInfo, thread: ThreadModel) -> ThreadType:
             thread.session_uuid,
         )
         agent = None
-        if thread.agent_uuid is not None:
+        if thread.agent_name is not None:
             agent = _get_agent(
                 thread.coordination_uuid,
-                thread.agent_uuid,
+                thread.agent_name,
             )
     except Exception as e:
         log = traceback.format_exc()
@@ -76,7 +76,7 @@ def get_thread_type(info: ResolveInfo, thread: ThreadModel) -> ThreadType:
     thread["agent"] = agent
     thread.pop("coordination_uuid")
     thread.pop("session_uuid")
-    thread.pop("agent_uuid", None)
+    thread.pop("agent_name", None)
     return ThreadType(**Utility.json_loads(Utility.json_dumps(thread)))
 
 
@@ -96,7 +96,7 @@ def resolve_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> ThreadType:
 def resolve_thread_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     session_uuid = kwargs.get("session_uuid")
     coordination_uuid = kwargs.get("coordination_uuid")
-    agent_uuid = kwargs.get("agent_uuid")
+    agent_name = kwargs.get("agent_name")
     args = []
     inquiry_funct = ThreadModel.scan
     count_funct = ThreadModel.count
@@ -107,8 +107,8 @@ def resolve_thread_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     the_filters = None  # We can add filters for the query.
     if coordination_uuid is not None:
         the_filters &= ThreadModel.coordination_uuid == coordination_uuid
-    if agent_uuid is not None:
-        the_filters &= ThreadModel.agent_uuid == agent_uuid
+    if agent_name is not None:
+        the_filters &= ThreadModel.agent_name == agent_name
     if the_filters is not None:
         args.append(the_filters)
 
@@ -137,14 +137,15 @@ def insert_update_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
             "created_at": pendulum.now("UTC"),
             "updated_at": pendulum.now("UTC"),
         }
-        if kwargs.get("agent_uuid") is not None:
-            cols["agent_uuid"] = kwargs["agent_uuid"]
-        if kwargs.get("last_assistant_message") is not None:
-            cols["last_assistant_message"] = kwargs["last_assistant_message"]
-        if kwargs.get("status") is not None:
-            cols["status"] = kwargs["status"]
-        if kwargs.get("log") is not None:
-            cols["log"] = kwargs["log"]
+        for key in [
+            "agent_name",
+            "last_assistant_message",
+            "status",
+            "log",
+        ]:
+            if key in kwargs:
+                cols[key] = kwargs[key]
+
         ThreadModel(
             session_uuid,
             thread_id,
@@ -160,7 +161,7 @@ def insert_update_thread(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     # Map of kwargs keys to ThreadModel attributes
     field_map = {
         "coordination_uuid": ThreadModel.coordination_uuid,
-        "agent_uuid": ThreadModel.agent_uuid,
+        "agent_name": ThreadModel.agent_name,
         "last_assistant_message": ThreadModel.last_assistant_message,
         "status": ThreadModel.status,
         "log": ThreadModel.log,

@@ -6,31 +6,28 @@ __author__ = "bibow"
 from typing import Any, Dict, List
 
 
-def _get_coordination(coordination_type: str, coordination_uuid: str) -> Dict[str, Any]:
+def _get_coordination(endpoint_id: str, coordination_uuid: str) -> Dict[str, Any]:
     from .coordination import get_coordination
 
-    coordination = get_coordination(coordination_type, coordination_uuid)
+    coordination = get_coordination(endpoint_id, coordination_uuid)
     return {
-        "coordination_type": coordination.coordination_type,
+        "endpoint_id": coordination.endpoint_id,
         "coordination_uuid": coordination.coordination_uuid,
         "coordination_name": coordination.coordination_name,
         "coordination_description": coordination.coordination_description,
         "assistant_id": coordination.assistant_id,
-        "assistant_type": coordination.assistant_type,
         "additional_instructions": coordination.additional_instructions,
     }
 
 
-def _get_agent(coordination_uuid: str, agent_uuid: str) -> Dict[str, Any]:
-    from .agent import get_agent
+def _get_agent(coordination_uuid: str, agent_name: str) -> Dict[str, Any]:
+    from .agent import _get_active_agent
 
-    agent = get_agent(coordination_uuid, agent_uuid)
+    agent = _get_active_agent(coordination_uuid, agent_name)
     return {
         "coordination_uuid": agent.coordination_uuid,
-        "agent_uuid": agent.agent_uuid,
         "agent_name": agent.agent_name,
         "agent_instructions": agent.agent_instructions,
-        "coordination_type": agent.coordination_type,
         "response_format": agent.response_format,
         "json_schema": agent.json_schema,
         "tools": agent.tools,
@@ -45,7 +42,7 @@ def _get_session(coordination_uuid: str, session_uuid: str) -> Dict[str, Any]:
     session = get_session(coordination_uuid, session_uuid)
     return {
         "coordination": _get_coordination(
-            session.coordination_type,
+            session.endpoint_id,
             session.coordination_uuid,
         ),
         "session_uuid": session.session_uuid,
