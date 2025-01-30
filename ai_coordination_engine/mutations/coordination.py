@@ -17,7 +17,6 @@ class InsertUpdateCoordination(Mutation):
     coordination = Field(CoordinationType)
 
     class Arguments:
-        coordination_type = String(required=True)
         coordination_uuid = String(required=False)
         coordination_name = String(required=False)
         coordination_description = String(required=False)
@@ -31,6 +30,7 @@ class InsertUpdateCoordination(Mutation):
         root: Any, info: Any, **kwargs: Dict[str, Any]
     ) -> "InsertUpdateCoordination":
         try:
+            kwargs["endpoint_id"] = info.context["endpoint_id"]
             coordination = insert_update_coordination(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
@@ -44,12 +44,12 @@ class DeleteCoordination(Mutation):
     ok = Boolean()
 
     class Arguments:
-        coordination_type = String(required=True)
         coordination_uuid = String(required=True)
 
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "DeleteCoordination":
         try:
+            kwargs["endpoint_id"] = info.context["endpoint_id"]
             ok = delete_coordination(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()

@@ -20,7 +20,7 @@ class InsertUpdateThread(Mutation):
         session_uuid = String(required=True)
         thread_id = String(required=True)
         coordination_uuid = String(required=True)
-        agent_uuid = String(required=False)
+        agent_name = String(required=False)
         last_assistant_message = String(required=False)
         status = String(required=False)
         log = String(required=False)

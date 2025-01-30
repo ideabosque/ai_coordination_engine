@@ -19,7 +19,6 @@ class InsertUpdateSession(Mutation):
     class Arguments:
         coordination_uuid = String(required=True)
         session_uuid = String(required=False)
-        coordination_type = String(required=False)
         status = String(required=False)
         notes = String(required=False)
         updated_by = String(required=True)
