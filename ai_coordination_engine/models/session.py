@@ -150,7 +150,6 @@ def insert_update_session(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     ]
     # Map of kwargs keys to SessionModel attributes
     field_map = {
-        "coordination_type": SessionModel.coordination_type,
         "status": SessionModel.status,
         "notes": SessionModel.notes,
     }
