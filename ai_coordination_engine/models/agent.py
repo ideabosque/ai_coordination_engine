@@ -294,5 +294,19 @@ def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     model_funct=get_agent,
 )
 def delete_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
-    kwargs.get("entity").delete()
+    if kwargs["entity"].status == "active":
+        results = AgentModel.agent_name_index.query(
+            kwargs["entity"].coordination_uuid,
+            AgentModel.agent_name == kwargs["entity"].agent_name,
+            filter_condition=(AgentModel.status == "inactive"),
+        )
+        agents = [result for result in results]
+        if len(agents) > 0:
+            agents = sorted(agents, key=lambda x: x.updated_at, reverse=True)
+            last_updated_record = agents[0]
+            last_updated_record.status = "active"
+            last_updated_record.save()
+
+    kwargs["entity"].delete()
+
     return True
