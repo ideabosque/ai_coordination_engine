@@ -8,6 +8,7 @@ import traceback
 from typing import Any, Dict
 
 from graphene import Boolean, Field, List, Mutation, String
+
 from silvaengine_utility import JSON
 
 from ..models.agent import delete_agent, insert_update_agent
@@ -19,15 +20,15 @@ class InsertUpdateAgent(Mutation):
 
     class Arguments:
         coordination_uuid = String(required=True)
-        agent_uuid = String(required=False)
-        agent_name = String(required=False)
+        agent_version_uuid = String(required=False)
+        agent_name = String(required=True)
         agent_instructions = String(required=False)
-        coordination_type = String(required=False)
         response_format = String(required=False)
         json_schema = JSON(required=False)
         tools = List(JSON, required=False)
         predecessor = String(required=False)
         successor = String(required=False)
+        status = String(required=False)
         updated_by = String(required=True)
 
     @staticmethod
@@ -47,7 +48,7 @@ class DeleteAgent(Mutation):
 
     class Arguments:
         coordination_uuid = String(required=True)
-        agent_uuid = String(required=True)
+        agent_version_uuid = String(required=True)
 
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "DeleteAgent":

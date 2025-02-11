@@ -19,6 +19,7 @@ setting = {
     "region_name": os.getenv("region_name"),
     "aws_access_key_id": os.getenv("aws_access_key_id"),
     "aws_secret_access_key": os.getenv("aws_secret_access_key"),
+    "endpoint_id": os.getenv("endpoint_id"),
 }
 
 document = Path(
@@ -51,7 +52,6 @@ class AICoordinationEngineTest(unittest.TestCase):
                 "coordinationName": "RFQ Op",
                 "coordinationDescription": "XXXXXXXXXXXXXXXXXXXX",
                 "assistantId": "asst_CRw6YN4ZAZ2w7fz7LqYetrbm",
-                "assistantType": "conversation",
                 "additionalInstructions": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
                 "updatedBy": "XYZ",
             },
@@ -65,8 +65,7 @@ class AICoordinationEngineTest(unittest.TestCase):
         payload = {
             "query": document,
             "variables": {
-                "coordinationType": "operation",
-                "coordinationUuid": "5795829138505404911",
+                "coordinationUuid": "15277018802377658863",
             },
             "operation_name": "deleteCoordination",
         }
@@ -78,8 +77,7 @@ class AICoordinationEngineTest(unittest.TestCase):
         payload = {
             "query": document,
             "variables": {
-                "coordinationType": "operation",
-                "coordinationUuid": "1057228940262445551",
+                "coordinationUuid": "15277018802377658863",
             },
             "operation_name": "getCoordination",
         }
@@ -90,7 +88,7 @@ class AICoordinationEngineTest(unittest.TestCase):
     def test_graphql_coordination_list(self):
         payload = {
             "query": document,
-            "variables": {"coordinationType": "operation"},
+            "variables": {"coordinationName": "RFQ Op"},
             "operation_name": "getCoordinationList",
         }
         response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
@@ -101,15 +99,16 @@ class AICoordinationEngineTest(unittest.TestCase):
         payload = {
             "query": document,
             "variables": {
-                "coordinationUuid": "1057228940262445551",
-                "agentUuid": "14313717474430489071",
-                # "agentName": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+                "coordinationUuid": "7414700151911289327",
+                "agentVersionUuid": "14987473663722983919",
+                "agentName": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
                 # "agentDescription": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
                 # "agentInstructions": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
                 # "coordinationType": "operation",
                 "responseFormat": "auto",
                 # "predecessor": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
                 # "successor": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+                "status": "active",
                 "updatedBy": "XYZ",
             },
             "operation_name": "insertUpdateAgent",
@@ -135,8 +134,8 @@ class AICoordinationEngineTest(unittest.TestCase):
         payload = {
             "query": document,
             "variables": {
-                "coordinationUuid": "1057228940262445551",
-                "agentUuid": "14313717474430489071",
+                "coordinationUuid": "7414700151911289327",
+                "agentName": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
             },
             "operation_name": "getAgent",
         }
@@ -148,7 +147,7 @@ class AICoordinationEngineTest(unittest.TestCase):
         payload = {
             "query": document,
             "variables": {
-                "coordinationUuid": "1057228940262445551",
+                "coordinationUuid": "7414700151911289327",
             },
             "operation_name": "getAgentList",
         }
@@ -160,9 +159,8 @@ class AICoordinationEngineTest(unittest.TestCase):
         payload = {
             "query": document,
             "variables": {
-                "coordinationUuid": "1057228940262445551",
-                "sessionUuid": "7172266856517145071",
-                "coordinationType": "operation",
+                "coordinationUuid": "7414700151911289327",
+                # "sessionUuid": "7172266856517145071",
                 "status": "active",
                 "notes": "null",
                 "updatedBy": "XYZ",
@@ -190,15 +188,15 @@ class AICoordinationEngineTest(unittest.TestCase):
         payload = {
             "query": document,
             "variables": {
-                "coordinationUuid": "1057228940262445551",
-                "sessionUuid": "11763350835914674671",
+                "coordinationUuid": "7414700151911289327",
+                "sessionUuid": "16505656650518893039",
             },
             "operation_name": "getSession",
         }
         response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
         logger.info(response)
 
-    # @unittest.skip("demonstrating skipping")
+    @unittest.skip("demonstrating skipping")
     def test_graphql_session_list(self):
         payload = {
             "query": document,
@@ -215,10 +213,10 @@ class AICoordinationEngineTest(unittest.TestCase):
         payload = {
             "query": document,
             "variables": {
-                "sessionUuid": "7172266856517145071",
+                "sessionUuid": "16505656650518893039",
                 "threadId": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
-                "coordinationUuid": "1057228940262445551",
-                "agentUuid": "14313717474430489071",
+                "coordinationUuid": "7414700151911289327",
+                "agentName": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
                 "lastAssistantMessage": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
                 "log": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
                 "updatedBy": "XYZ",
@@ -241,13 +239,13 @@ class AICoordinationEngineTest(unittest.TestCase):
         response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
         logger.info(response)
 
-    @unittest.skip("demonstrating skipping")
+    # @unittest.skip("demonstrating skipping")
     def test_graphql_thread(self):
         payload = {
             "query": document,
             "variables": {
-                "sessionUuid": "13393439109748756975",
-                "threadId": "thread_BITniZMWRWXj6kFuVg5vsnPj",
+                "sessionUuid": "16505656650518893039",
+                "threadId": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
             },
             "operation_name": "getThread",
         }

@@ -41,7 +41,6 @@ class Query(ObjectType):
 
     coordination = Field(
         CoordinationType,
-        coordination_type=String(required=True),
         coordination_uuid=String(required=True),
     )
 
@@ -49,17 +48,16 @@ class Query(ObjectType):
         CoordinationListType,
         page_number=Int(required=False),
         limit=Int(required=False),
-        coordination_type=String(required=False),
         coordination_name=String(required=False),
         coordination_description=String(required=False),
         assistant_id=String(required=False),
-        assistant_types=List(String, required=False),
     )
 
     agent = Field(
         AgentType,
         coordination_uuid=String(required=True),
-        agent_uuid=String(required=True),
+        agent_name=String(required=False),
+        agent_version_uuid=String(required=False),
     )
 
     agent_list = Field(
@@ -68,7 +66,6 @@ class Query(ObjectType):
         limit=Int(required=False),
         coordination_uuid=String(required=False),
         agent_name=String(required=False),
-        coordination_types=List(String, required=False),
         response_format=String(required=False),
         predecessor=String(required=False),
         successor=String(required=False),
@@ -85,7 +82,6 @@ class Query(ObjectType):
         page_number=Int(required=False),
         limit=Int(required=False),
         coordination_uuid=String(required=False),
-        coordination_types=List(String, required=False),
         statuses=List(String, required=False),
     )
 
@@ -101,7 +97,7 @@ class Query(ObjectType):
         limit=Int(required=False),
         session_uuid=String(required=False),
         coordination_uuid=String(required=False),
-        agent_uuid=String(required=False),
+        agent_name=String(required=False),
     )
 
     def resolve_ping(self, info: ResolveInfo) -> str:

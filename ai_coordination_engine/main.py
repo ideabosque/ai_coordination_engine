@@ -8,6 +8,7 @@ import logging
 from typing import Any, Dict, List
 
 from graphene import Schema
+
 from silvaengine_dynamodb_base import SilvaEngineDynamoDBBase
 
 from .handlers.config import Config
@@ -116,6 +117,11 @@ class AICoordinationEngine(SilvaEngineDynamoDBBase):
         SilvaEngineDynamoDBBase.__init__(self, logger, **setting)
 
     def ai_coordination_graphql(self, **params: Dict[str, Any]) -> Any:
+        ## Test the waters 🧪 before diving in!
+        ##<--Testing Data-->##
+        if params.get("endpoint_id") is None:
+            params["endpoint_id"] = self.setting.get("endpoint_id")
+        ##<--Testing Data-->##
         schema = Schema(
             query=Query,
             mutation=Mutations,
