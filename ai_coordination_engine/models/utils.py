@@ -58,3 +58,36 @@ def _get_thread_ids(session_uuid: str) -> List[str]:
     thread_ids = [result.thread_id for result in results]
 
     return thread_ids
+
+
+def _get_task(coordination_uuid: str, task_uuid: str) -> Dict[str, Any]:
+    from .task import get_task
+
+    task = get_task(coordination_uuid, task_uuid)
+    return {
+        "coordination": _get_coordination(
+            task.endpoint_id,
+            task.coordination_uuid,
+        ),
+        "task_uuid": task.task_uuid,
+        "task_name": task.task_name,
+        "task_description": task.task_description,
+        "initial_task_query": task.initial_task_query,
+        "agent_actions": task.agent_actions,
+    }
+
+
+def _get_task_session(task_uuid: str, session_uuid: str) -> Dict[str, Any]:
+    from .task_session import get_task_session
+
+    task_session = get_task_session(task_uuid, session_uuid)
+    return {
+        "task": _get_task(
+            task_session.coordination_uuid,
+            task_session.task_uuid,
+        ),
+        "session_uuid": task_session.session_uuid,
+        "task_query": task_session.task_query,
+        "status": task_session.status,
+        "notes": task_session.notes,
+    }
