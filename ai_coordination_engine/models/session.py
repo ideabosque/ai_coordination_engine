@@ -21,7 +21,6 @@ from silvaengine_dynamodb_base import (
 )
 from silvaengine_utility import Utility
 
-from ..models.thread import ThreadModel
 from ..types.session import SessionListType, SessionType
 from .utils import _get_coordination, _get_thread_ids
 
