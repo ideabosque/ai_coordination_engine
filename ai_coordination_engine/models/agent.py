@@ -59,7 +59,6 @@ class AgentModel(BaseModel):
     json_schema = MapAttribute(null=True)
     tools = ListAttribute(null=True)
     predecessor = UnicodeAttribute(null=True)
-    successor = UnicodeAttribute(null=True)
     status = UnicodeAttribute(default="active")
     updated_by = UnicodeAttribute()
     created_at = UTCDateTimeAttribute()
@@ -141,7 +140,6 @@ def resolve_agent_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     endpoint_id = info.context["endpoint_id"]
     response_format = kwargs.get("response_format")
     predecessor = kwargs.get("predecessor")
-    successor = kwargs.get("successor")
 
     args = []
     inquiry_funct = AgentModel.scan
@@ -159,8 +157,6 @@ def resolve_agent_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
         the_filters &= AgentModel.response_format == response_format
     if predecessor is not None:
         the_filters &= AgentModel.predecessor == predecessor
-    if successor is not None:
-        the_filters &= AgentModel.successor == successor
     if the_filters is not None:
         args.append(the_filters)
 
@@ -242,7 +238,6 @@ def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
             "json_schema",
             "tools",
             "predecessor",
-            "successor",
         ]:
             if key in kwargs:
                 cols[key] = kwargs[key]
@@ -272,7 +267,6 @@ def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
         "json_schema": AgentModel.json_schema,
         "tools": AgentModel.tools,
         "predecessor": AgentModel.predecessor,
-        "successor": AgentModel.successor,
         "status": AgentModel.status,
     }
 

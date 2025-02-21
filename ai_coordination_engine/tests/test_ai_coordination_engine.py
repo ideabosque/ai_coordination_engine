@@ -442,15 +442,15 @@ class AICoordinationEngineTest(unittest.TestCase):
         logger.info(response)
 
     @unittest.skip("demonstrating skipping")
-    def test_graphql_insert_update_session_agent_state(self):
+    def test_graphql_insert_update_session_agent(self):
         query = Utility.generate_graphql_operation(
-            "insertUpdateSessionAgentState", "Mutation", self.schema
+            "insertUpdateSessionAgent", "Mutation", self.schema
         )
         payload = {
             "query": query,
             "variables": {
                 "sessionUuid": "16505656650518893039",
-                "sessionAgentStateUuid": "750601846020379119",
+                "sessionAgentUuid": "14411869504290230767",
                 "threadId": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
                 "taskUuid": "5077563706321605103",
                 "agentName": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
@@ -469,39 +469,37 @@ class AICoordinationEngineTest(unittest.TestCase):
         logger.info(response)
 
     @unittest.skip("demonstrating skipping")
-    def test_graphql_delete_session_agent_state(self):
+    def test_graphql_delete_session_agent(self):
         query = Utility.generate_graphql_operation(
-            "deleteSessionAgentState", "Mutation", self.schema
+            "deleteSessionAgent", "Mutation", self.schema
         )
         payload = {
             "query": query,
             "variables": {
                 "sessionUuid": "16505656650518893039",
-                "sessionAgentStateUuid": "14065111248006418927",
+                "sessionAgentUuid": "10408353852863615471",
             },
         }
         response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
         logger.info(response)
 
     @unittest.skip("demonstrating skipping")
-    def test_graphql_session_agent_state(self):
-        query = Utility.generate_graphql_operation(
-            "sessionAgentState", "Query", self.schema
-        )
+    def test_graphql_session_agent(self):
+        query = Utility.generate_graphql_operation("sessionAgent", "Query", self.schema)
         payload = {
             "query": query,
             "variables": {
                 "sessionUuid": "16505656650518893039",
-                "sessionAgentStateUuid": "750601846020379119",
+                "sessionAgentUuid": "14411869504290230767",
             },
         }
         response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
         logger.info(response)
 
-    @unittest.skip("demonstrating skipping")
-    def test_graphql_session_agent_state_list(self):
+    # @unittest.skip("demonstrating skipping")
+    def test_graphql_session_agent_list(self):
         query = Utility.generate_graphql_operation(
-            "sessionAgentStateList", "Query", self.schema
+            "sessionAgentList", "Query", self.schema
         )
         payload = {
             "query": query,
@@ -558,7 +556,7 @@ class AICoordinationEngineTest(unittest.TestCase):
         response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
         logger.info(response)
 
-    # @unittest.skip("demonstrating skipping")
+    @unittest.skip("demonstrating skipping")
     def test_graphql_task_schedule_list(self):
         query = Utility.generate_graphql_operation(
             "taskScheduleList", "Query", self.schema

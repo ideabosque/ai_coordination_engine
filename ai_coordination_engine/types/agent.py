@@ -19,7 +19,6 @@ class AgentType(ObjectType):
     json_schema = JSON()
     tools = List(JSON)
     predecessor = String()
-    successor = String()
     status = String()
     updated_by = String()
     created_at = DateTime()
