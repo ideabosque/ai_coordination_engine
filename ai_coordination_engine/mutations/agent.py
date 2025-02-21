@@ -27,7 +27,6 @@ class InsertUpdateAgent(Mutation):
         json_schema = JSON(required=False)
         tools = List(JSON, required=False)
         predecessor = String(required=False)
-        successor = String(required=False)
         status = String(required=False)
         updated_by = String(required=True)
 

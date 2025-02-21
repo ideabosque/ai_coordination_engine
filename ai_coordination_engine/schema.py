@@ -12,10 +12,7 @@ from graphene import Field, Int, List, ObjectType, ResolveInfo, String
 from .mutations.agent import DeleteAgent, InsertUpdateAgent
 from .mutations.coordination import DeleteCoordination, InsertUpdateCoordination
 from .mutations.session import DeleteSession, InsertUpdateSession
-from .mutations.session_agent_state import (
-    DeleteSessionAgentState,
-    InsertUpdateSessionAgentState,
-)
+from .mutations.session_agent import DeleteSessionAgent, InsertUpdateSessionAgent
 from .mutations.task import DeleteTask, InsertUpdateTask
 from .mutations.task_schedule import DeleteTaskSchedule, InsertUpdateTaskSchedule
 from .mutations.task_session import DeleteTaskSession, InsertUpdateTaskSession
@@ -23,10 +20,7 @@ from .mutations.thread import DeleteThread, InsertUpdateThread
 from .queries.agent import resolve_agent, resolve_agent_list
 from .queries.coordination import resolve_coordination, resolve_coordination_list
 from .queries.session import resolve_session, resolve_session_list
-from .queries.session_agent_state import (
-    resolve_session_agent_state,
-    resolve_session_agent_state_list,
-)
+from .queries.session_agent import resolve_session_agent, resolve_session_agent_list
 from .queries.task import resolve_task, resolve_task_list
 from .queries.task_schedule import resolve_task_schedule, resolve_task_schedule_list
 from .queries.task_session import resolve_task_session, resolve_task_session_list
@@ -34,7 +28,7 @@ from .queries.thread import resolve_thread, resolve_thread_list
 from .types.agent import AgentListType, AgentType
 from .types.coordination import CoordinationListType, CoordinationType
 from .types.session import SessionListType, SessionType
-from .types.session_agent_state import SessionAgentStateListType, SessionAgentStateType
+from .types.session_agent import SessionAgentListType, SessionAgentType
 from .types.task import TaskListType, TaskType
 from .types.task_schedule import TaskScheduleListType, TaskScheduleType
 from .types.task_session import TaskSessionListType, TaskSessionType
@@ -57,8 +51,8 @@ def type_class():
         TaskSessionListType,
         TaskScheduleType,
         TaskScheduleListType,
-        SessionAgentStateType,
-        SessionAgentStateListType,
+        SessionAgentType,
+        SessionAgentListType,
     ]
 
 
@@ -158,14 +152,14 @@ class Query(ObjectType):
         statuses=List(String, required=False),
     )
 
-    session_agent_state = Field(
-        SessionAgentStateType,
+    session_agent = Field(
+        SessionAgentType,
         session_uuid=String(required=True),
-        session_agent_state_uuid=String(required=True),
+        session_agent_uuid=String(required=True),
     )
 
-    session_agent_state_list = Field(
-        SessionAgentStateListType,
+    session_agent_list = Field(
+        SessionAgentListType,
         page_number=Int(required=False),
         limit=Int(required=False),
         session_uuid=String(required=False),
@@ -249,15 +243,15 @@ class Query(ObjectType):
     ) -> ThreadListType:
         return resolve_task_session_list(info, **kwargs)
 
-    def resolve_session_agent_state(
+    def resolve_session_agent(
         self, info: ResolveInfo, **kwargs: Dict[str, Any]
     ) -> ThreadType:
-        return resolve_session_agent_state(info, **kwargs)
+        return resolve_session_agent(info, **kwargs)
 
-    def resolve_session_agent_state_list(
+    def resolve_session_agent_list(
         self, info: ResolveInfo, **kwargs: Dict[str, Any]
     ) -> ThreadListType:
-        return resolve_session_agent_state_list(info, **kwargs)
+        return resolve_session_agent_list(info, **kwargs)
 
     def resolve_task_schedule(
         self, info: ResolveInfo, **kwargs: Dict[str, Any]
@@ -283,7 +277,7 @@ class Mutations(ObjectType):
     delete_task = DeleteTask.Field()
     insert_update_task_session = InsertUpdateTaskSession.Field()
     delete_task_session = DeleteTaskSession.Field()
-    insert_update_session_agent_state = InsertUpdateSessionAgentState.Field()
-    delete_session_agent_state = DeleteSessionAgentState.Field()
+    insert_update_session_agent = InsertUpdateSessionAgent.Field()
+    delete_session_agent = DeleteSessionAgent.Field()
     insert_update_task_schedule = InsertUpdateTaskSchedule.Field()
     delete_task_schedule = DeleteTaskSchedule.Field()
