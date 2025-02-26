@@ -42,10 +42,11 @@ class SessionAgentModel(BaseModel):
     task_uuid = UnicodeAttribute()
     agent_name = UnicodeAttribute()
     user_in_the_loop = UnicodeAttribute(null=True)
-    user_action = UnicodeAttribute(null=True)
+    user_input = UnicodeAttribute(null=True)
+    action_rules = ListAttribute(of=MapAttribute, default={})
     agent_input = UnicodeAttribute(null=True)
     agent_output = UnicodeAttribute(null=True)
-    predecessors = ListAttribute(of=UnicodeAttribute, default=[])
+    predecessor = UnicodeAttribute(null=True)
     in_degree = NumberAttribute(default=0)
     state = UnicodeAttribute(default="initial")
     notes = UnicodeAttribute(null=True)
@@ -111,6 +112,7 @@ def resolve_session_agent_list(
     task_uuid = kwargs.get("task_uuid")
     agent_name = kwargs.get("agent_name")
     user_in_the_loop = kwargs.get("user_in_the_loop")
+    predecessor = kwargs.get("predecessor")
     in_degree = kwargs.get("in_degree")
     states = kwargs.get("states")
 
@@ -130,6 +132,8 @@ def resolve_session_agent_list(
         the_filters &= SessionAgentModel.agent_name == agent_name
     if user_in_the_loop is not None:
         the_filters &= SessionAgentModel.user_in_the_loop == user_in_the_loop
+    if predecessor is not None:
+        the_filters &= SessionAgentModel.predecessor == predecessor
     if in_degree is not None:
         the_filters &= SessionAgentModel.in_degree == in_degree
     if states is not None:
@@ -165,10 +169,11 @@ def insert_update_session_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> 
         }
         for key in [
             "user_in_the_loop",
-            "user_action",
+            "user_input",
+            "action_rules",
             "agent_input",
             "agent_output",
-            "predecessors",
+            "predecessor",
             "in_degree",
             "state",
             "notes",
@@ -190,10 +195,11 @@ def insert_update_session_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> 
     # Map of potential keys in kwargs to SessionAgentModel attributes
     field_map = {
         "user_in_the_loop": SessionAgentModel.user_in_the_loop,
-        "user_action": SessionAgentModel.user_action,
+        "user_input": SessionAgentModel.user_input,
+        "action_rules": SessionAgentModel.action_rules,
         "agent_input": SessionAgentModel.agent_input,
         "agent_output": SessionAgentModel.agent_output,
-        "predecessors": SessionAgentModel.predecessors,
+        "predecessor": SessionAgentModel.predecessor,
         "in_degree": SessionAgentModel.in_degree,
         "state": SessionAgentModel.state,
         "notes": SessionAgentModel.notes,
