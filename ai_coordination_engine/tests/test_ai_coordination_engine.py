@@ -174,9 +174,9 @@ class AICoordinationEngineTest(unittest.TestCase):
         response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
         logger.info(response)
 
-    @unittest.skip("demonstrating skipping")
+    # @unittest.skip("demonstrating skipping")
     def test_graphql_agent_list(self):
-        query = Utility.generate_graphql_operation("getAgentList", "Query", self.schema)
+        query = Utility.generate_graphql_operation("agentList", "Query", self.schema)
         logger.info(f"Query: {query}")
         payload = {
             "query": query,
@@ -458,7 +458,7 @@ class AICoordinationEngineTest(unittest.TestCase):
                 # "userAction": "",
                 # "agentInput": "",
                 # "agentOutput": "",
-                # "predecessors": [],
+                # "predecessor": "",
                 "inDegree": 1,
                 # "state": "",
                 # "notes": "",
@@ -496,7 +496,7 @@ class AICoordinationEngineTest(unittest.TestCase):
         response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
         logger.info(response)
 
-    # @unittest.skip("demonstrating skipping")
+    @unittest.skip("demonstrating skipping")
     def test_graphql_session_agent_list(self):
         query = Utility.generate_graphql_operation(
             "sessionAgentList", "Query", self.schema

@@ -88,7 +88,6 @@ class Query(ObjectType):
         agent_name=String(required=False),
         response_format=String(required=False),
         predecessor=String(required=False),
-        successor=String(required=False),
     )
 
     session = Field(
@@ -167,6 +166,7 @@ class Query(ObjectType):
         task_uuid=String(required=False),
         agent_name=String(required=False),
         user_in_the_loop=String(required=False),
+        predecessor=String(required=False),
         in_degree=Int(required=False),
         states=List(String, required=False),
     )
