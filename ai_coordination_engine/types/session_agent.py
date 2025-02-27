@@ -15,7 +15,7 @@ class SessionAgentType(ObjectType):
     thread_id = String()
     session_agent_uuid = String()
     agent_name = String()
-    user_in_the_loop = String()
+    agent_action = JSON()
     user_input = String()
     agent_input = String()
     agent_output = String()

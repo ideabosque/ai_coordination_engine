@@ -24,7 +24,7 @@ class InsertUpdateSessionAgent(Mutation):
         thread_id = String(required=False)
         task_uuid = String(required=False)
         agent_name = String(required=False)
-        user_in_the_loop = String(required=False)
+        agent_action = JSON(required=False)
         user_input = String(required=False)
         agent_input = String(required=False)
         agent_output = String(required=False)

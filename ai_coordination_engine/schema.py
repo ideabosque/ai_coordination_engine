@@ -7,7 +7,7 @@ __author__ = "bibow"
 import time
 from typing import Any, Dict
 
-from graphene import Field, Int, List, ObjectType, ResolveInfo, String
+from graphene import Boolean, Field, Int, List, ObjectType, ResolveInfo, String
 
 from .mutations.agent import DeleteAgent, InsertUpdateAgent
 from .mutations.coordination import DeleteCoordination, InsertUpdateCoordination
@@ -166,6 +166,7 @@ class Query(ObjectType):
         thread_id=String(required=False),
         task_uuid=String(required=False),
         agent_name=String(required=False),
+        primary_path=Boolean(required=False),
         user_in_the_loop=String(required=False),
         predecessor=String(required=False),
         in_degree=Int(required=False),
