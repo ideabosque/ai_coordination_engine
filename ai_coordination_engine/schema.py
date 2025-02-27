@@ -88,6 +88,7 @@ class Query(ObjectType):
         agent_name=String(required=False),
         response_format=String(required=False),
         predecessor=String(required=False),
+        status=String(required=False),
     )
 
     session = Field(

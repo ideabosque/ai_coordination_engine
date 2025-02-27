@@ -30,7 +30,7 @@ class InsertUpdateSessionAgent(Mutation):
         agent_input = String(required=False)
         agent_output = String(required=False)
         predecessor = String(required=False)
-        in_degree = Int(required=True)
+        in_degree = Int(required=False)
         state = String(required=False)
         notes = String(required=False)
         updated_by = String(required=True)
