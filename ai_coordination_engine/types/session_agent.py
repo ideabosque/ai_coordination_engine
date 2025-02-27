@@ -17,7 +17,6 @@ class SessionAgentType(ObjectType):
     agent_name = String()
     user_in_the_loop = String()
     user_input = String()
-    action_rules = List(JSON)
     agent_input = String()
     agent_output = String()
     predecessor = String()

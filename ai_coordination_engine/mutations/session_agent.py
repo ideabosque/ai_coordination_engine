@@ -26,7 +26,6 @@ class InsertUpdateSessionAgent(Mutation):
         agent_name = String(required=False)
         user_in_the_loop = String(required=False)
         user_input = String(required=False)
-        action_rules = List(JSON, required=False)
         agent_input = String(required=False)
         agent_output = String(required=False)
         predecessor = String(required=False)

@@ -455,7 +455,7 @@ class AICoordinationEngineTest(unittest.TestCase):
                 "taskUuid": "5077563706321605103",
                 "agentName": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
                 # "userInTheLoop": "",
-                # "userAction": "",
+                # "userInput": "",
                 # "agentInput": "",
                 # "agentOutput": "",
                 # "predecessor": "",
