@@ -10,6 +10,7 @@ from typing import Any, Dict
 import pendulum
 from graphene import ResolveInfo
 from pynamodb.attributes import (
+    BooleanAttribute,
     ListAttribute,
     MapAttribute,
     NumberAttribute,
@@ -38,7 +39,7 @@ class SessionAgentModel(BaseModel):
 
     session_uuid = UnicodeAttribute(hash_key=True)
     session_agent_uuid = UnicodeAttribute(range_key=True)
-    thread_id = UnicodeAttribute()
+    thread_id = UnicodeAttribute(null=True)
     task_uuid = UnicodeAttribute()
     agent_name = UnicodeAttribute()
     user_in_the_loop = UnicodeAttribute(null=True)
@@ -160,7 +161,6 @@ def insert_update_session_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> 
     session_agent_uuid = kwargs.get("session_agent_uuid")
     if kwargs.get("entity") is None:
         cols = {
-            "thread_id": kwargs["thread_id"],
             "task_uuid": kwargs["task_uuid"],
             "agent_name": kwargs["agent_name"],
             "updated_by": kwargs["updated_by"],
@@ -168,6 +168,7 @@ def insert_update_session_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> 
             "updated_at": pendulum.now("UTC"),
         }
         for key in [
+            "thread_id",
             "user_in_the_loop",
             "user_input",
             "action_rules",
@@ -194,6 +195,7 @@ def insert_update_session_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> 
     ]
     # Map of potential keys in kwargs to SessionAgentModel attributes
     field_map = {
+        "thread_id": SessionAgentModel.thread_id,
         "user_in_the_loop": SessionAgentModel.user_in_the_loop,
         "user_input": SessionAgentModel.user_input,
         "action_rules": SessionAgentModel.action_rules,

@@ -140,6 +140,7 @@ def resolve_agent_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     endpoint_id = info.context["endpoint_id"]
     response_format = kwargs.get("response_format")
     predecessor = kwargs.get("predecessor")
+    status = kwargs.get("status")
 
     args = []
     inquiry_funct = AgentModel.scan
@@ -157,6 +158,8 @@ def resolve_agent_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
         the_filters &= AgentModel.response_format == response_format
     if predecessor is not None:
         the_filters &= AgentModel.predecessor == predecessor
+    if status is not None:
+        the_filters &= AgentModel.status == status
     if the_filters is not None:
         args.append(the_filters)
 
