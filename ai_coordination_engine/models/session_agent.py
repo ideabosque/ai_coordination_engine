@@ -42,7 +42,7 @@ class SessionAgentModel(BaseModel):
     thread_id = UnicodeAttribute(null=True)
     task_uuid = UnicodeAttribute()
     agent_name = UnicodeAttribute()
-    user_in_the_loop = UnicodeAttribute(null=True)
+    agent_action = MapAttribute(null=True)
     user_input = UnicodeAttribute(null=True)
     agent_input = UnicodeAttribute(null=True)
     agent_output = UnicodeAttribute(null=True)
@@ -111,6 +111,7 @@ def resolve_session_agent_list(
     thread_id = kwargs.get("thread_id")
     task_uuid = kwargs.get("task_uuid")
     agent_name = kwargs.get("agent_name")
+    primary_path = kwargs.get("primary_path")
     user_in_the_loop = kwargs.get("user_in_the_loop")
     predecessor = kwargs.get("predecessor")
     in_degree = kwargs.get("in_degree")
@@ -130,8 +131,12 @@ def resolve_session_agent_list(
         the_filters &= SessionAgentModel.task_uuid == task_uuid
     if agent_name is not None:
         the_filters &= SessionAgentModel.agent_name == agent_name
+    if primary_path is not None:
+        the_filters &= SessionAgentModel.agent_action["primary_path"] == primary_path
     if user_in_the_loop is not None:
-        the_filters &= SessionAgentModel.user_in_the_loop == user_in_the_loop
+        the_filters &= (
+            SessionAgentModel.agent_action["user_in_the_loop"] == user_in_the_loop
+        )
     if predecessor is not None:
         the_filters &= SessionAgentModel.predecessor == predecessor
     if in_degree is not None:
@@ -162,13 +167,18 @@ def insert_update_session_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> 
         cols = {
             "task_uuid": kwargs["task_uuid"],
             "agent_name": kwargs["agent_name"],
+            "agent_action": {
+                "primary_path": True,
+                "user_in_the_loop": None,
+                "action_rules": {},
+            },
             "updated_by": kwargs["updated_by"],
             "created_at": pendulum.now("UTC"),
             "updated_at": pendulum.now("UTC"),
         }
         for key in [
             "thread_id",
-            "user_in_the_loop",
+            "agent_action",
             "user_input",
             "agent_input",
             "agent_output",
@@ -178,6 +188,9 @@ def insert_update_session_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> 
             "notes",
         ]:
             if key in kwargs:
+                if key == "agent_action":
+                    cols[key] = dict(cols[key], **kwargs[key])
+                    continue
                 cols[key] = kwargs[key]
         SessionAgentModel(
             session_uuid,
@@ -194,7 +207,7 @@ def insert_update_session_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> 
     # Map of potential keys in kwargs to SessionAgentModel attributes
     field_map = {
         "thread_id": SessionAgentModel.thread_id,
-        "user_in_the_loop": SessionAgentModel.user_in_the_loop,
+        "agent_action": SessionAgentModel.agent_action,
         "user_input": SessionAgentModel.user_input,
         "agent_input": SessionAgentModel.agent_input,
         "agent_output": SessionAgentModel.agent_output,
@@ -207,7 +220,11 @@ def insert_update_session_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> 
     # Check if a key exists in kwargs before adding it to the update actions
     for key, field in field_map.items():
         if key in kwargs:
-            actions.append(field.set(kwargs[key]))
+            value = kwargs[key]
+            if key == "agent_action":
+                value = dict(actions.__dict__["attribute_values"], **value)
+
+            actions.append(field.set(value))
 
     # Update the session_agent entity
     session_agent.update(actions=actions)

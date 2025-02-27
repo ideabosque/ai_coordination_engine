@@ -441,7 +441,7 @@ class AICoordinationEngineTest(unittest.TestCase):
         response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
         logger.info(response)
 
-    # @unittest.skip("demonstrating skipping")
+    @unittest.skip("demonstrating skipping")
     def test_graphql_insert_update_session_agent(self):
         query = Utility.generate_graphql_operation(
             "insertUpdateSessionAgent", "Mutation", self.schema
@@ -450,11 +450,11 @@ class AICoordinationEngineTest(unittest.TestCase):
             "query": query,
             "variables": {
                 "sessionUuid": "16505656650518893039",
-                "sessionAgentUuid": "14411869504290230767",
+                "sessionAgentUuid": "4424984885105725935",
                 "threadId": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
                 "taskUuid": "5077563706321605103",
                 "agentName": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
-                # "userInTheLoop": "",
+                # "agentAction": "",
                 # "userInput": "",
                 # "agentInput": "",
                 # "agentOutput": "",
@@ -496,7 +496,7 @@ class AICoordinationEngineTest(unittest.TestCase):
         response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
         logger.info(response)
 
-    @unittest.skip("demonstrating skipping")
+    # @unittest.skip("demonstrating skipping")
     def test_graphql_session_agent_list(self):
         query = Utility.generate_graphql_operation(
             "sessionAgentList", "Query", self.schema
@@ -505,6 +505,8 @@ class AICoordinationEngineTest(unittest.TestCase):
             "query": query,
             "variables": {
                 "sessionUuid": "16505656650518893039",
+                "primaryPath": True,
+                "userInTheLoop": "Bibo W.",
             },
         }
         response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
