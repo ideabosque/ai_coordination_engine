@@ -44,7 +44,6 @@ class SessionAgentModel(BaseModel):
     agent_name = UnicodeAttribute()
     user_in_the_loop = UnicodeAttribute(null=True)
     user_input = UnicodeAttribute(null=True)
-    action_rules = ListAttribute(of=MapAttribute, default={})
     agent_input = UnicodeAttribute(null=True)
     agent_output = UnicodeAttribute(null=True)
     predecessor = UnicodeAttribute(null=True)
@@ -171,7 +170,6 @@ def insert_update_session_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> 
             "thread_id",
             "user_in_the_loop",
             "user_input",
-            "action_rules",
             "agent_input",
             "agent_output",
             "predecessor",
@@ -198,7 +196,6 @@ def insert_update_session_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> 
         "thread_id": SessionAgentModel.thread_id,
         "user_in_the_loop": SessionAgentModel.user_in_the_loop,
         "user_input": SessionAgentModel.user_input,
-        "action_rules": SessionAgentModel.action_rules,
         "agent_input": SessionAgentModel.agent_input,
         "agent_output": SessionAgentModel.agent_output,
         "predecessor": SessionAgentModel.predecessor,
