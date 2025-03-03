@@ -46,7 +46,6 @@ class SessionAgentModel(BaseModel):
     user_input = UnicodeAttribute(null=True)
     agent_input = UnicodeAttribute(null=True)
     agent_output = UnicodeAttribute(null=True)
-    predecessor = UnicodeAttribute(null=True)
     in_degree = NumberAttribute(default=0)
     state = UnicodeAttribute(default="initial")
     notes = UnicodeAttribute(null=True)
@@ -138,7 +137,7 @@ def resolve_session_agent_list(
             SessionAgentModel.agent_action["user_in_the_loop"] == user_in_the_loop
         )
     if predecessor is not None:
-        the_filters &= SessionAgentModel.predecessor == predecessor
+        the_filters &= SessionAgentModel.agent_action["predecessor"] == predecessor
     if in_degree is not None:
         the_filters &= SessionAgentModel.in_degree == in_degree
     if states is not None:
@@ -170,6 +169,7 @@ def insert_update_session_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> 
             "agent_action": {
                 "primary_path": True,
                 "user_in_the_loop": None,
+                "predecessor": None,
                 "action_rules": {},
             },
             "updated_by": kwargs["updated_by"],
@@ -182,7 +182,6 @@ def insert_update_session_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> 
             "user_input",
             "agent_input",
             "agent_output",
-            "predecessor",
             "in_degree",
             "state",
             "notes",
@@ -211,7 +210,6 @@ def insert_update_session_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> 
         "user_input": SessionAgentModel.user_input,
         "agent_input": SessionAgentModel.agent_input,
         "agent_output": SessionAgentModel.agent_output,
-        "predecessor": SessionAgentModel.predecessor,
         "in_degree": SessionAgentModel.in_degree,
         "state": SessionAgentModel.state,
         "notes": SessionAgentModel.notes,

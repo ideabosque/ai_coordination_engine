@@ -16,8 +16,6 @@ from pynamodb.attributes import (
     UTCDateTimeAttribute,
 )
 from pynamodb.indexes import AllProjection, LocalSecondaryIndex
-from tenacity import retry, stop_after_attempt, wait_exponential
-
 from silvaengine_dynamodb_base import (
     BaseModel,
     delete_decorator,
@@ -26,6 +24,7 @@ from silvaengine_dynamodb_base import (
     resolve_list_decorator,
 )
 from silvaengine_utility import Utility
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..types.agent import AgentListType, AgentType
 from .utils import _get_coordination
@@ -58,7 +57,6 @@ class AgentModel(BaseModel):
     response_format = UnicodeAttribute(null=True)
     json_schema = MapAttribute(null=True)
     tools = ListAttribute(null=True)
-    predecessor = UnicodeAttribute(null=True)
     status = UnicodeAttribute(default="active")
     updated_by = UnicodeAttribute()
     created_at = UTCDateTimeAttribute()
@@ -139,7 +137,6 @@ def resolve_agent_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     agent_name = kwargs.get("agent_name")
     endpoint_id = info.context["endpoint_id"]
     response_format = kwargs.get("response_format")
-    predecessor = kwargs.get("predecessor")
     status = kwargs.get("status")
 
     args = []
@@ -156,8 +153,6 @@ def resolve_agent_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
         the_filters &= AgentModel.endpoint_id == endpoint_id
     if response_format is not None:
         the_filters &= AgentModel.response_format == response_format
-    if predecessor is not None:
-        the_filters &= AgentModel.predecessor == predecessor
     if status is not None:
         the_filters &= AgentModel.status == status
     if the_filters is not None:
@@ -240,7 +235,6 @@ def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
             "response_format",
             "json_schema",
             "tools",
-            "predecessor",
         ]:
             if key in kwargs:
                 cols[key] = kwargs[key]
@@ -269,7 +263,6 @@ def insert_update_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
         "response_format": AgentModel.response_format,
         "json_schema": AgentModel.json_schema,
         "tools": AgentModel.tools,
-        "predecessor": AgentModel.predecessor,
         "status": AgentModel.status,
     }
 

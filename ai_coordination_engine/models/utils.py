@@ -31,7 +31,6 @@ def _get_agent(coordination_uuid: str, agent_name: str) -> Dict[str, Any]:
         "response_format": agent.response_format,
         "json_schema": agent.json_schema,
         "tools": agent.tools,
-        "predecessor": agent.predecessor,
     }
 
 

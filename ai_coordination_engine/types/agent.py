@@ -5,7 +5,6 @@ from __future__ import print_function
 __author__ = "bibow"
 
 from graphene import DateTime, List, ObjectType, String
-
 from silvaengine_dynamodb_base import ListObjectType
 from silvaengine_utility import JSON
 
@@ -18,7 +17,6 @@ class AgentType(ObjectType):
     response_format = String()
     json_schema = JSON()
     tools = List(JSON)
-    predecessor = String()
     status = String()
     updated_by = String()
     created_at = DateTime()

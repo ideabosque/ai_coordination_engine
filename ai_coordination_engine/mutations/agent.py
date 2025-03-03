@@ -8,7 +8,6 @@ import traceback
 from typing import Any, Dict
 
 from graphene import Boolean, Field, List, Mutation, String
-
 from silvaengine_utility import JSON
 
 from ..models.agent import delete_agent, insert_update_agent
@@ -26,7 +25,6 @@ class InsertUpdateAgent(Mutation):
         response_format = String(required=False)
         json_schema = JSON(required=False)
         tools = List(JSON, required=False)
-        predecessor = String(required=False)
         status = String(required=False)
         updated_by = String(required=True)
 

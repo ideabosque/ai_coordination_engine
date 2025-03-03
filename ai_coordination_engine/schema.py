@@ -87,7 +87,6 @@ class Query(ObjectType):
         coordination_uuid=String(required=False),
         agent_name=String(required=False),
         response_format=String(required=False),
-        predecessor=String(required=False),
         status=String(required=False),
     )
 
