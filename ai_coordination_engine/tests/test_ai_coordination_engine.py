@@ -121,10 +121,10 @@ class AICoordinationEngineTest(unittest.TestCase):
         response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
         logger.info(response)
 
-    @unittest.skip("demonstrating skipping")
+    # @unittest.skip("demonstrating skipping")
     def test_graphql_insert_update_agent(self):
         query = Utility.generate_graphql_operation(
-            "insertUpdateAgent", "Query", self.schema
+            "insertUpdateAgent", "Mutation", self.schema
         )
         logger.info(f"Query: {query}")
         payload = {
@@ -137,8 +137,6 @@ class AICoordinationEngineTest(unittest.TestCase):
                 # "agentInstructions": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
                 # "coordinationType": "operation",
                 "responseFormat": "auto",
-                # "predecessor": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
-                # "successor": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
                 "status": "active",
                 "updatedBy": "XYZ",
             },
@@ -496,7 +494,7 @@ class AICoordinationEngineTest(unittest.TestCase):
         response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
         logger.info(response)
 
-    # @unittest.skip("demonstrating skipping")
+    @unittest.skip("demonstrating skipping")
     def test_graphql_session_agent_list(self):
         query = Utility.generate_graphql_operation(
             "sessionAgentList", "Query", self.schema

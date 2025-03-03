@@ -8,7 +8,6 @@ import traceback
 from typing import Any, Dict
 
 from graphene import Boolean, Field, Int, List, Mutation, String
-
 from silvaengine_utility import JSON
 
 from ..models.session_agent import delete_session_agent, insert_update_session_agent
@@ -28,7 +27,6 @@ class InsertUpdateSessionAgent(Mutation):
         user_input = String(required=False)
         agent_input = String(required=False)
         agent_output = String(required=False)
-        predecessor = String(required=False)
         in_degree = Int(required=False)
         state = String(required=False)
         notes = String(required=False)
