@@ -11,11 +11,10 @@ import pendulum
 from graphene import ResolveInfo
 from pynamodb.attributes import (
     ListAttribute,
-    MapAttribute,
+    NumberAttribute,
     UnicodeAttribute,
     UTCDateTimeAttribute,
 )
-from pynamodb.indexes import AllProjection, LocalSecondaryIndex
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from silvaengine_dynamodb_base import (
@@ -40,8 +39,9 @@ class TaskSessionModel(BaseModel):
     coordination_uuid = UnicodeAttribute()
     endpoint_id = UnicodeAttribute()
     task_query = UnicodeAttribute()
+    iteration_count = NumberAttribute(default=0)
     status = UnicodeAttribute(default="initial")
-    notes = UnicodeAttribute(null=True)
+    notes = ListAttribute(default=[])
     updated_by = UnicodeAttribute()
     created_at = UTCDateTimeAttribute()
     updated_at = UTCDateTimeAttribute()
@@ -151,7 +151,7 @@ def insert_update_task_session(info: ResolveInfo, **kwargs: Dict[str, Any]) -> N
             "created_at": pendulum.now("UTC"),
             "updated_at": pendulum.now("UTC"),
         }
-        for key in ["task_query", "status", "notes"]:
+        for key in ["task_query", "status", "notes", "iteration_count"]:
             if key in kwargs:
                 cols[key] = kwargs[key]
         TaskSessionModel(
@@ -169,6 +169,7 @@ def insert_update_task_session(info: ResolveInfo, **kwargs: Dict[str, Any]) -> N
     # Map of potential keys in kwargs to TaskSessionModel attributes
     field_map = {
         "task_query": TaskSessionModel.task_query,
+        "iteration_count": TaskSessionModel.iteration_count,
         "status": TaskSessionModel.status,
         "notes": TaskSessionModel.notes,
     }
