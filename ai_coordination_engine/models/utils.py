@@ -86,6 +86,7 @@ def _get_task_session(task_uuid: str, session_uuid: str) -> Dict[str, Any]:
         ),
         "session_uuid": task_session.session_uuid,
         "task_query": task_session.task_query,
+        "iteration_count": task_session.iteration_count,
         "status": task_session.status,
         "notes": task_session.notes,
     }
