@@ -113,6 +113,7 @@ def resolve_session_agent_list(
     primary_path = kwargs.get("primary_path")
     user_in_the_loop = kwargs.get("user_in_the_loop")
     predecessor = kwargs.get("predecessor")
+    predecessors = kwargs.get("predecessors")
     in_degree = kwargs.get("in_degree")
     states = kwargs.get("states")
 
@@ -137,11 +138,15 @@ def resolve_session_agent_list(
             SessionAgentModel.agent_action["user_in_the_loop"] == user_in_the_loop
         )
     if predecessor is not None:
-        the_filters &= SessionAgentModel.agent_action["predecessor"] == predecessor
+        the_filters &= SessionAgentModel.agent_action["predecessors"].contains(
+            predecessor
+        )
+    if predecessors is not None:
+        the_filters &= SessionAgentModel.agent_name.is_in(*predecessors)
     if in_degree is not None:
         the_filters &= SessionAgentModel.in_degree == in_degree
     if states is not None:
-        the_filters &= SessionAgentModel.state.is_in(states)
+        the_filters &= SessionAgentModel.state.is_in(*states)
     if the_filters is not None:
         args.append(the_filters)
 
@@ -169,7 +174,7 @@ def insert_update_session_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> 
             "agent_action": {
                 "primary_path": True,
                 "user_in_the_loop": None,
-                "predecessor": None,
+                "predecessors": [],
                 "action_rules": {},
             },
             "updated_by": kwargs["updated_by"],

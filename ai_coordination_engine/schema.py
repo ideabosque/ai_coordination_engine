@@ -168,6 +168,7 @@ class Query(ObjectType):
         primary_path=Boolean(required=False),
         user_in_the_loop=String(required=False),
         predecessor=String(required=False),
+        predecessors=List(String, required=False),
         in_degree=Int(required=False),
         states=List(String, required=False),
     )
