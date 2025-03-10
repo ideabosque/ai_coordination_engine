@@ -11,6 +11,7 @@ import pendulum
 from graphene import ResolveInfo
 from pynamodb.attributes import (
     ListAttribute,
+    MapAttribute,
     NumberAttribute,
     UnicodeAttribute,
     UTCDateTimeAttribute,
@@ -41,7 +42,7 @@ class TaskSessionModel(BaseModel):
     task_query = UnicodeAttribute()
     iteration_count = NumberAttribute(default=0)
     status = UnicodeAttribute(default="initial")
-    notes = ListAttribute(default=[])
+    notes = ListAttribute(of=MapAttribute, default=[])
     updated_by = UnicodeAttribute()
     created_at = UTCDateTimeAttribute()
     updated_at = UTCDateTimeAttribute()
