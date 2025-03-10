@@ -17,7 +17,7 @@ class TaskSessionType(ObjectType):
     task_query = String()
     iteration_count = Int()
     status = String()
-    notes = String()
+    notes = List(JSON)
     updated_by = String()
     created_at = DateTime()
     updated_at = DateTime()
