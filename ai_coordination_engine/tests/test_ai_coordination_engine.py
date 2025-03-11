@@ -311,7 +311,7 @@ class AICoordinationEngineTest(unittest.TestCase):
         response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
         logger.info(response)
 
-    @unittest.skip("demonstrating skipping")
+    # @unittest.skip("demonstrating skipping")
     def test_graphql_insert_update_task(self):
         query = Utility.generate_graphql_operation(
             "insertUpdateTask", "Mutation", self.schema
@@ -321,11 +321,11 @@ class AICoordinationEngineTest(unittest.TestCase):
             "query": query,
             "variables": {
                 "coordinationUuid": "1057228940262445551",
-                "taskUuid": "5077563706321605103",
+                # "taskUuid": "5077563706321605103",
                 "taskName": "process_data",
                 "taskDescription": "process_datsa",
                 "initialTaskQuery": "Please find the data",
-                "agentActions": [],
+                "agentActions": {},
                 "updatedBy": "XYZ",
             },
         }
@@ -495,7 +495,7 @@ class AICoordinationEngineTest(unittest.TestCase):
         response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
         logger.info(response)
 
-    # @unittest.skip("demonstrating skipping")
+    @unittest.skip("demonstrating skipping")
     def test_graphql_session_agent_list(self):
         query = Utility.generate_graphql_operation(
             "sessionAgentList", "Query", self.schema

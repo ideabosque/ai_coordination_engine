@@ -5,7 +5,6 @@ from __future__ import print_function
 __author__ = "bibow"
 
 from graphene import DateTime, List, ObjectType, String
-
 from silvaengine_dynamodb_base import ListObjectType
 from silvaengine_utility import JSON
 
@@ -16,7 +15,7 @@ class TaskType(ObjectType):
     task_name = String()
     task_description = String()
     initial_task_query = String()
-    agent_actions = List(JSON)
+    agent_actions = JSON()
     updated_by = String()
     created_at = DateTime()
     updated_at = DateTime()
