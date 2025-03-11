@@ -16,8 +16,6 @@ from pynamodb.attributes import (
     UTCDateTimeAttribute,
 )
 from pynamodb.indexes import AllProjection, LocalSecondaryIndex
-from tenacity import retry, stop_after_attempt, wait_exponential
-
 from silvaengine_dynamodb_base import (
     BaseModel,
     delete_decorator,
@@ -26,6 +24,7 @@ from silvaengine_dynamodb_base import (
     resolve_list_decorator,
 )
 from silvaengine_utility import Utility
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..types.task import TaskListType, TaskType
 from .utils import _get_coordination
@@ -41,7 +40,7 @@ class TaskModel(BaseModel):
     task_description = UnicodeAttribute(null=True)
     initial_task_query = UnicodeAttribute()
     endpoint_id = UnicodeAttribute()
-    agent_actions = ListAttribute(of=MapAttribute, default=[])
+    agent_actions = MapAttribute(default={})
     updated_by = UnicodeAttribute()
     created_at = UTCDateTimeAttribute()
     updated_at = UTCDateTimeAttribute()
