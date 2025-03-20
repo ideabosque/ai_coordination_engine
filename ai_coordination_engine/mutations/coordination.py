@@ -30,7 +30,6 @@ class InsertUpdateCoordination(Mutation):
         root: Any, info: Any, **kwargs: Dict[str, Any]
     ) -> "InsertUpdateCoordination":
         try:
-            kwargs["endpoint_id"] = info.context["endpoint_id"]
             coordination = insert_update_coordination(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
@@ -49,7 +48,6 @@ class DeleteCoordination(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "DeleteCoordination":
         try:
-            kwargs["endpoint_id"] = info.context["endpoint_id"]
             ok = delete_coordination(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
