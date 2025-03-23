@@ -4,6 +4,7 @@ from __future__ import print_function
 
 __author__ = "bibow"
 
+import logging
 import traceback
 from typing import Any, Dict
 
@@ -16,6 +17,8 @@ from pynamodb.attributes import (
     UTCDateTimeAttribute,
 )
 from pynamodb.indexes import AllProjection, LocalSecondaryIndex
+from tenacity import retry, stop_after_attempt, wait_exponential
+
 from silvaengine_dynamodb_base import (
     BaseModel,
     delete_decorator,
@@ -24,7 +27,6 @@ from silvaengine_dynamodb_base import (
     resolve_list_decorator,
 )
 from silvaengine_utility import Utility
-from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..types.task import TaskListType, TaskType
 from .utils import _get_coordination
@@ -44,6 +46,15 @@ class TaskModel(BaseModel):
     updated_by = UnicodeAttribute()
     created_at = UTCDateTimeAttribute()
     updated_at = UTCDateTimeAttribute()
+
+
+def create_task_table(logger: logging.Logger) -> bool:
+    """Create the Task table if it doesn't exist."""
+    if not TaskModel.exists():
+        # Create with on-demand billing (PAY_PER_REQUEST)
+        TaskModel.create_table(billing_mode="PAY_PER_REQUEST", wait=True)
+        logger.info("The Task table has been created.")
+    return True
 
 
 @retry(

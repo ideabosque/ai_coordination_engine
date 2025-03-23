@@ -5,11 +5,12 @@ from __future__ import print_function
 __author__ = "bibow"
 
 
+import logging
 from typing import Any, Dict
 
 import pendulum
 from graphene import ResolveInfo
-from pynamodb.attributes import UnicodeAttribute, UTCDateTimeAttribute
+from pynamodb.attributes import MapAttribute, UnicodeAttribute, UTCDateTimeAttribute
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from silvaengine_dynamodb_base import (
@@ -32,11 +33,19 @@ class CoordinationModel(BaseModel):
     coordination_uuid = UnicodeAttribute(range_key=True)
     coordination_name = UnicodeAttribute()
     coordination_description = UnicodeAttribute()
-    assistant_id = UnicodeAttribute()
-    additional_instructions = UnicodeAttribute(null=True)
+    agents = MapAttribute(default={})
     updated_by = UnicodeAttribute()
     created_at = UTCDateTimeAttribute()
     updated_at = UTCDateTimeAttribute()
+
+
+def create_coordination_table(logger: logging.Logger) -> bool:
+    """Create the Coordination table if it doesn't exist."""
+    if not CoordinationModel.exists():
+        # Create with on-demand billing (PAY_PER_REQUEST)
+        CoordinationModel.create_table(billing_mode="PAY_PER_REQUEST", wait=True)
+        logger.info("The Coordination table has been created.")
+    return True
 
 
 @retry(
@@ -78,7 +87,6 @@ def resolve_coordination_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> An
     endpoint_id = info.context["endpoint_id"]
     coordination_name = kwargs.get("coordination_name")
     coordination_description = kwargs.get("coordination_description")
-    assistant_id = kwargs.get("assistant_id")
     args = []
     inquiry_funct = CoordinationModel.scan
     count_funct = CoordinationModel.count
@@ -93,8 +101,6 @@ def resolve_coordination_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> An
         the_filters &= CoordinationModel.coordination_description.contains(
             coordination_description
         )
-    if assistant_id is not None:
-        the_filters &= CoordinationModel.assistant_id == assistant_id
     if the_filters is not None:
         args.append(the_filters)
 
@@ -119,7 +125,7 @@ def insert_update_coordination(info: ResolveInfo, **kwargs: Dict[str, Any]) -> N
         cols = {
             "coordination_name": kwargs["coordination_name"],
             "coordination_description": kwargs["coordination_description"],
-            "assistant_id": kwargs["assistant_id"],
+            "agents": kwargs["agents"],
             "updated_by": kwargs["updated_by"],
             "created_at": pendulum.now("UTC"),
             "updated_at": pendulum.now("UTC"),
@@ -142,8 +148,7 @@ def insert_update_coordination(info: ResolveInfo, **kwargs: Dict[str, Any]) -> N
     field_map = {
         "coordination_name": CoordinationModel.coordination_name,
         "coordination_description": CoordinationModel.coordination_description,
-        "assistant_id": CoordinationModel.assistant_id,
-        "additional_instructions": CoordinationModel.additional_instructions,
+        "agents": CoordinationModel.agents,
     }
 
     # Check if a key exists in kwargs before adding it to the update actions

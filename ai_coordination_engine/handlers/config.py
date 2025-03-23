@@ -6,6 +6,8 @@ __author__ = "bibow"
 import logging
 from typing import Any, Dict
 
+from ..models import utils
+
 
 class Config:
     """
@@ -23,6 +25,8 @@ class Config:
         """
         try:
             cls._set_parameters(setting)
+            if setting.get("test_mode") == "local_for_all":
+                cls._initialize_tables(logger)
             logger.info("Configuration initialized successfully.")
         except Exception as e:
             logger.exception("Failed to initialize configuration.")
@@ -36,3 +40,11 @@ class Config:
             setting (Dict[str, Any]): Configuration dictionary.
         """
         pass
+
+    @classmethod
+    def _initialize_tables(cls, logger: logging.Logger) -> None:
+        """
+        Initialize database tables by calling the utils._initialize_tables() method.
+        This is an internal method used during configuration setup.
+        """
+        utils._initialize_tables(logger)

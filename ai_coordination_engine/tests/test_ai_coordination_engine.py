@@ -58,20 +58,29 @@ class AICoordinationEngineTest(unittest.TestCase):
         logger.info("Destory AICoordinationEngineTest ...")
 
     @unittest.skip("demonstrating skipping")
+    def test_graphql_ping(self):
+        query = Utility.generate_graphql_operation("ping", "Query", self.schema)
+        logger.info(f"Query: {query}")
+        payload = {
+            "query": query,
+            "variables": {},
+        }
+        response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
+        logger.info(response)
+
+    @unittest.skip("demonstrating skipping")
     def test_graphql_insert_update_coordination(self):
         query = Utility.generate_graphql_operation(
-            "insertUpdateCoordination", "Query", self.schema
+            "insertUpdateCoordination", "Mutation", self.schema
         )
         logger.info(f"Query: {query}")
         payload = {
             "query": query,
             "variables": {
-                "coordinationType": "operation",
-                # "coordinationUuid": "1057228940262445551",
+                "coordinationUuid": "7339318953952874992",
                 "coordinationName": "RFQ Op",
                 "coordinationDescription": "XXXXXXXXXXXXXXXXXXXX",
-                "assistantId": "asst_CRw6YN4ZAZ2w7fz7LqYetrbm",
-                "additionalInstructions": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+                "agents": {},
                 "updatedBy": "XYZ",
             },
         }
@@ -81,13 +90,13 @@ class AICoordinationEngineTest(unittest.TestCase):
     @unittest.skip("demonstrating skipping")
     def test_graphql_delete_coordination(self):
         query = Utility.generate_graphql_operation(
-            "deleteCoordination", "Query", self.schema
+            "deleteCoordination", "Mutation", self.schema
         )
         logger.info(f"Query: {query}")
         payload = {
             "query": query,
             "variables": {
-                "coordinationUuid": "15277018802377658863",
+                "coordinationUuid": "13054439966881681904",
             },
         }
         response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
@@ -95,14 +104,12 @@ class AICoordinationEngineTest(unittest.TestCase):
 
     @unittest.skip("demonstrating skipping")
     def test_graphql_coordination(self):
-        query = Utility.generate_graphql_operation(
-            "getCoordination", "Query", self.schema
-        )
+        query = Utility.generate_graphql_operation("coordination", "Query", self.schema)
         logger.info(f"Query: {query}")
         payload = {
             "query": query,
             "variables": {
-                "coordinationUuid": "15277018802377658863",
+                "coordinationUuid": "7339318953952874992",
             },
         }
         response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
@@ -111,7 +118,7 @@ class AICoordinationEngineTest(unittest.TestCase):
     @unittest.skip("demonstrating skipping")
     def test_graphql_coordination_list(self):
         query = Utility.generate_graphql_operation(
-            "getCoordinationList", "Query", self.schema
+            "coordinationList", "Query", self.schema
         )
         logger.info(f"Query: {query}")
         payload = {
@@ -122,82 +129,18 @@ class AICoordinationEngineTest(unittest.TestCase):
         logger.info(response)
 
     @unittest.skip("demonstrating skipping")
-    def test_graphql_insert_update_agent(self):
-        query = Utility.generate_graphql_operation(
-            "insertUpdateAgent", "Mutation", self.schema
-        )
-        logger.info(f"Query: {query}")
-        payload = {
-            "query": query,
-            "variables": {
-                "coordinationUuid": "7414700151911289327",
-                "agentVersionUuid": "14987473663722983919",
-                "agentName": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
-                # "agentDescription": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
-                # "agentInstructions": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
-                # "coordinationType": "operation",
-                "responseFormat": "auto",
-                "status": "active",
-                "updatedBy": "XYZ",
-            },
-        }
-        response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
-        logger.info(response)
-
-    @unittest.skip("demonstrating skipping")
-    def test_graphql_delete_agent(self):
-        query = Utility.generate_graphql_operation("deleteAgent", "Query", self.schema)
-        logger.info(f"Query: {query}")
-        payload = {
-            "query": query,
-            "variables": {
-                "coordinationUuid": "1057228940262445551",
-                "agentUuid": "6839313776147829231",
-            },
-        }
-        response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
-        logger.info(response)
-
-    @unittest.skip("demonstrating skipping")
-    def test_graphql_agent(self):
-        query = Utility.generate_graphql_operation("getAgent", "Query", self.schema)
-        logger.info(f"Query: {query}")
-        payload = {
-            "query": query,
-            "variables": {
-                "coordinationUuid": "7414700151911289327",
-                "agentName": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
-            },
-        }
-        response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
-        logger.info(response)
-
-    @unittest.skip("demonstrating skipping")
-    def test_graphql_agent_list(self):
-        query = Utility.generate_graphql_operation("agentList", "Query", self.schema)
-        logger.info(f"Query: {query}")
-        payload = {
-            "query": query,
-            "variables": {
-                "coordinationUuid": "7414700151911289327",
-            },
-        }
-        response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
-        logger.info(response)
-
-    @unittest.skip("demonstrating skipping")
     def test_graphql_insert_update_session(self):
         query = Utility.generate_graphql_operation(
-            "insertUpdateSession", "Query", self.schema
+            "insertUpdateSession", "Mutation", self.schema
         )
         logger.info(f"Query: {query}")
         payload = {
             "query": query,
             "variables": {
-                "coordinationUuid": "7414700151911289327",
-                # "sessionUuid": "7172266856517145071",
-                "status": "active",
-                "notes": "null",
+                "coordinationUuid": "7339318953952874992",
+                "sessionUuid": "4175379880301105648",
+                # "status": "active",
+                # "notes": "null",
                 "updatedBy": "XYZ",
             },
         }
@@ -207,7 +150,7 @@ class AICoordinationEngineTest(unittest.TestCase):
     @unittest.skip("demonstrating skipping")
     def test_graphql_delete_session(self):
         query = Utility.generate_graphql_operation(
-            "deleteSession", "Query", self.schema
+            "deleteSession", "Mutation", self.schema
         )
         logger.info(f"Query: {query}")
         payload = {
@@ -222,13 +165,13 @@ class AICoordinationEngineTest(unittest.TestCase):
 
     @unittest.skip("demonstrating skipping")
     def test_graphql_session(self):
-        query = Utility.generate_graphql_operation("getSession", "Query", self.schema)
+        query = Utility.generate_graphql_operation("session", "Query", self.schema)
         logger.info(f"Query: {query}")
         payload = {
             "query": query,
             "variables": {
-                "coordinationUuid": "7414700151911289327",
-                "sessionUuid": "16505656650518893039",
+                "coordinationUuid": "7339318953952874992",
+                "sessionUuid": "4175379880301105648",
             },
         }
         response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
@@ -236,34 +179,30 @@ class AICoordinationEngineTest(unittest.TestCase):
 
     @unittest.skip("demonstrating skipping")
     def test_graphql_session_list(self):
-        query = Utility.generate_graphql_operation(
-            "getSessionList", "Query", self.schema
-        )
+        query = Utility.generate_graphql_operation("sessionList", "Query", self.schema)
         logger.info(f"Query: {query}")
         payload = {
             "query": query,
             "variables": {
-                "coordinationUuid": "1057228940262445551",
+                "coordinationUuid": "7339318953952874992",
             },
         }
         response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
         logger.info(response)
 
     @unittest.skip("demonstrating skipping")
-    def test_graphql_insert_update_thread(self):
+    def test_graphql_insert_update_session_thread(self):
         query = Utility.generate_graphql_operation(
-            "insertUpdateThread", "Query", self.schema
+            "insertUpdateSessionThread", "Mutation", self.schema
         )
         logger.info(f"Query: {query}")
         payload = {
             "query": query,
             "variables": {
-                "sessionUuid": "16505656650518893039",
-                "threadId": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
-                "coordinationUuid": "7414700151911289327",
-                "agentName": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
-                "lastAssistantMessage": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
-                "log": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+                "sessionUuid": "4175379880301105648",
+                "threadUuid": "XXXXXXXXXXXXXXXXXXXX",
+                "agentUuid": "XXXXXXXXXXXXXXXXXXXX",
+                "coordinationUuid": "7339318953952874992",
                 "updatedBy": "XYZ",
             },
         }
@@ -271,47 +210,53 @@ class AICoordinationEngineTest(unittest.TestCase):
         logger.info(response)
 
     @unittest.skip("demonstrating skipping")
-    def test_graphql_delete_thread(self):
-        query = Utility.generate_graphql_operation("deleteThread", "Query", self.schema)
+    def test_graphql_delete_session_thread(self):
+        query = Utility.generate_graphql_operation(
+            "deleteSessionThread", "Mutation", self.schema
+        )
         logger.info(f"Query: {query}")
         payload = {
             "query": query,
             "variables": {
-                "sessionUuid": "11763350835914674671",
-                "messageId": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+                "sessionUuid": "XXXXXXXXXXXXXXXXXXX",
+                "threadUuid": "XXXXXXXXXXXXXXXXXXXX",
             },
         }
         response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
         logger.info(response)
 
     @unittest.skip("demonstrating skipping")
-    def test_graphql_thread(self):
-        query = Utility.generate_graphql_operation("thread", "Query", self.schema)
+    def test_graphql_session_thread(self):
+        query = Utility.generate_graphql_operation(
+            "sessionThread", "Query", self.schema
+        )
         logger.info(f"Query: {query}")
         payload = {
             "query": query,
             "variables": {
-                "sessionUuid": "16505656650518893039",
-                "threadId": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+                "sessionUuid": "4175379880301105648",
+                "threadUuid": "XXXXXXXXXXXXXXXXXXXX",
             },
         }
         response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
         logger.info(response)
 
     @unittest.skip("demonstrating skipping")
-    def test_graphql_thread_list(self):
-        query = Utility.generate_graphql_operation("threadList", "Query", self.schema)
+    def test_graphql_session_thread_list(self):
+        query = Utility.generate_graphql_operation(
+            "sessionThreadList", "Query", self.schema
+        )
         logger.info(f"Query: {query}")
         payload = {
             "query": query,
             "variables": {
-                "sessionUuid": "13393439109748756975",
+                "sessionUuid": "4175379880301105648",
             },
         }
         response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
         logger.info(response)
 
-    # @unittest.skip("demonstrating skipping")
+    @unittest.skip("demonstrating skipping")
     def test_graphql_insert_update_task(self):
         query = Utility.generate_graphql_operation(
             "insertUpdateTask", "Mutation", self.schema
@@ -320,8 +265,8 @@ class AICoordinationEngineTest(unittest.TestCase):
         payload = {
             "query": query,
             "variables": {
-                "coordinationUuid": "1057228940262445551",
-                # "taskUuid": "5077563706321605103",
+                "coordinationUuid": "7339318953952874992",
+                "taskUuid": "6753533827658093040",
                 "taskName": "process_data",
                 "taskDescription": "process_datsa",
                 "initialTaskQuery": "Please find the data",
@@ -355,8 +300,8 @@ class AICoordinationEngineTest(unittest.TestCase):
         payload = {
             "query": query,
             "variables": {
-                "coordinationUuid": "1057228940262445551",
-                "taskUuid": "5077563706321605103",
+                "coordinationUuid": "7339318953952874992",
+                "taskUuid": "6753533827658093040",
             },
         }
         response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
@@ -369,72 +314,7 @@ class AICoordinationEngineTest(unittest.TestCase):
         payload = {
             "query": query,
             "variables": {
-                "coordinationUuid": "1057228940262445551",
-            },
-        }
-        response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
-        logger.info(response)
-
-    @unittest.skip("demonstrating skipping")
-    def test_graphql_insert_update_task_session(self):
-        query = Utility.generate_graphql_operation(
-            "insertUpdateTaskSession", "Mutation", self.schema
-        )
-        logger.info(f"Query: {query}")
-        payload = {
-            "query": query,
-            "variables": {
-                "taskUuid": "5077563706321605103",
-                "sessionUuid": "16505656650518893039",
-                "coordinationUuid": "7414700151911289327",
-                "taskQuery": "Please find the data",
-                "iterationCount": 1,
-                "updatedBy": "XYZ",
-            },
-        }
-        response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
-        logger.info(response)
-
-    @unittest.skip("demonstrating skipping")
-    def test_graphql_delete_task_session(self):
-        query = Utility.generate_graphql_operation(
-            "deleteTaskSession", "Mutation", self.schema
-        )
-        logger.info(f"Query: {query}")
-        payload = {
-            "query": query,
-            "variables": {
-                "taskUuid": "5077563706321605103",
-                "sessionUuid": "1067071150838256111",
-            },
-        }
-        response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
-        logger.info(response)
-
-    @unittest.skip("demonstrating skipping")
-    def test_graphql_task_session(self):
-        query = Utility.generate_graphql_operation("taskSession", "Query", self.schema)
-        logger.info(f"Query: {query}")
-        payload = {
-            "query": query,
-            "variables": {
-                "taskUuid": "5077563706321605103",
-                "sessionUuid": "16505656650518893039",
-            },
-        }
-        response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
-        logger.info(response)
-
-    @unittest.skip("demonstrating skipping")
-    def test_graphql_task_session_list(self):
-        query = Utility.generate_graphql_operation(
-            "taskSessionList", "Query", self.schema
-        )
-        logger.info(f"Query: {query}")
-        payload = {
-            "query": query,
-            "variables": {
-                "taskUuid": "5077563706321605103",
+                "coordinationUuid": "7339318953952874992",
             },
         }
         response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
@@ -448,11 +328,11 @@ class AICoordinationEngineTest(unittest.TestCase):
         payload = {
             "query": query,
             "variables": {
-                "sessionUuid": "16505656650518893039",
-                "sessionAgentUuid": "4424984885105725935",
-                "threadId": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
-                "taskUuid": "5077563706321605103",
-                "agentName": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+                "sessionUuid": "4175379880301105648",
+                "sessionAgentUuid": "13128846641751003632",
+                "coordinationUuid": "7339318953952874992",
+                "taskUuid": "6753533827658093040",
+                "agentUuid": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
                 # "agentAction": "",
                 # "userInput": "",
                 # "agentInput": "",
@@ -488,8 +368,8 @@ class AICoordinationEngineTest(unittest.TestCase):
         payload = {
             "query": query,
             "variables": {
-                "sessionUuid": "16505656650518893039",
-                "sessionAgentUuid": "14411869504290230767",
+                "sessionUuid": "4175379880301105648",
+                "sessionAgentUuid": "13128846641751003632",
             },
         }
         response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
@@ -503,8 +383,8 @@ class AICoordinationEngineTest(unittest.TestCase):
         payload = {
             "query": query,
             "variables": {
-                "sessionUuid": "8094974975827775983",
-                "predecessors": ["B2B AI Communication Assistant"],
+                "sessionUuid": "4175379880301105648",
+                # "predecessors": ["B2B AI Communication Assistant"],
                 # "predecessor": "B2B AI Communication Assistant",
                 # "userInTheLoop": "Bibo W.",
                 # "states": ["initial"],
@@ -521,9 +401,9 @@ class AICoordinationEngineTest(unittest.TestCase):
         payload = {
             "query": query,
             "variables": {
-                "taskUuid": "5077563706321605103",
-                # "scheduleUuid": "13834605610270527983",
-                "coordinationUuid": "7414700151911289327",
+                "taskUuid": "6753533827658093040",
+                "scheduleUuid": "3318581209527161328",
+                "coordinationUuid": "7339318953952874992",
                 "schedule": "*,*,*,*,*,*",
                 "updatedBy": "XYZ",
             },
@@ -552,14 +432,14 @@ class AICoordinationEngineTest(unittest.TestCase):
         payload = {
             "query": query,
             "variables": {
-                "taskUuid": "5077563706321605103",
-                "scheduleUuid": "18006023039515169263",
+                "taskUuid": "6753533827658093040",
+                "scheduleUuid": "3318581209527161328",
             },
         }
         response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
         logger.info(response)
 
-    @unittest.skip("demonstrating skipping")
+    # @unittest.skip("demonstrating skipping")
     def test_graphql_task_schedule_list(self):
         query = Utility.generate_graphql_operation(
             "taskScheduleList", "Query", self.schema
@@ -567,7 +447,7 @@ class AICoordinationEngineTest(unittest.TestCase):
         payload = {
             "query": query,
             "variables": {
-                "taskUuid": "5077563706321605103",
+                "taskUuid": "6753533827658093040",
             },
         }
         response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
