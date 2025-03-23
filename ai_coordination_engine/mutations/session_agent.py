@@ -7,7 +7,8 @@ __author__ = "bibow"
 import traceback
 from typing import Any, Dict
 
-from graphene import Boolean, Field, Int, List, Mutation, String
+from graphene import Boolean, Field, Int, Mutation, String
+
 from silvaengine_utility import JSON
 
 from ..models.session_agent import delete_session_agent, insert_update_session_agent
@@ -20,9 +21,9 @@ class InsertUpdateSessionAgent(Mutation):
     class Arguments:
         session_uuid = String(required=True)
         session_agent_uuid = String(required=False)
-        thread_id = String(required=False)
+        coordination_uuid = String(required=False)
         task_uuid = String(required=False)
-        agent_name = String(required=False)
+        agent_uuid = String(required=False)
         agent_action = JSON(required=False)
         user_input = String(required=False)
         agent_input = String(required=False)

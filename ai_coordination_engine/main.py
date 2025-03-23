@@ -108,13 +108,13 @@ def deploy() -> List:
 
 class AICoordinationEngine(SilvaEngineDynamoDBBase):
     def __init__(self, logger: logging.Logger, **setting: Dict[str, Any]) -> None:
+        SilvaEngineDynamoDBBase.__init__(self, logger, **setting)
+
         # Initialize configuration via the Config class
         Config.initialize(logger, **setting)
 
         self.logger = logger
         self.setting = setting
-
-        SilvaEngineDynamoDBBase.__init__(self, logger, **setting)
 
     def ai_coordination_graphql(self, **params: Dict[str, Any]) -> Any:
         ## Test the waters 🧪 before diving in!

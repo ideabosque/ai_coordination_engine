@@ -7,6 +7,7 @@ __author__ = "bibow"
 from graphene import DateTime, List, ObjectType, String
 
 from silvaengine_dynamodb_base import ListObjectType
+from silvaengine_utility import JSON
 
 
 class CoordinationType(ObjectType):
@@ -14,8 +15,7 @@ class CoordinationType(ObjectType):
     coordination_uuid = String()
     coordination_name = String()
     coordination_description = String()
-    assistant_id = String()
-    additional_instructions = String()
+    agents = JSON()
     updated_by = String()
     created_at = DateTime()
     updated_at = DateTime()

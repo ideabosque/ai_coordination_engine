@@ -4,15 +4,19 @@ from __future__ import print_function
 
 __author__ = "bibow"
 
-from graphene import DateTime, List, ObjectType, String
+from graphene import DateTime, Int, List, ObjectType, String
+
 from silvaengine_dynamodb_base import ListObjectType
 from silvaengine_utility import JSON
 
 
 class SessionType(ObjectType):
     coordination = JSON()
+    task = JSON()
     session_uuid = String()
-    thread_ids = List(String)
+    user_id = String()
+    task_query = String()
+    iteration_count = Int()
     status = String()
     notes = String()
     updated_by = String()

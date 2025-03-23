@@ -9,6 +9,8 @@ from typing import Any, Dict
 
 from graphene import Boolean, Field, Mutation, String
 
+from silvaengine_utility import JSON
+
 from ..models.coordination import delete_coordination, insert_update_coordination
 from ..types.coordination import CoordinationType
 
@@ -20,9 +22,7 @@ class InsertUpdateCoordination(Mutation):
         coordination_uuid = String(required=False)
         coordination_name = String(required=False)
         coordination_description = String(required=False)
-        assistant_id = String(required=False)
-        assistant_type = String(required=False)
-        additional_instructions = String(required=False)
+        agents = JSON(required=False)
         updated_by = String(required=True)
 
     @staticmethod

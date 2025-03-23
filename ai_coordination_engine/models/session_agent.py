@@ -4,20 +4,18 @@ from __future__ import print_function
 
 __author__ = "bibow"
 
+import logging
 import traceback
 from typing import Any, Dict
 
 import pendulum
 from graphene import ResolveInfo
 from pynamodb.attributes import (
-    BooleanAttribute,
-    ListAttribute,
     MapAttribute,
     NumberAttribute,
     UnicodeAttribute,
     UTCDateTimeAttribute,
 )
-from pynamodb.indexes import AllProjection, LocalSecondaryIndex
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from silvaengine_dynamodb_base import (
@@ -30,7 +28,7 @@ from silvaengine_dynamodb_base import (
 from silvaengine_utility import Utility
 
 from ..types.session_agent import SessionAgentListType, SessionAgentType
-from .utils import _get_task_session
+from .utils import _get_session
 
 
 class SessionAgentModel(BaseModel):
@@ -39,9 +37,9 @@ class SessionAgentModel(BaseModel):
 
     session_uuid = UnicodeAttribute(hash_key=True)
     session_agent_uuid = UnicodeAttribute(range_key=True)
-    thread_id = UnicodeAttribute(null=True)
+    coordination_uuid = UnicodeAttribute()
     task_uuid = UnicodeAttribute()
-    agent_name = UnicodeAttribute()
+    agent_uuid = UnicodeAttribute()
     agent_action = MapAttribute(null=True)
     user_input = UnicodeAttribute(null=True)
     agent_input = UnicodeAttribute(null=True)
@@ -52,6 +50,15 @@ class SessionAgentModel(BaseModel):
     updated_by = UnicodeAttribute()
     created_at = UTCDateTimeAttribute()
     updated_at = UTCDateTimeAttribute()
+
+
+def create_session_agent_table(logger: logging.Logger) -> bool:
+    """Create the Session Agent table if it doesn't exist."""
+    if not SessionAgentModel.exists():
+        # Create with on-demand billing (PAY_PER_REQUEST)
+        SessionAgentModel.create_table(billing_mode="PAY_PER_REQUEST", wait=True)
+        logger.info("The SessionAgent table has been created.")
+    return True
 
 
 @retry(
@@ -74,15 +81,16 @@ def get_session_agent_type(
     info: ResolveInfo, session_agent: SessionAgentModel
 ) -> SessionAgentType:
     try:
-        task_session = _get_task_session(
-            session_agent.task_uuid, session_agent.session_uuid
+        session = _get_session(
+            session_agent.coordination_uuid, session_agent.session_uuid
         )
     except Exception as e:
         log = traceback.format_exc()
         info.context.get("logger").exception(log)
         raise e
     session_agent = session_agent.__dict__["attribute_values"]
-    session_agent["task_session"] = task_session
+    session_agent["session"] = session
+    session_agent.pop("coordination_uuid")
     session_agent.pop("task_uuid")
     session_agent.pop("session_uuid")
     return SessionAgentType(**Utility.json_loads(Utility.json_dumps(session_agent)))
@@ -107,9 +115,9 @@ def resolve_session_agent_list(
     info: ResolveInfo, **kwargs: Dict[str, Any]
 ) -> SessionAgentListType:
     session_uuid = kwargs.get("session_uuid")
-    thread_id = kwargs.get("thread_id")
+    coordination_uuid = kwargs.get("coordination_uuid")
     task_uuid = kwargs.get("task_uuid")
-    agent_name = kwargs.get("agent_name")
+    agent_uuid = kwargs.get("agent_uuid")
     primary_path = kwargs.get("primary_path")
     user_in_the_loop = kwargs.get("user_in_the_loop")
     predecessor = kwargs.get("predecessor")
@@ -125,12 +133,12 @@ def resolve_session_agent_list(
         inquiry_funct = SessionAgentModel.query
 
     the_filters = None  # We can add filters for the query.
-    if thread_id is not None:
-        the_filters &= SessionAgentModel.thread_id == thread_id
+    if coordination_uuid is not None:
+        the_filters &= SessionAgentModel.coordination_uuid == coordination_uuid
     if task_uuid is not None:
         the_filters &= SessionAgentModel.task_uuid == task_uuid
-    if agent_name is not None:
-        the_filters &= SessionAgentModel.agent_name == agent_name
+    if agent_uuid is not None:
+        the_filters &= SessionAgentModel.agent_uuid == agent_uuid
     if primary_path is not None:
         the_filters &= SessionAgentModel.agent_action["primary_path"] == primary_path
     if user_in_the_loop is not None:
@@ -142,7 +150,7 @@ def resolve_session_agent_list(
             predecessor
         )
     if predecessors is not None:
-        the_filters &= SessionAgentModel.agent_name.is_in(*predecessors)
+        the_filters &= SessionAgentModel.agent_uuid.is_in(*predecessors)
     if in_degree is not None:
         the_filters &= SessionAgentModel.in_degree == in_degree
     if states is not None:
@@ -169,8 +177,9 @@ def insert_update_session_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> 
     session_agent_uuid = kwargs.get("session_agent_uuid")
     if kwargs.get("entity") is None:
         cols = {
+            "coordination_uuid": kwargs["coordination_uuid"],
             "task_uuid": kwargs["task_uuid"],
-            "agent_name": kwargs["agent_name"],
+            "agent_uuid": kwargs["agent_uuid"],
             "agent_action": {
                 "primary_path": True,
                 "user_in_the_loop": None,
@@ -182,7 +191,6 @@ def insert_update_session_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> 
             "updated_at": pendulum.now("UTC"),
         }
         for key in [
-            "thread_id",
             "agent_action",
             "user_input",
             "agent_input",
@@ -210,7 +218,6 @@ def insert_update_session_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> 
     ]
     # Map of potential keys in kwargs to SessionAgentModel attributes
     field_map = {
-        "thread_id": SessionAgentModel.thread_id,
         "agent_action": SessionAgentModel.agent_action,
         "user_input": SessionAgentModel.user_input,
         "agent_input": SessionAgentModel.agent_input,
