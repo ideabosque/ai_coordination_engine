@@ -11,14 +11,14 @@ def _initialize_tables(logger: logging.Logger) -> None:
     from .coordination import create_coordination_table
     from .session import create_session_table
     from .session_agent import create_session_agent_table
-    from .session_thread import create_session_thread_table
+    from .session_run import create_session_run_table
     from .task import create_task_table
     from .task_schedule import create_task_schedule_table
 
     create_coordination_table(logger)
     create_session_table(logger)
     create_session_agent_table(logger)
-    create_session_thread_table(logger)
+    create_session_run_table(logger)
     create_task_table(logger)
     create_task_schedule_table(logger)
 
@@ -58,7 +58,7 @@ def _get_session(coordination_uuid: str, session_uuid: str) -> Dict[str, Any]:
         "task_query": session.task_query,
         "iteration_count": session.iteration_count,
         "status": session.status,
-        "notes": session.notes,
+        "logs": session.logs,
     }
 
 

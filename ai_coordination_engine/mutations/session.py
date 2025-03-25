@@ -7,7 +7,9 @@ __author__ = "bibow"
 import traceback
 from typing import Any, Dict
 
-from graphene import Boolean, Field, Int, Mutation, String
+from graphene import Boolean, Field, Int, List, Mutation, String
+
+from silvaengine_utility import JSON
 
 from ..models.session import delete_session, insert_update_session
 from ..types.session import SessionType
@@ -24,7 +26,7 @@ class InsertUpdateSession(Mutation):
         task_query = String(required=False)
         iteration_count = Int(required=False)
         status = String(required=False)
-        notes = String(required=False)
+        logs = String(required=False)
         updated_by = String(required=True)
 
     @staticmethod

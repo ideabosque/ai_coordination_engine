@@ -7,7 +7,7 @@ __author__ = "bibow"
 import traceback
 from typing import Any, Dict
 
-from graphene import Boolean, Field, Mutation, String
+from graphene import Boolean, Field, List, Mutation, String
 
 from silvaengine_utility import JSON
 
@@ -22,7 +22,7 @@ class InsertUpdateCoordination(Mutation):
         coordination_uuid = String(required=False)
         coordination_name = String(required=False)
         coordination_description = String(required=False)
-        agents = JSON(required=False)
+        agents = List(JSON, required=False)
         updated_by = String(required=True)
 
     @staticmethod

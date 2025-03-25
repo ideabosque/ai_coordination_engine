@@ -12,19 +12,19 @@ from graphene import Boolean, Field, Int, List, ObjectType, ResolveInfo, String
 from .mutations.coordination import DeleteCoordination, InsertUpdateCoordination
 from .mutations.session import DeleteSession, InsertUpdateSession
 from .mutations.session_agent import DeleteSessionAgent, InsertUpdateSessionAgent
-from .mutations.session_thread import DeleteSessionThread, InsertUpdateSessionThread
+from .mutations.session_run import DeleteSessionRun, InsertUpdateSessionRun
 from .mutations.task import DeleteTask, InsertUpdateTask
 from .mutations.task_schedule import DeleteTaskSchedule, InsertUpdateTaskSchedule
 from .queries.coordination import resolve_coordination, resolve_coordination_list
 from .queries.session import resolve_session, resolve_session_list
 from .queries.session_agent import resolve_session_agent, resolve_session_agent_list
-from .queries.session_thread import resolve_session_thread, resolve_session_thread_list
+from .queries.session_run import resolve_session_run, resolve_session_run_list
 from .queries.task import resolve_task, resolve_task_list
 from .queries.task_schedule import resolve_task_schedule, resolve_task_schedule_list
 from .types.coordination import CoordinationListType, CoordinationType
 from .types.session import SessionListType, SessionType
 from .types.session_agent import SessionAgentListType, SessionAgentType
-from .types.session_thread import SessionThreadListType, SessionThreadType
+from .types.session_run import SessionRunListType, SessionRunType
 from .types.task import TaskListType, TaskType
 from .types.task_schedule import TaskScheduleListType, TaskScheduleType
 
@@ -41,8 +41,8 @@ def type_class():
         TaskScheduleListType,
         SessionAgentType,
         SessionAgentListType,
-        SessionThreadType,
-        SessionThreadListType,
+        SessionRunType,
+        SessionRunListType,
     ]
 
 
@@ -78,19 +78,20 @@ class Query(ObjectType):
         statuses=List(String, required=False),
     )
 
-    session_thread = Field(
-        SessionThreadType,
+    session_run = Field(
+        SessionRunType,
         session_uuid=String(required=True),
-        thread_uuid=String(required=True),
+        run_uuid=String(required=True),
     )
 
-    session_thread_list = Field(
-        SessionThreadListType,
+    session_run_list = Field(
+        SessionRunListType,
         page_number=Int(required=False),
         limit=Int(required=False),
         session_uuid=String(required=False),
         coordination_uuid=String(required=False),
         agent_uuid=String(required=False),
+        thread_uuid=String(required=False),
     )
 
     task = Field(
@@ -169,15 +170,15 @@ class Query(ObjectType):
     ) -> SessionListType:
         return resolve_session_list(info, **kwargs)
 
-    def resolve_session_thread(
+    def resolve_session_run(
         self, info: ResolveInfo, **kwargs: Dict[str, Any]
-    ) -> SessionThreadType:
-        return resolve_session_thread(info, **kwargs)
+    ) -> SessionRunType:
+        return resolve_session_run(info, **kwargs)
 
-    def resolve_session_thread_list(
+    def resolve_session_run_list(
         self, info: ResolveInfo, **kwargs: Dict[str, Any]
-    ) -> SessionThreadListType:
-        return resolve_session_thread_list(info, **kwargs)
+    ) -> SessionRunListType:
+        return resolve_session_run_list(info, **kwargs)
 
     def resolve_task(self, info: ResolveInfo, **kwargs: Dict[str, Any]) -> TaskType:
         return resolve_task(info, **kwargs)
@@ -213,8 +214,8 @@ class Mutations(ObjectType):
     delete_coordination = DeleteCoordination.Field()
     insert_update_session = InsertUpdateSession.Field()
     delete_session = DeleteSession.Field()
-    insert_update_session_thread = InsertUpdateSessionThread.Field()
-    delete_session_thread = DeleteSessionThread.Field()
+    insert_update_session_run = InsertUpdateSessionRun.Field()
+    delete_session_run = DeleteSessionRun.Field()
     insert_update_task = InsertUpdateTask.Field()
     delete_task = DeleteTask.Field()
     insert_update_session_agent = InsertUpdateSessionAgent.Field()

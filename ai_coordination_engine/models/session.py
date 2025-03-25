@@ -10,7 +10,12 @@ from typing import Any, Dict
 
 import pendulum
 from graphene import ResolveInfo
-from pynamodb.attributes import NumberAttribute, UnicodeAttribute, UTCDateTimeAttribute
+from pynamodb.attributes import (
+    ListAttribute,
+    NumberAttribute,
+    UnicodeAttribute,
+    UTCDateTimeAttribute,
+)
 from pynamodb.indexes import AllProjection, LocalSecondaryIndex
 from tenacity import retry, stop_after_attempt, wait_exponential
 
@@ -69,7 +74,7 @@ class SessionModel(BaseModel):
     task_query = UnicodeAttribute(null=True)
     iteration_count = NumberAttribute(default=0)
     status = UnicodeAttribute(default="initial")
-    notes = UnicodeAttribute(null=True)
+    logs = UnicodeAttribute(null=True)
     updated_by = UnicodeAttribute()
     created_at = UTCDateTimeAttribute()
     updated_at = UTCDateTimeAttribute()
@@ -193,7 +198,7 @@ def insert_update_session(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
         }
         for key in [
             "status",
-            "notes",
+            "logs",
             "task_uuid",
             "user_id",
             "task_query",
@@ -213,10 +218,11 @@ def insert_update_session(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
         SessionModel.updated_by.set(kwargs["updated_by"]),
         SessionModel.updated_at.set(pendulum.now("UTC")),
     ]
+
     # Map of kwargs keys to SessionModel attributes
     field_map = {
         "status": SessionModel.status,
-        "notes": SessionModel.notes,
+        "logs": SessionModel.logs,
         "task_uuid": SessionModel.task_uuid,
         "user_id": SessionModel.user_id,
         "task_query": SessionModel.task_query,
