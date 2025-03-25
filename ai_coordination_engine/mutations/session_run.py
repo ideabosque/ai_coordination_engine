@@ -11,35 +11,37 @@ from graphene import Boolean, Field, Int, Mutation, String
 
 from silvaengine_utility import JSON
 
-from ..models.session_thread import delete_session_thread, insert_update_session_thread
-from ..types.session_thread import SessionThreadType
+from ..models.session_run import delete_session_run, insert_update_session_run
+from ..types.session_run import SessionRunType
 
 
-class InsertUpdateSessionThread(Mutation):
-    session_thread = Field(SessionThreadType)
+class InsertUpdateSessionRun(Mutation):
+    session_run = Field(SessionRunType)
 
     class Arguments:
         session_uuid = String(required=True)
+        run_uuid = String(required=True)
         thread_uuid = String(required=True)
         agent_uuid = String(required=True)
         coordination_uuid = String(required=True)
+        async_task_uuid = String(required=True)
         updated_by = String(required=True)
 
     @staticmethod
     def mutate(
         root: Any, info: Any, **kwargs: Dict[str, Any]
-    ) -> "InsertUpdateSessionThread":
+    ) -> "InsertUpdateSessionRun":
         try:
-            session_thread = insert_update_session_thread(info, **kwargs)
+            session_run = insert_update_session_run(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
             info.context.get("logger").error(log)
             raise e
 
-        return InsertUpdateSessionThread(session_thread=session_thread)
+        return InsertUpdateSessionRun(session_run=session_run)
 
 
-class DeleteSessionThread(Mutation):
+class DeleteSessionRun(Mutation):
     ok = Boolean()
 
     class Arguments:
@@ -47,12 +49,12 @@ class DeleteSessionThread(Mutation):
         session_uuid = String(required=True)
 
     @staticmethod
-    def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "DeleteSessionThread":
+    def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "DeleteSessionRun":
         try:
-            ok = delete_session_thread(info, **kwargs)
+            ok = delete_session_run(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
             info.context.get("logger").error(log)
             raise e
 
-        return DeleteSessionThread(ok=ok)
+        return DeleteSessionRun(ok=ok)

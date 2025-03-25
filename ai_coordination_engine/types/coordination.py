@@ -15,7 +15,7 @@ class CoordinationType(ObjectType):
     coordination_uuid = String()
     coordination_name = String()
     coordination_description = String()
-    agents = JSON()
+    agents = List(JSON)
     updated_by = String()
     created_at = DateTime()
     updated_at = DateTime()

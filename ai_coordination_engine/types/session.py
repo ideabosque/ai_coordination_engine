@@ -18,7 +18,7 @@ class SessionType(ObjectType):
     task_query = String()
     iteration_count = Int()
     status = String()
-    notes = String()
+    logs = String()
     updated_by = String()
     created_at = DateTime()
     updated_at = DateTime()

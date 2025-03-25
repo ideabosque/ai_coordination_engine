@@ -10,7 +10,7 @@ from typing import Any, Dict
 
 import pendulum
 from graphene import ResolveInfo
-from pynamodb.attributes import MapAttribute, UnicodeAttribute, UTCDateTimeAttribute
+from pynamodb.attributes import ListAttribute, UnicodeAttribute, UTCDateTimeAttribute
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from silvaengine_dynamodb_base import (
@@ -33,7 +33,7 @@ class CoordinationModel(BaseModel):
     coordination_uuid = UnicodeAttribute(range_key=True)
     coordination_name = UnicodeAttribute()
     coordination_description = UnicodeAttribute()
-    agents = MapAttribute(default={})
+    agents = ListAttribute(default=[])
     updated_by = UnicodeAttribute()
     created_at = UTCDateTimeAttribute()
     updated_at = UTCDateTimeAttribute()
