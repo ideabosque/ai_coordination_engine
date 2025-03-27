@@ -12,7 +12,6 @@ from silvaengine_utility import JSON
 
 class SessionAgentType(ObjectType):
     session = JSON()
-    task = JSON()
     session_agent_uuid = String()
     agent_uuid = String()
     agent_action = JSON()
