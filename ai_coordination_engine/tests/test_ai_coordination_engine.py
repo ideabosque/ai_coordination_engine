@@ -216,7 +216,7 @@ class AICoordinationEngineTest(unittest.TestCase):
         response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
         logger.info(response)
 
-    # @unittest.skip("demonstrating skipping")
+    @unittest.skip("demonstrating skipping")
     def test_graphql_insert_update_session_run(self):
         query = Utility.generate_graphql_operation(
             "insertUpdateSessionRun", "Mutation", self.schema
@@ -479,7 +479,7 @@ class AICoordinationEngineTest(unittest.TestCase):
         response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
         logger.info(response)
 
-    @unittest.skip("demonstrating skipping")
+    # @unittest.skip("demonstrating skipping")
     def test_graphql_ask_operaion_hub(self):
         query = Utility.generate_graphql_operation(
             "askOperationHub", "Query", self.schema

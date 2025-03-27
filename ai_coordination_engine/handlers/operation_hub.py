@@ -99,7 +99,7 @@ def _handle_session(info: ResolveInfo, kwargs: Dict) -> Any:
 
     if "agent_uuid" in kwargs:
         variables.update({"status": "active"})
-    elif "session_uuid" in kwargs:
+    if "session_uuid" in kwargs:
         variables.update(
             {"session_uuid": kwargs["session_uuid"], "status": "in_transit"}
         )
