@@ -26,11 +26,37 @@ setting = {
             "module_name": "ai_coordination_engine",
             "class_name": "AICoordinationEngine",
         },
+        "async_insert_update_session": {
+            "module_name": "ai_coordination_engine",
+            "class_name": "AICoordinationEngine",
+        },
+        "ai_agent_core_graphql": {
+            "module_name": "ai_agent_core_engine",
+            "class_name": "AIAgentCoreEngine",
+        },
+        "async_execute_ask_model": {
+            "module_name": "ai_agent_core_engine",
+            "class_name": "AIAgentCoreEngine",
+        },
+        "async_insert_update_tool_call": {
+            "module_name": "ai_agent_core_engine",
+            "class_name": "AIAgentCoreEngine",
+        },
+        "send_data_to_websocket": {
+            "module_name": "ai_agent_core_engine",
+            "class_name": "AIAgentCoreEngine",
+        },
     },
 }
 
 sys.path.insert(0, f"{os.getenv('base_dir')}/ai_coordination_engine")
-sys.path.insert(1, f"{os.getenv('base_dir')}/silvaengine_dynamodb_base")
+sys.path.insert(1, f"{os.getenv('base_dir')}/silvaengine_utility")
+sys.path.insert(2, f"{os.getenv('base_dir')}/silvaengine_dynamodb_base")
+sys.path.insert(3, f"{os.getenv('base_dir')}/ai_agent_core_engine")
+sys.path.insert(4, f"{os.getenv('base_dir')}/ai_agent_handler")
+sys.path.insert(5, f"{os.getenv('base_dir')}/openai_agent_handler")
+sys.path.insert(6, f"{os.getenv('base_dir')}/ai_agent_funct_base")
+sys.path.insert(7, f"{os.getenv('base_dir')}/ai_marketing_engine")
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 logger = logging.getLogger()
@@ -128,7 +154,7 @@ class AICoordinationEngineTest(unittest.TestCase):
         response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
         logger.info(response)
 
-    # @unittest.skip("demonstrating skipping")
+    @unittest.skip("demonstrating skipping")
     def test_graphql_insert_update_session(self):
         query = Utility.generate_graphql_operation(
             "insertUpdateSession", "Mutation", self.schema
@@ -448,6 +474,24 @@ class AICoordinationEngineTest(unittest.TestCase):
             "query": query,
             "variables": {
                 "taskUuid": "6753533827658093040",
+            },
+        }
+        response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
+        logger.info(response)
+
+    # @unittest.skip("demonstrating skipping")
+    def test_graphql_ask_operaion_hub(self):
+        query = Utility.generate_graphql_operation(
+            "askOperationHub", "Query", self.schema
+        )
+        payload = {
+            "query": query,
+            "variables": {
+                "coordinationUuid": "7339318953952874992",
+                "agentUuid": "agent-1742509982-34c5835d",
+                "sessionUuid": "56499375834730992",
+                "threadUuid": "700638002290430448",
+                "userQuery": "Communication! Please ask the provider have the detail of product catalog in Chinese.",
             },
         }
         response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
