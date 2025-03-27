@@ -17,6 +17,7 @@ class SessionRunType(ObjectType):
     agent_uuid = String()
     endpoint_id = String()
     async_task_uuid = String()
+    session_agent = JSON()
     updated_by = String()
     created_at = DateTime()
     updated_at = DateTime()
