@@ -223,8 +223,6 @@ def insert_update_session(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     field_map = {
         "status": SessionModel.status,
         "logs": SessionModel.logs,
-        "task_uuid": SessionModel.task_uuid,
-        "user_id": SessionModel.user_id,
         "task_query": SessionModel.task_query,
         "iteration_count": SessionModel.iteration_count,
     }

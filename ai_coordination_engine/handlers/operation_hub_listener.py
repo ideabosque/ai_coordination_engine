@@ -54,14 +54,6 @@ def async_insert_update_session(
             },
         )
 
-        if async_task["status"] in ["completed", "failed"]:
-            break
-        if time.time() - start_time > 60:
-            break
-        time.sleep(1)
-
-    # If async task failed, update session with failure details
-    if async_task["status"] == "failed":
         session = resolve_session(
             info,
             **{
@@ -69,18 +61,50 @@ def async_insert_update_session(
                 "session_uuid": kwargs["session_uuid"],
             },
         )
-        logs = Utility.json_loads(session.logs if session.logs else "{}")
-        logs[kwargs["run_uuid"]] = async_task["logs"]
+        logs = Utility.json_loads(session.logs if session.logs else "[]")
+        if async_task["status"] == "failed" or time.time() - start_time > 60:
+            # If async task failed, update session with failure details
+            status = "failed" if async_task["status"] == "failed" else "timeout"
+            logs.append(
+                {
+                    "run_uuid": kwargs["run_uuid"],
+                    "log": (
+                        async_task["notes"]
+                        if status == "failed"
+                        else "The task has timed out."
+                    ),
+                }
+            )
+            session = insert_update_session(
+                info,
+                **{
+                    "coordination_uuid": kwargs["coordination_uuid"],
+                    "session_uuid": kwargs["session_uuid"],
+                    "status": status,
+                    "logs": Utility.json_dumps(logs),
+                    "updated_by": "operation_hub",
+                },
+            )
 
-        session = insert_update_session(
-            info,
-            **{
-                "coordination_uuid": kwargs["coordination_uuid"],
-                "session_uuid": kwargs["session_uuid"],
-                "status": async_task["status"],
-                "logs": Utility.json_dumps(logs),
-                "updated_by": "operation_hub",
-            },
-        )
-
-    # TODO: Send email if receiver_email is in kwargs
+            break
+        elif async_task["status"] == "completed":
+            logs.append(
+                {
+                    "run_uuid": kwargs["run_uuid"],
+                    "log": "Task completed successfully.",
+                }
+            )
+            session = insert_update_session(
+                info,
+                **{
+                    "coordination_uuid": kwargs["coordination_uuid"],
+                    "session_uuid": kwargs["session_uuid"],
+                    "logs": Utility.json_dumps(logs),
+                    "updated_by": "operation_hub",
+                },
+            )
+            # TODO: Send email if receiver_email is in kwargs
+            break
+        else:
+            # Wait for 1 second before checking again
+            time.sleep(1)
