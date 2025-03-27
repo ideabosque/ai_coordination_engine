@@ -77,3 +77,18 @@ def _get_task(coordination_uuid: str, task_uuid: str) -> Dict[str, Any]:
         "initial_task_query": task.initial_task_query,
         "agent_actions": task.agent_actions,
     }
+
+
+def _get_session_agent(session_uuid: str, session_agent_uuid: str) -> Dict[str, Any]:
+    from .session_agent import get_session_agent
+
+    session_agent = get_session_agent(session_uuid, session_agent_uuid)
+    return {
+        "agent_action": session_agent.agent_action,
+        "user_input": session_agent.user_input,
+        "agent_input": session_agent.agent_input,
+        "agent_output": session_agent.agent_output,
+        "in_degree": session_agent.in_degree,
+        "state": session_agent.state,
+        "notes": session_agent.notes,
+    }

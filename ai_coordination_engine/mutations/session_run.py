@@ -25,6 +25,7 @@ class InsertUpdateSessionRun(Mutation):
         agent_uuid = String(required=True)
         coordination_uuid = String(required=True)
         async_task_uuid = String(required=True)
+        session_agent_uuid = String(required=False)
         updated_by = String(required=True)
 
     @staticmethod

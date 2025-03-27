@@ -24,7 +24,7 @@ from silvaengine_dynamodb_base import (
 from silvaengine_utility import Utility
 
 from ..types.session_run import SessionRunListType, SessionRunType
-from .utils import _get_session
+from .utils import _get_session, _get_session_agent
 
 
 class ThreadUuidIndex(LocalSecondaryIndex):
@@ -68,6 +68,7 @@ class SessionRunModel(BaseModel):
     coordination_uuid = UnicodeAttribute()
     endpoint_id = UnicodeAttribute()
     async_task_uuid = UnicodeAttribute()
+    session_agent_uuid = UnicodeAttribute(null=True)
     updated_by = UnicodeAttribute()
     created_at = UTCDateTimeAttribute()
     updated_at = UTCDateTimeAttribute()
@@ -102,6 +103,11 @@ def get_session_run_type(
 ) -> SessionRunType:
     try:
         session = _get_session(session_run.coordination_uuid, session_run.session_uuid)
+        session_agent = None
+        if session_run.session_agent_uuid:
+            session_agent = _get_session_agent(
+                session_run.session_uuid, session_run.session_agent_uuid
+            )
     except Exception as e:
         log = traceback.format_exc()
         info.context.get("logger").exception(log)
@@ -110,6 +116,9 @@ def get_session_run_type(
     session_run["session"] = session
     session_run.pop("coordination_uuid")
     session_run.pop("session_uuid")
+    if session_agent:
+        session_run["session_agent"] = session_agent
+        session_run.pop("session_agent_uuid")
     return SessionRunType(**Utility.json_loads(Utility.json_dumps(session_run)))
 
 
@@ -182,6 +191,10 @@ def insert_update_session_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> No
             "created_at": pendulum.now("UTC"),
             "updated_at": pendulum.now("UTC"),
         }
+        for key in ["session_agent_uuid"]:
+            if key in kwargs:
+                cols[key] = kwargs[key]
+
         SessionRunModel(
             session_uuid,
             run_uuid,
@@ -200,6 +213,7 @@ def insert_update_session_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> No
         "agent_uuid": SessionRunModel.agent_uuid,
         "coordination_uuid": SessionRunModel.coordination_uuid,
         "async_task_uuid": SessionRunModel.async_task_uuid,
+        "session_agent_uuid": SessionRunModel.session_agent_uuid,
     }
 
     # Check if a key exists in kwargs before adding it to the update actions
