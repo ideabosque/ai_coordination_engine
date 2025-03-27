@@ -99,10 +99,11 @@ def _handle_session(info: ResolveInfo, kwargs: Dict) -> Any:
 
     if "agent_uuid" in kwargs:
         variables.update({"status": "active"})
+    else:
+        variables.update({"status": "in_transit"})
+
     if "session_uuid" in kwargs:
-        variables.update(
-            {"session_uuid": kwargs["session_uuid"], "status": "in_transit"}
-        )
+        variables.update({"session_uuid": kwargs["session_uuid"]})
 
     return insert_update_session(info, **variables)
 
