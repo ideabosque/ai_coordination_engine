@@ -22,7 +22,6 @@ class InsertUpdateSessionAgent(Mutation):
         session_uuid = String(required=True)
         session_agent_uuid = String(required=False)
         coordination_uuid = String(required=False)
-        task_uuid = String(required=False)
         agent_uuid = String(required=False)
         agent_action = JSON(required=False)
         user_input = String(required=False)

@@ -38,7 +38,6 @@ class SessionAgentModel(BaseModel):
     session_uuid = UnicodeAttribute(hash_key=True)
     session_agent_uuid = UnicodeAttribute(range_key=True)
     coordination_uuid = UnicodeAttribute()
-    task_uuid = UnicodeAttribute()
     agent_uuid = UnicodeAttribute()
     agent_action = MapAttribute(null=True)
     user_input = UnicodeAttribute(null=True)
@@ -91,7 +90,6 @@ def get_session_agent_type(
     session_agent = session_agent.__dict__["attribute_values"]
     session_agent["session"] = session
     session_agent.pop("coordination_uuid")
-    session_agent.pop("task_uuid")
     session_agent.pop("session_uuid")
     return SessionAgentType(**Utility.json_loads(Utility.json_dumps(session_agent)))
 
@@ -116,7 +114,6 @@ def resolve_session_agent_list(
 ) -> SessionAgentListType:
     session_uuid = kwargs.get("session_uuid")
     coordination_uuid = kwargs.get("coordination_uuid")
-    task_uuid = kwargs.get("task_uuid")
     agent_uuid = kwargs.get("agent_uuid")
     primary_path = kwargs.get("primary_path")
     user_in_the_loop = kwargs.get("user_in_the_loop")
@@ -135,8 +132,6 @@ def resolve_session_agent_list(
     the_filters = None  # We can add filters for the query.
     if coordination_uuid is not None:
         the_filters &= SessionAgentModel.coordination_uuid == coordination_uuid
-    if task_uuid is not None:
-        the_filters &= SessionAgentModel.task_uuid == task_uuid
     if agent_uuid is not None:
         the_filters &= SessionAgentModel.agent_uuid == agent_uuid
     if primary_path is not None:
@@ -178,7 +173,6 @@ def insert_update_session_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> 
     if kwargs.get("entity") is None:
         cols = {
             "coordination_uuid": kwargs["coordination_uuid"],
-            "task_uuid": kwargs["task_uuid"],
             "agent_uuid": kwargs["agent_uuid"],
             "agent_action": {
                 "primary_path": True,
