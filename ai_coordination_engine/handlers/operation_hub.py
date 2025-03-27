@@ -25,24 +25,33 @@ def ask_operation_hub(
     info: ResolveInfo, **kwargs: Dict[str, Any]
 ) -> AskOperationHubType:
     """
-    Main function to handle operation hub requests and coordinate with agents.
+    Orchestrates operation hub requests and agent coordination by managing sessions,
+    processing queries, and handling asynchronous updates.
+
+    The function performs the following key operations:
+    1. Resolves coordination details and creates/updates sessions
+    2. Selects appropriate agent (task or triage) based on request
+    3. Processes and enhances user queries for triage scenarios
+    4. Manages connection IDs and receiver email routing
+    5. Invokes AI model and creates session runs
+    6. Triggers asynchronous session updates via Lambda
 
     Args:
-        info (ResolveInfo): GraphQL resolve info containing context
-        **kwargs: Variable keyword arguments including:
-            - coordination_uuid: UUID of the coordination
-            - user_id: ID of the user (optional)
-            - agent_uuid: UUID of the agent (optional)
-            - session_uuid: UUID of the session (optional)
-            - user_query: Query from the user
-            - receiver_email: Email of receiver (optional)
-            - thread_uuid: UUID of conversation thread (optional)
+        info (ResolveInfo): GraphQL context and metadata
+        **kwargs: Request parameters including:
+            - coordination_uuid: Unique identifier for coordination
+            - user_id: Optional user identifier
+            - agent_uuid: Optional agent identifier
+            - session_uuid: Optional session identifier
+            - user_query: User's input query
+            - receiver_email: Optional email for routing
+            - thread_uuid: Optional thread ID for conversation continuity
 
     Returns:
-        AskOperationHubType: Response containing session and run details
+        AskOperationHubType: Structured response with session details and run metadata
     """
     try:
-        # Get coordination details for the given coordination UUID
+        # Fetch coordination configuration and validate existence
         coordination = resolve_coordination(
             info,
             **{
@@ -51,14 +60,14 @@ def ask_operation_hub(
             },
         )
 
-        # Prepare variables for session creation/update
+        # Initialize session parameters with core identifiers
         variables = {
             "coordination_uuid": kwargs["coordination_uuid"],
             "user_id": kwargs.get("user_id"),
             "updated_by": "operation_hub",
         }
 
-        # Set session status based on presence of agent_uuid or session_uuid
+        # Determine session state based on request context
         if "agent_uuid" in kwargs:
             variables.update({"status": "active"})
         else:
@@ -67,10 +76,10 @@ def ask_operation_hub(
                     {"session_uuid": kwargs["session_uuid"], "status": "in_transit"}
                 )
 
-        # Create or update session with the prepared variables
+        # Persist session state
         session = insert_update_session(info, **variables)
 
-        # Validate and get appropriate agent - either specified agent or triage agent
+        # Validate agent availability and select appropriate agent
         assert len(coordination.agents) > 0, "No agent found for the coordination."
         agent = next(
             (
@@ -88,10 +97,10 @@ def ask_operation_hub(
             ),
         )
 
-        # Process user query - enhance it for triage agents
+        # Process and enhance query based on agent type
         user_query = kwargs["user_query"]
         if agent["agent_type"] == "triage":
-            # Extract task agents with relevant properties for triage
+            # Extract relevant agent metadata for triage decision
             available_task_agents = [
                 {
                     "agent_uuid": agent["agent_uuid"],
@@ -102,7 +111,7 @@ def ask_operation_hub(
                 if agent["agent_type"] == "task"
             ]
 
-            # Construct enhanced triage request with available agents
+            # Construct comprehensive triage prompt
             user_query = (
                 f"Based on the following user query, please analyze and select the most appropriate agent:\n"
                 f"User Query: {user_query}\n"
@@ -111,10 +120,9 @@ def ask_operation_hub(
             )
             info.context.get("logger").info(f"Enhanced triage request: {user_query}")
 
-        # Handle receiver email and connection ID logic
+        # Resolve connection routing for non-triage scenarios
         connection_id = info.context.get("connectionId")
         if "receiver_email" in kwargs and agent["agent_type"] != "triage":
-            # Look up connection_id for receiver's email
             receiver_connection = get_connection_by_email(
                 info.context.get("logger"),
                 info.context.get("endpoint_id"),
@@ -124,7 +132,7 @@ def ask_operation_hub(
             if receiver_connection:
                 connection_id = receiver_connection.get("connection_id", connection_id)
 
-        # Invoke AI model with prepared parameters
+        # Execute AI model interaction
         ask_model = invoke_ask_model(
             info.context.get("logger"),
             info.context.get("endpoint_id"),
@@ -132,16 +140,14 @@ def ask_operation_hub(
             connection_id=connection_id,
             **{
                 "agentUuid": agent["agent_uuid"],
-                "threadUuid": kwargs.get(
-                    "thread_uuid"
-                ),  # Optional, it can be passed for the continue conversation.
+                "threadUuid": kwargs.get("thread_uuid"),
                 "userQuery": user_query,
                 "userId": kwargs.get("user_id"),
                 "updatedBy": "operation_hub",
             },
         )
 
-        # Create or update session run with model response
+        # Record session run details
         session_run = insert_update_session_run(
             info,
             **{
@@ -155,7 +161,7 @@ def ask_operation_hub(
             },
         )
 
-        # Prepare parameters for asynchronous session update
+        # Configure async update parameters
         params = {
             "coordination_uuid": session_run.session["coordination"][
                 "coordination_uuid"
@@ -166,7 +172,7 @@ def ask_operation_hub(
         if connection_id:
             params["connection_id"] = connection_id
 
-        # Add receiver email if needed
+        # Handle email routing for async updates
         if (
             connection_id is None
             and "receiver_email" in kwargs
@@ -174,7 +180,7 @@ def ask_operation_hub(
         ):
             params["receiver_email"] = kwargs["receiver_email"]
 
-        # Trigger asynchronous session update via Lambda
+        # Initiate async session update
         Utility.invoke_funct_on_aws_lambda(
             info.context["logger"],
             info.context["endpoint_id"],
@@ -186,7 +192,7 @@ def ask_operation_hub(
             invocation_type="Event",
         )
 
-        # Return response with session and run details
+        # Construct and return comprehensive response
         return AskOperationHubType(
             **{
                 "session": {
