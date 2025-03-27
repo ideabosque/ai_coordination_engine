@@ -14,3 +14,5 @@ class AskOperationHubType(ObjectType):
     run_uuid = String()
     thread_uuid = String()
     agent_uuid = String()
+    async_task_uuid = String()
+    updated_at = DateTime()

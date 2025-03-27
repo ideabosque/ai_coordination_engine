@@ -16,12 +16,14 @@ from .mutations.session_run import DeleteSessionRun, InsertUpdateSessionRun
 from .mutations.task import DeleteTask, InsertUpdateTask
 from .mutations.task_schedule import DeleteTaskSchedule, InsertUpdateTaskSchedule
 from .queries.coordination import resolve_coordination, resolve_coordination_list
+from .queries.operation_hub import resolve_ask_operation_hub
 from .queries.session import resolve_session, resolve_session_list
 from .queries.session_agent import resolve_session_agent, resolve_session_agent_list
 from .queries.session_run import resolve_session_run, resolve_session_run_list
 from .queries.task import resolve_task, resolve_task_list
 from .queries.task_schedule import resolve_task_schedule, resolve_task_schedule_list
 from .types.coordination import CoordinationListType, CoordinationType
+from .types.operation_hub import AskOperationHubType
 from .types.session import SessionListType, SessionType
 from .types.session_agent import SessionAgentListType, SessionAgentType
 from .types.session_run import SessionRunListType, SessionRunType
@@ -43,6 +45,7 @@ def type_class():
         SessionAgentListType,
         SessionRunType,
         SessionRunListType,
+        AskOperationHubType,
     ]
 
 
@@ -147,6 +150,17 @@ class Query(ObjectType):
         statuses=List(String, required=False),
     )
 
+    ask_operation_hub = Field(
+        AskOperationHubType,
+        coordination_uuid=String(required=True),
+        user_id=String(required=False),
+        agent_uuid=String(required=False),
+        session_uuid=String(required=False),
+        user_query=String(required=True),
+        receiver_email=String(required=False),
+        thread_uuid=String(required=False),
+    )
+
     def resolve_ping(self, info: ResolveInfo) -> str:
         return f"Hello at {time.strftime('%X')}!!"
 
@@ -207,6 +221,11 @@ class Query(ObjectType):
         self, info: ResolveInfo, **kwargs: Dict[str, Any]
     ) -> TaskScheduleListType:
         return resolve_task_schedule_list(info, **kwargs)
+
+    def resolve_ask_operation_hub(
+        self, info: ResolveInfo, **kwargs: Dict[str, Any]
+    ) -> AskOperationHubType:
+        return resolve_ask_operation_hub(info, **kwargs)
 
 
 class Mutations(ObjectType):
