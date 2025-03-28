@@ -9,12 +9,15 @@ from typing import Any, Dict, List
 
 from graphene import ResolveInfo
 
+from silvaengine_utility import Utility
+
 from ...models.session import insert_update_session
 from ...models.session_agent import insert_update_session_agent
 from ...models.task import resolve_task
 from ...types.procedure_hub import ProcedureTaskSessionType
 from ...types.session import SessionType
 from ...types.task import TaskType
+from ..config import Config
 
 
 def _init_session_agents(
@@ -48,7 +51,7 @@ def _init_session_agents(
                 "coordination_uuid": task.coordination["coordination_uuid"],
                 "agent_uuid": agent["agent_uuid"],
                 "agent_action": task.agent_actions.get(agent["agent_uuid"], {}),
-                "updated_by": "AI Procedure Hub",
+                "updated_by": "procedure_hub",
             },
         )
 
@@ -103,7 +106,7 @@ def _init_in_degree(info: ResolveInfo, session_agents: List[Dict[str, Any]]) -> 
                     "session_uuid": session_agent["session_uuid"],
                     "session_agent_uuid": session_agent["session_agent_uuid"],
                     "in_degree": session_agent["in_degree"],
-                    "updated_by": "AI Procedure Hub",
+                    "updated_by": "procedure_hub",
                 }
             )
 
@@ -171,7 +174,7 @@ def execute_procedure_task_session(
         "coordination_uuid": kwargs["coordination_uuid"],
         "task_uuid": kwargs["task_uuid"],
         "task_query": kwargs.get("task_query", task.initial_task_query),
-        "updated_by": "AI Procedure Hub",
+        "updated_by": "procedure_hub",
     }
     if kwargs.get("user_id"):
         variables["user_id"] = kwargs["user_id"]
@@ -188,17 +191,25 @@ def execute_procedure_task_session(
     }
 
     # Initialize session agents for all active agents
-    session_agents = _init_session_agents(
-        info,
-        task,
-        session,
-    )
+    session_agents = _init_session_agents(info, task, session)
 
     # Initialize in-degree values for session agents
     updated_session_agents = _init_in_degree(info, session_agents)
 
     procedure_task_session.session_agents = updated_session_agents
 
-    # TODO: Invoke async_execute_procedure_task_session
+    # Invoke async update function on AWS Lambda
+    Utility.invoke_funct_on_aws_lambda(
+        info.context["logger"],
+        info.context["endpoint_id"],
+        "async_execute_procedure_task_session",
+        params={
+            "coordination_uuid": session.coordination["coordination_uuid"],
+            "session_uuid": session.session_uuid,
+        },
+        setting=info.context["setting"],
+        test_mode=info.context["setting"].get("test_mode"),
+        aws_lambda=Config.aws_lambda,
+    )
 
     return procedure_task_session
