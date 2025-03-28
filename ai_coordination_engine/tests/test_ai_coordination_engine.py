@@ -30,6 +30,14 @@ setting = {
             "module_name": "ai_coordination_engine",
             "class_name": "AICoordinationEngine",
         },
+        "async_execute_procedure_task_session": {
+            "module_name": "ai_coordination_engine",
+            "class_name": "AICoordinationEngine",
+        },
+        "async_update_session_agent": {
+            "module_name": "ai_coordination_engine",
+            "class_name": "AICoordinationEngine",
+        },
         "ai_agent_core_graphql": {
             "module_name": "ai_agent_core_engine",
             "class_name": "AIAgentCoreEngine",

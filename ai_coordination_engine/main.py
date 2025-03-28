@@ -13,6 +13,7 @@ from silvaengine_dynamodb_base import SilvaEngineDynamoDBBase
 
 from .handlers.config import Config
 from .handlers.operation_hub import operation_hub_listener
+from .handlers.procedure_hub import procedure_hub_listener
 from .schema import Mutations, Query, type_class
 
 
@@ -99,7 +100,37 @@ def deploy() -> List:
                     "support_methods": ["POST"],
                     "is_auth_required": False,
                     "is_graphql": True,
-                    "settings": "beta_core_openai",
+                    "settings": "beta_core_ai_agent",
+                    "disabled_in_resources": True,  # Ignore adding to resource list.
+                },
+                "async_insert_update_session": {
+                    "is_static": False,
+                    "label": "Async Insert Update Session",
+                    "type": "Event",
+                    "support_methods": ["POST"],
+                    "is_auth_required": False,
+                    "is_graphql": False,
+                    "settings": "beta_core_ai_agent",
+                    "disabled_in_resources": True,  # Ignore adding to resource list.
+                },
+                "async_execute_procedure_task_session": {
+                    "is_static": False,
+                    "label": "Async Execute Procedure Task Session",
+                    "type": "Event",
+                    "support_methods": ["POST"],
+                    "is_auth_required": False,
+                    "is_graphql": False,
+                    "settings": "beta_core_ai_agent",
+                    "disabled_in_resources": True,  # Ignore adding to resource list.
+                },
+                "async_update_session_agent": {
+                    "is_static": False,
+                    "label": "Async Update Session Agent",
+                    "type": "Event",
+                    "support_methods": ["POST"],
+                    "is_auth_required": False,
+                    "is_graphql": False,
+                    "settings": "beta_core_ai_agent",
                     "disabled_in_resources": True,  # Ignore adding to resource list.
                 },
             },
@@ -125,6 +156,30 @@ class AICoordinationEngine(SilvaEngineDynamoDBBase):
         ##<--Testing Data-->##
 
         operation_hub_listener.async_insert_update_session(
+            self.logger, self.setting, **params
+        )
+        return
+
+    def async_execute_procedure_task_session(self, **params: Dict[str, Any]) -> Any:
+        ## Test the waters 🧪 before diving in!
+        ##<--Testing Data-->##
+        if params.get("endpoint_id") is None:
+            params["endpoint_id"] = self.setting.get("endpoint_id")
+        ##<--Testing Data-->##
+
+        procedure_hub_listener.async_execute_procedure_task_session(
+            self.logger, self.setting, **params
+        )
+        return
+
+    def async_update_session_agent(self, **params: Dict[str, Any]) -> Any:
+        ## Test the waters 🧪 before diving in!
+        ##<--Testing Data-->##
+        if params.get("endpoint_id") is None:
+            params["endpoint_id"] = self.setting.get("endpoint_id")
+        ##<--Testing Data-->##
+
+        procedure_hub_listener.async_update_session_agent(
             self.logger, self.setting, **params
         )
         return

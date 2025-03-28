@@ -14,7 +14,10 @@ from silvaengine_utility import Utility
 from ...models.coordination import resolve_coordination
 from ...models.session import insert_update_session
 from ...models.session_run import insert_update_session_run
+from ...types.coordination import CoordinationType
 from ...types.operation_hub import AskOperationHubType
+from ...types.session import SessionType
+from ...types.session_run import SessionRunType
 from ..ai_coordination_utility import get_connection_by_email, invoke_ask_model
 from ..config import Config
 
@@ -50,27 +53,70 @@ def ask_operation_hub(
     """
     try:
         # Step 1: Initialize and validate coordination
-        coordination = _resolve_coordination(info, kwargs)
+        coordination = resolve_coordination(
+            info,
+            **{
+                "coordination_uuid": kwargs["coordination_uuid"],
+            },
+        )
 
         # Step 2: Create/update session
-        session = _handle_session(info, kwargs)
+        session = _handle_session(info, **kwargs)
 
         # Step 3: Select and validate agent
-        agent = _select_agent(coordination, kwargs)
+        agent = _select_agent(coordination, **kwargs)
 
         # Step 4: Process query and handle routing
-        user_query = _process_query(agent, kwargs, info, coordination)
-        connection_id = _handle_connection_routing(info, kwargs, agent)
+        user_query = _process_query(info, kwargs["user_query"], agent, coordination)
+        connection_id = _handle_connection_routing(info, agent, **kwargs)
 
         # Step 5: Execute AI model and record session run
-        ask_model = _execute_ai_model(info, agent, kwargs, connection_id, user_query)
-        session_run = _record_session_run(info, session, ask_model, agent)
+        ask_model = invoke_ask_model(
+            info.context.get("logger"),
+            info.context.get("endpoint_id"),
+            setting=info.context.get("setting"),
+            connection_id=connection_id,
+            **{
+                "agentUuid": agent["agent_uuid"],
+                "threadUuid": kwargs.get("thread_uuid"),
+                "userQuery": user_query,
+                "userId": kwargs.get("user_id"),
+                "updatedBy": "operation_hub",
+            },
+        )
+        session_run = insert_update_session_run(
+            info,
+            **{
+                "session_uuid": session.session_uuid,
+                "run_uuid": ask_model["current_run_uuid"],
+                "thread_uuid": ask_model["thread_uuid"],
+                "agent_uuid": agent["agent_uuid"],
+                "coordination_uuid": session.coordination["coordination_uuid"],
+                "async_task_uuid": ask_model["async_task_uuid"],
+                "updated_by": "operation_hub",
+            },
+        )
 
         # Step 6: Handle async updates
-        _trigger_async_update(info, session_run, connection_id, kwargs, agent)
+        _trigger_async_update(info, session_run, connection_id, agent, **kwargs)
 
         # Step 7: Return response
-        return _build_response(session, session_run)
+        return AskOperationHubType(
+            **{
+                "session": {
+                    "coordination_uuid": session.coordination["coordination_uuid"],
+                    "session_uuid": session.session_uuid,
+                    "user_id": session.user_id,
+                    "endpoint_id": session.coordination["endpoint_id"],
+                    "status": session.status,
+                },
+                "run_uuid": session_run.run_uuid,
+                "thread_uuid": session_run.thread_uuid,
+                "agent_uuid": session_run.agent_uuid,
+                "async_task_uuid": session_run.async_task_uuid,
+                "updated_at": session_run.updated_at,
+            }
+        )
 
     except Exception as e:
         log = traceback.format_exc()
@@ -78,17 +124,21 @@ def ask_operation_hub(
         raise e
 
 
-def _resolve_coordination(info: ResolveInfo, kwargs: Dict) -> Any:
-    return resolve_coordination(
-        info,
-        **{
-            "endpoint_id": info.context.get("endpoint_id"),
-            "coordination_uuid": kwargs["coordination_uuid"],
-        },
-    )
+def _handle_session(info: ResolveInfo, **kwargs: Dict[str, Any]) -> SessionType:
+    """
+    Helper function to create or update a session.
 
+    Args:
+        info (ResolveInfo): GraphQL context and metadata
+        **kwargs: Request parameters including:
+            - coordination_uuid: Unique identifier for coordination
+            - user_id: Optional user identifier
+            - session_uuid: Optional session identifier
+            - agent_uuid: Optional agent identifier
 
-def _handle_session(info: ResolveInfo, kwargs: Dict) -> Any:
+    Returns:
+        SessionType: Session object with updated details
+    """
     variables = {
         "coordination_uuid": kwargs["coordination_uuid"],
         "user_id": kwargs.get("user_id"),
@@ -106,7 +156,23 @@ def _handle_session(info: ResolveInfo, kwargs: Dict) -> Any:
     return insert_update_session(info, **variables)
 
 
-def _select_agent(coordination: Any, kwargs: Dict) -> Dict:
+def _select_agent(
+    coordination: CoordinationType, **kwargs: Dict[str, Any]
+) -> Dict[str, Any]:
+    """
+    Helper function to select appropriate agent.
+
+    Args:
+        coordination (CoordinationType): Coordination object containing agent details
+        **kwargs: Request parameters including:
+            - agent_uuid: Optional agent identifier
+
+    Returns:
+        Dict[str, Any]: Selected agent details
+
+    Raises:
+        AssertionError: If no agents found for coordination
+    """
     assert len(coordination.agents) > 0, "No agent found for the coordination."
     return next(
         (
@@ -122,9 +188,23 @@ def _select_agent(coordination: Any, kwargs: Dict) -> Dict:
 
 
 def _process_query(
-    agent: Dict, kwargs: Dict, info: ResolveInfo, coordination: Any
+    info: ResolveInfo,
+    user_query: str,
+    agent: Dict[str, Any],
+    coordination: CoordinationType,
 ) -> str:
-    user_query = kwargs["user_query"]
+    """
+    Helper function to process and enhance user queries.
+
+    Args:
+        info (ResolveInfo): GraphQL context and metadata
+        user_query (str): Original user query
+        agent (Dict[str, Any]): Selected agent details
+        coordination (CoordinationType): Coordination object containing agent details
+
+    Returns:
+        str: Processed query string with enhanced context for triage agents
+    """
     if agent["agent_type"] == "triage":
         available_task_agents = [
             {
@@ -147,8 +227,22 @@ def _process_query(
 
 
 def _handle_connection_routing(
-    info: ResolveInfo, kwargs: Dict, agent: Dict
+    info: ResolveInfo,
+    agent: Dict[str, Any],
+    **kwargs: Dict[str, Any],
 ) -> Optional[str]:
+    """
+    Helper function to handle connection routing.
+
+    Args:
+        info (ResolveInfo): GraphQL context and metadata
+        agent (Dict[str, Any]): Selected agent details
+        **kwargs: Request parameters including:
+            - receiver_email: Optional email for routing
+
+    Returns:
+        Optional[str]: Connection ID for routing messages
+    """
     connection_id = info.context.get("connectionId")
     if "receiver_email" in kwargs and agent["agent_type"] != "triage":
         receiver_connection = get_connection_by_email(
@@ -161,44 +255,24 @@ def _handle_connection_routing(
     return connection_id
 
 
-def _execute_ai_model(
-    info: ResolveInfo, agent: Dict, kwargs: Dict, connection_id: str, user_query: str
-) -> Dict:
-    return invoke_ask_model(
-        info.context.get("logger"),
-        info.context.get("endpoint_id"),
-        setting=info.context.get("setting"),
-        connection_id=connection_id,
-        **{
-            "agentUuid": agent["agent_uuid"],
-            "threadUuid": kwargs.get("thread_uuid"),
-            "userQuery": user_query,
-            "userId": kwargs.get("user_id"),
-            "updatedBy": "operation_hub",
-        },
-    )
-
-
-def _record_session_run(
-    info: ResolveInfo, session: Any, ask_model: Dict, agent: Dict
-) -> Any:
-    return insert_update_session_run(
-        info,
-        **{
-            "session_uuid": session.session_uuid,
-            "run_uuid": ask_model["current_run_uuid"],
-            "thread_uuid": ask_model["thread_uuid"],
-            "agent_uuid": agent["agent_uuid"],
-            "coordination_uuid": session.coordination["coordination_uuid"],
-            "async_task_uuid": ask_model["async_task_uuid"],
-            "updated_by": "operation_hub",
-        },
-    )
-
-
 def _trigger_async_update(
-    info: ResolveInfo, session_run: Any, connection_id: str, kwargs: Dict, agent: Dict
+    info: ResolveInfo,
+    session_run: SessionRunType,
+    connection_id: str,
+    agent: Dict[str, Any],
+    **kwargs: Dict[str, Any],
 ) -> None:
+    """
+    Helper function to trigger async session updates.
+
+    Args:
+        info (ResolveInfo): GraphQL context and metadata
+        session_run (SessionRunType): Current session run details
+        connection_id (str): Connection ID for routing
+        agent (Dict[str, Any]): Selected agent details
+        **kwargs: Request parameters including:
+            - receiver_email: Optional email for routing
+    """
     params = {
         "coordination_uuid": session_run.session["coordination"]["coordination_uuid"],
         "session_uuid": session_run.session["session_uuid"],
@@ -223,23 +297,4 @@ def _trigger_async_update(
         test_mode=info.context["setting"].get("test_mode"),
         aws_lambda=Config.aws_lambda,
         invocation_type="Event",
-    )
-
-
-def _build_response(session: Any, session_run: Any) -> AskOperationHubType:
-    return AskOperationHubType(
-        **{
-            "session": {
-                "coordination_uuid": session.coordination["coordination_uuid"],
-                "session_uuid": session.session_uuid,
-                "user_id": session.user_id,
-                "endpoint_id": session.coordination["endpoint_id"],
-                "status": session.status,
-            },
-            "run_uuid": session_run.run_uuid,
-            "thread_uuid": session_run.thread_uuid,
-            "agent_uuid": session_run.agent_uuid,
-            "async_task_uuid": session_run.async_task_uuid,
-            "updated_at": session_run.updated_at,
-        }
     )
