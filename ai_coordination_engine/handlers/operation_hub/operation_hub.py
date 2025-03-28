@@ -4,21 +4,19 @@ from __future__ import print_function
 
 __author__ = "bibow"
 
-import logging
-import time
 import traceback
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 from graphene import ResolveInfo
 
 from silvaengine_utility import Utility
 
-from ..models.coordination import resolve_coordination
-from ..models.session import insert_update_session
-from ..models.session_run import insert_update_session_run
-from ..types.operation_hub import AskOperationHubType
-from .ai_coordination_utility import get_connection_by_email, invoke_ask_model
-from .config import Config
+from ...models.coordination import resolve_coordination
+from ...models.session import insert_update_session
+from ...models.session_run import insert_update_session_run
+from ...types.operation_hub import AskOperationHubType
+from ..ai_coordination_utility import get_connection_by_email, invoke_ask_model
+from ..config import Config
 
 
 def ask_operation_hub(
