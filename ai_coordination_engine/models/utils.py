@@ -32,6 +32,7 @@ def _get_coordination(endpoint_id: str, coordination_uuid: str) -> Dict[str, Any
         "coordination_uuid": coordination.coordination_uuid,
         "coordination_name": coordination.coordination_name,
         "coordination_description": coordination.coordination_description,
+        "agents": coordination.agents,
     }
 
 

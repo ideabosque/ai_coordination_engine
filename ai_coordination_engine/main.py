@@ -11,8 +11,8 @@ from graphene import Schema
 
 from silvaengine_dynamodb_base import SilvaEngineDynamoDBBase
 
-from .handlers import operation_hub_listener
 from .handlers.config import Config
+from .handlers.operation_hub import operation_hub_listener
 from .schema import Mutations, Query, type_class
 
 

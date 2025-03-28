@@ -479,7 +479,7 @@ class AICoordinationEngineTest(unittest.TestCase):
         response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
         logger.info(response)
 
-    # @unittest.skip("demonstrating skipping")
+    @unittest.skip("demonstrating skipping")
     def test_graphql_ask_operaion_hub(self):
         query = Utility.generate_graphql_operation(
             "askOperationHub", "Query", self.schema
@@ -491,6 +491,22 @@ class AICoordinationEngineTest(unittest.TestCase):
                 "agentUuid": "agent-1742509982-34c5835d",
                 "sessionUuid": "56499375834730992",
                 "threadUuid": "700638002290430448",
+                "userQuery": "Communication! Please ask the provider have the detail of product catalog in Chinese.",
+            },
+        }
+        response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
+        logger.info(response)
+
+    # @unittest.skip("demonstrating skipping")
+    def test_graphql_execute_procedure_task_session(self):
+        query = Utility.generate_graphql_operation(
+            "executeProcedureTaskSession", "Mutation", self.schema
+        )
+        payload = {
+            "query": query,
+            "variables": {
+                "coordinationUuid": "8033443114236711408",
+                "taskUuid": "6753533827658093040",
                 "userQuery": "Communication! Please ask the provider have the detail of product catalog in Chinese.",
             },
         }

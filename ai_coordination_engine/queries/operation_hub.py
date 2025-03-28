@@ -8,7 +8,7 @@ from typing import Any, Dict
 
 from graphene import ResolveInfo
 
-from ..handlers import operation_hub
+from ..handlers.operation_hub import operation_hub
 from ..types.operation_hub import AskOperationHubType
 
 

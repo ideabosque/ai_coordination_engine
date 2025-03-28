@@ -10,6 +10,7 @@ from typing import Any, Dict
 from graphene import Boolean, Field, Int, List, ObjectType, ResolveInfo, String
 
 from .mutations.coordination import DeleteCoordination, InsertUpdateCoordination
+from .mutations.procedure_hub import ExecuteProcedureTaskSession
 from .mutations.session import DeleteSession, InsertUpdateSession
 from .mutations.session_agent import DeleteSessionAgent, InsertUpdateSessionAgent
 from .mutations.session_run import DeleteSessionRun, InsertUpdateSessionRun
@@ -241,3 +242,4 @@ class Mutations(ObjectType):
     delete_session_agent = DeleteSessionAgent.Field()
     insert_update_task_schedule = InsertUpdateTaskSchedule.Field()
     delete_task_schedule = DeleteTaskSchedule.Field()
+    execute_procedure_task_session = ExecuteProcedureTaskSession.Field()
