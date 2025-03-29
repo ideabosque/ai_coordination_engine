@@ -10,7 +10,6 @@ from typing import Any, Dict
 from graphene import ResolveInfo
 
 from ...models.session_agent import insert_update_session_agent, resolve_session_agent
-from .procedure_hub_listener import invoke_next_iteration
 from .session_agent import handle_session_agent_completion
 
 

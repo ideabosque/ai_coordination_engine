@@ -19,8 +19,12 @@ setting = {
     "region_name": os.getenv("region_name"),
     "aws_access_key_id": os.getenv("aws_access_key_id"),
     "aws_secret_access_key": os.getenv("aws_secret_access_key"),
-    "endpoint_id": os.getenv("endpoint_id"),
-    "test_mode": os.getenv("TEST_MODE"),
+    "api_id": os.getenv("api_id"),
+    "api_stage": os.getenv("api_stage"),
+    "funct_bucket_name": os.getenv("funct_bucket_name"),
+    "funct_zip_path": os.getenv("funct_zip_path"),
+    "funct_extract_path": os.getenv("funct_extract_path"),
+    "task_queue_name": os.getenv("task_queue_name"),
     "functs_on_local": {
         "ai_coordination_graphql": {
             "module_name": "ai_coordination_engine",
@@ -55,6 +59,9 @@ setting = {
             "class_name": "AIAgentCoreEngine",
         },
     },
+    "connection_id": os.getenv("connection_id"),
+    "endpoint_id": os.getenv("endpoint_id"),
+    "test_mode": os.getenv("test_mode"),
 }
 
 sys.path.insert(0, f"{os.getenv('base_dir')}/ai_coordination_engine")
@@ -515,7 +522,7 @@ class AICoordinationEngineTest(unittest.TestCase):
             "variables": {
                 "coordinationUuid": "8033443114236711408",
                 "taskUuid": "6753533827658093040",
-                "userQuery": "Communication! Please ask the provider have the detail of product catalog in Chinese.",
+                "taskQuery": "Communication! Please find products related to carpet cleaning and translate the result in Chinese.",
             },
         }
         response = self.ai_coordination_engine.ai_coordination_graphql(**payload)

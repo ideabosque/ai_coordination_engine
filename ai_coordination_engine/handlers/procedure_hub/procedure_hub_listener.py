@@ -44,7 +44,7 @@ def invoke_next_iteration(
         **{
             "coordination_uuid": coordination_uuid,
             "session_uuid": session_uuid,
-            "iteration_count": iteration_count,
+            "iteration_count": int(iteration_count),
             "updated_by": "procedure_hub",
         },
     )
@@ -86,7 +86,7 @@ def _check_session_status(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Sessio
         return insert_update_session(
             info,
             **{
-                "coordination_uuid": session.task["coordination_uuid"],
+                "coordination_uuid": session.task["coordination"]["coordination_uuid"],
                 "session_uuid": session.session_uuid,
                 "status": "in_progress",
                 "updated_by": "procedure_hub",
@@ -150,7 +150,7 @@ def _handle_no_ready_agents(
     insert_update_session(
         info,
         **{
-            "coordination_uuid": session.task["coordination_uuid"],
+            "coordination_uuid": session.task["coordination"]["coordination_uuid"],
             "session_uuid": session.session_uuid,
             "status": "completed",
             "updated_by": "procedure_hub",
@@ -183,14 +183,16 @@ def _handle_pending_agents(info: ResolveInfo, session: SessionType) -> None:
         insert_update_session(
             info,
             **{
-                "coordination_uuid": session.task["coordination_uuid"],
+                "coordination_uuid": session.task["coordination"]["coordination_uuid"],
                 "session_uuid": session.session_uuid,
                 "status": "failed",
-                "logs": [
-                    {
-                        "error": f"Maximum iterations ({MAX_ITERATIONS}) reached - possible infinite loop"
-                    }
-                ],
+                "logs": Utility.json_dumps(
+                    [
+                        {
+                            "error": f"Maximum iterations ({MAX_ITERATIONS}) reached - possible infinite loop"
+                        }
+                    ]
+                ),
                 "updated_by": "procedure_hub",
             },
         )
@@ -199,9 +201,9 @@ def _handle_pending_agents(info: ResolveInfo, session: SessionType) -> None:
     insert_update_session(
         info,
         **{
-            "coordination_uuid": session.task["coordination_uuid"],
+            "coordination_uuid": session.task["coordination"]["coordination_uuid"],
             "session_uuid": session.session_uuid,
-            "iteration_count": session.iteration_count,
+            "iteration_count": int(session.iteration_count),
             "updated_by": "procedure_hub",
         },
     )
@@ -209,7 +211,7 @@ def _handle_pending_agents(info: ResolveInfo, session: SessionType) -> None:
     time.sleep(10)
     invoke_next_iteration(
         info,
-        session.task["coordination_uuid"],
+        session.task["coordination"]["coordination_uuid"],
         session.session_uuid,
         iteration_count=session.iteration_count,
     )
@@ -288,7 +290,7 @@ def async_execute_procedure_task_session(
         )
         invoke_next_iteration(
             info,
-            session.task["coordination_uuid"],
+            session.task["coordination"]["coordination_uuid"],
             session.session_uuid,
             iteration_count=session.iteration_count,
         )

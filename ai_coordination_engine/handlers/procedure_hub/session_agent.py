@@ -32,7 +32,7 @@ def decrement_in_degree(info: ResolveInfo, session_agent: SessionAgentType) -> N
                 **{
                     "session_uuid": session_agent.session["session_uuid"],
                     "session_agent_uuid": session_agent.session_agent_uuid,
-                    "in_degree": session_agent.in_degree,
+                    "in_degree": int(session_agent.in_degree),
                     "updated_by": "procedure_hub",
                 },
             )
@@ -48,7 +48,7 @@ def get_successors(
     session_agent_list = resolve_session_agent_list(
         info,
         **{
-            "sessionUuid": session_agent.session["session_uuid"],
+            "session_uuid": session_agent.session["session_uuid"],
             "predecessor": session_agent.agent_uuid,
         },
     )
@@ -66,7 +66,7 @@ def get_predecessors(
     session_agent_list = resolve_session_agent_list(
         info,
         **{
-            "sessionUuid": session_agent.session["session_uuid"],
+            "session_uuid": session_agent.session["session_uuid"],
             "predecessors": predecessors,
         },
     )
@@ -92,10 +92,12 @@ def handle_session_agent_completion(
         insert_update_session(
             info,
             **{
-                "coordination_uuid": session_agent.session["coordination_uuid"],
+                "coordination_uuid": session_agent.session["coordination"][
+                    "coordination_uuid"
+                ],
                 "session_uuid": session_agent.session["session_uuid"],
                 "status": "failed",
-                "logs": [{"error": log}],
+                "logs": Utility.json_dumps([{"error": log}]),
                 "updated_by": "procedure_hub",
             },
         )
@@ -171,7 +173,7 @@ def get_agent_input(predecessors: List[SessionAgentType]) -> str:
         for predecessor in predecessors
         if predecessor.agent_output and predecessor.agent_output != ""
     ]
-    agent_inputs.append(
+    agent_inputs.extend(
         [
             f"user: {predecessor.user_input}."
             for predecessor in predecessors
@@ -217,6 +219,9 @@ def execute_session_agent(info: ResolveInfo, session_agent: SessionAgentType) ->
         predecessors = get_predecessors(info, session_agent)
         agent_input = get_agent_input(predecessors)
 
+        agent_input = agent_input or session_agent.session["task_query"]
+        info.context["logger"].info(f"User query: {agent_input}")
+
         session_agent = insert_update_session_agent(
             info,
             **{
@@ -228,9 +233,10 @@ def execute_session_agent(info: ResolveInfo, session_agent: SessionAgentType) ->
             },
         )
         thread_uuid = get_thread_uuid(info, session_agent, predecessors)
-
-        # Get user query from either agent input or task session
-        user_query = session_agent.agent_input or session_agent.session["task_query"]
+        if thread_uuid:
+            info.context["logger"].info(
+                f"Found thread_uuid: {thread_uuid}"
+            )  # Get user query from either agent input or task session
 
         ask_model = invoke_ask_model(
             info.context.get("logger"),
@@ -240,7 +246,7 @@ def execute_session_agent(info: ResolveInfo, session_agent: SessionAgentType) ->
             **{
                 "agentUuid": session_agent.agent_uuid,
                 "threadUuid": thread_uuid,
-                "userQuery": user_query,
+                "userQuery": agent_input,
                 "userId": session_agent.session.get("user_id"),
                 "updatedBy": "operation_hub",
             },
@@ -293,7 +299,7 @@ def execute_session_agent(info: ResolveInfo, session_agent: SessionAgentType) ->
                 ],
                 "session_uuid": session_agent.session["session_uuid"],
                 "status": "failed",
-                "logs": [{"error": log}],
+                "logs": Utility.json_dumps([{"error": log}]),
                 "updated_by": "procedure_hub",
             },
         )
