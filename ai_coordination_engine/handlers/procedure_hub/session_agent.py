@@ -168,18 +168,25 @@ def get_agent_input(predecessors: List[SessionAgentType]) -> str:
     """Get agent input from either agent input or task session."""
     if len(predecessors) == 0:
         return None
-    agent_inputs = [
-        f"assistant: {predecessor.agent_output}"
-        for predecessor in predecessors
-        if predecessor.agent_output and predecessor.agent_output != ""
-    ]
-    agent_inputs.extend(
-        [
-            f"user: {predecessor.user_input}."
-            for predecessor in predecessors
-            if predecessor.user_input and predecessor.user_input != ""
-        ]
-    )
+
+    agents = predecessors[0].session["coordination"]["agents"]
+    agent_inputs = []
+    for predecessor in predecessors:
+        agent = next(
+            [agent for agent in agents if agent["agent_uuid"] == predecessor.agent_uuid]
+        )
+        if predecessor.agent_input and predecessor.agent_input != "":
+            agent_inputs.append(
+                f"agent_input/{agent["agent_name"]}: {predecessor.agent_input}"
+            )
+        if predecessor.agent_output and predecessor.agent_output != "":
+            agent_inputs.append(
+                f"agent_output/{agent["agent_name"]}: {predecessor.agent_output}"
+            )
+        if predecessor.user_input and predecessor.user_input != "":
+            agent_inputs.append(
+                f"user_input/{agent["agent_name"]}: {predecessor.user_input}."
+            )
 
     agent_input = "\n".join(agent_inputs)
     return agent_input
