@@ -25,6 +25,7 @@ class InsertUpdateSession(Mutation):
         user_id = String(required=False)
         task_query = String(required=False)
         iteration_count = Int(required=False)
+        subtask_queries = List(JSON, required=False)
         status = String(required=False)
         logs = String(required=False)
         updated_by = String(required=True)
