@@ -182,6 +182,16 @@ def execute_procedure_task_session(
         info,
         **variables,
     )
+
+    # TODO: Process the task query and generate subtasks for each agent based on their capabilities and dependencies.
+    # This involves:
+    # 1. Analyzing and decomposing the task query into atomic subtasks
+    # 2. Evaluating agent capabilities and matching them with appropriate subtasks
+    # 3. Generating agent-specific task queries with necessary context and parameters
+    # 4. Validating subtask dependencies align with agent_action predecessor relationships
+    # 5. Optimizing subtask distribution for parallel execution where possible
+    # 6. Storing subtask assignments and metadata in the session for tracking    # This involves:
+
     procedure_task_session.session = {
         "coordination_uuid": session.coordination["coordination_uuid"],
         "session_uuid": session.session_uuid,

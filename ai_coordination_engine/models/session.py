@@ -12,6 +12,7 @@ import pendulum
 from graphene import ResolveInfo
 from pynamodb.attributes import (
     ListAttribute,
+    MapAttribute,
     NumberAttribute,
     UnicodeAttribute,
     UTCDateTimeAttribute,
@@ -73,6 +74,7 @@ class SessionModel(BaseModel):
     endpoint_id = UnicodeAttribute()
     task_query = UnicodeAttribute(null=True)
     iteration_count = NumberAttribute(default=0)
+    subtask_queries = ListAttribute(of=MapAttribute, default=[])
     status = UnicodeAttribute(default="initial")
     logs = UnicodeAttribute(null=True)
     updated_by = UnicodeAttribute()
@@ -203,6 +205,7 @@ def insert_update_session(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
             "user_id",
             "task_query",
             "iteration_count",
+            "subtask_queries",
         ]:
             if key in kwargs:
                 cols[key] = kwargs[key]
@@ -225,6 +228,7 @@ def insert_update_session(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
         "logs": SessionModel.logs,
         "task_query": SessionModel.task_query,
         "iteration_count": SessionModel.iteration_count,
+        "subtask_queries": SessionModel.subtask_queries,
     }
 
     # Add actions dynamically based on the presence of keys in kwargs
