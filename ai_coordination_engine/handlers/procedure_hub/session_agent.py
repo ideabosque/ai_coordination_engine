@@ -164,28 +164,30 @@ def update_session_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     return
 
 
-def get_agent_input(predecessors: List[SessionAgentType]) -> str:
+def get_agent_input(user_input: str, predecessors: List[SessionAgentType]) -> str:
     """Get agent input from either agent input or task session."""
     if len(predecessors) == 0:
         return None
 
     agents = predecessors[0].session["coordination"]["agents"]
     agent_inputs = []
+    if user_input and user_input != "":
+        agent_inputs.append(f"user_input: {user_input}")
     for predecessor in predecessors:
         agent = next(
-            [agent for agent in agents if agent["agent_uuid"] == predecessor.agent_uuid]
+            (
+                agent
+                for agent in agents
+                if agent["agent_uuid"] == predecessor.agent_uuid
+            ),
+            None,
         )
-        if predecessor.agent_input and predecessor.agent_input != "":
-            agent_inputs.append(
-                f"agent_input/{agent["agent_name"]}: {predecessor.agent_input}"
-            )
+        if not agent:
+            continue
+
         if predecessor.agent_output and predecessor.agent_output != "":
             agent_inputs.append(
-                f"agent_output/{agent["agent_name"]}: {predecessor.agent_output}"
-            )
-        if predecessor.user_input and predecessor.user_input != "":
-            agent_inputs.append(
-                f"user_input/{agent["agent_name"]}: {predecessor.user_input}."
+                f"agent_output({agent["agent_name"]}): {predecessor.agent_output}"
             )
 
     agent_input = "\n".join(agent_inputs)
@@ -224,7 +226,7 @@ def execute_session_agent(info: ResolveInfo, session_agent: SessionAgentType) ->
     try:
         # Initialize the session agent state to "executing"
         predecessors = get_predecessors(info, session_agent)
-        agent_input = get_agent_input(predecessors)
+        agent_input = get_agent_input(session_agent.user_input, predecessors)
 
         agent_input = agent_input or session_agent.session["task_query"]
         info.context["logger"].info(f"User query: {agent_input}")
