@@ -4,6 +4,7 @@ from __future__ import print_function
 
 __author__ = "bibow"
 
+import time
 import traceback
 from typing import Any, Dict, List
 
@@ -88,7 +89,6 @@ def handle_session_agent_completion(
     except Exception as e:
         log = traceback.format_exc()
         info.context["logger"].error(log)
-        # TODO: Update the status of the task_session.
         insert_update_session(
             info,
             **{
@@ -114,32 +114,35 @@ def update_session_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
             },
         )
         session_agent.state = "completed"
+        if session_agent.agent_action.get("action_rules"):
+            session_agent.state = "pending"
 
-        # ! Disable for testing.
-        async_task = get_async_task(
-            info.context.get("logger"),
-            info.context.get("endpoint_id"),
-            info.context.get("setting"),
-            **{
-                "functionName": "async_execute_ask_model",
-                "asyncTaskUuid": kwargs["async_task_uuid"],
-            },
-        )
-        if async_task["status"] == "completed":
-            session_agent.agent_output = async_task["result"]
+        if session_agent.agent_action.get("user_in_the_loop"):
+            info.context["logger"].info("🚀 Executing user_in_the_loop session_agent.")
+            session_agent.state = "wait_for_user_input"
 
-            if session_agent.agent_action.get("action_rules"):
-                session_agent.state = "pending"
-
-            if session_agent.agent_action.get("user_in_the_loop"):
-                info.context["logger"].info(
-                    "🚀 Executing user_in_the_loop session_agent."
-                )
-                session_agent.state = "wait_for_user_input"
-
-        if async_task["status"] == "failed":
-            session_agent.state = async_task["status"]
-            session_agent.notes = async_task["notes"]
+        start_time = time.time()
+        while True:
+            async_task = get_async_task(
+                info.context.get("logger"),
+                info.context.get("endpoint_id"),
+                info.context.get("setting"),
+                **{
+                    "functionName": "async_execute_ask_model",
+                    "asyncTaskUuid": kwargs["async_task_uuid"],
+                },
+            )
+            if async_task["status"] == "completed":
+                session_agent.agent_output = async_task["result"]
+                break
+            if async_task["status"] == "failed":
+                session_agent.state = async_task["status"]
+                session_agent.notes = async_task["notes"]
+                break
+            if time.time() - start_time > 60:
+                session_agent.state = "failed"
+                session_agent.notes = "Task timed out after 60 seconds"
+                break
 
     except Exception as e:
         log = traceback.format_exc()
