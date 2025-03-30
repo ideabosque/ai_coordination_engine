@@ -53,12 +53,13 @@ Steps:
 4. Validate subtask dependencies:  
    Ensure the order of subtask execution aligns with the dependency constraints defined in predecessor relationships.
 
-Constraints:
+Constraints and Notes:
 - All subtasks must be atomic (i.e., independently executable and clearly defined).
 - No subtask may violate dependency constraints.
 - Avoid redundant assignments or unnecessary sequencing.
+- If an agent cannot be found for a specific task, skip the allocation and continue with the remaining tasks.
 
-Handling Ambiguity and Errors:
+Handling Ambiguity and Errors <<error_type>: <detailed_explanation>>:
 - Ambiguity Handling Prompt: "The task query is unclear. Please provide additional context or examples to clarify what the desired outcome is."
 - Error Handling Prompt: "I cannot proceed with subtask generation because the agent capabilities or dependency data is incomplete or missing."
 - Transfer Prompt: "This task requires human review due to undefined dependencies or capability mismatches. Transferring now."
@@ -66,14 +67,49 @@ Handling Ambiguity and Errors:
 Output Format:  
 A structured JSON object with the following fields:
 ```json
-[
- {'agent_uuid': '<agent identifier>', 'subtask_query': '<specific subtask description>', 'predecessors': ['<agent identifier>']}
-]
+{
+    "subtask_queries": [
+        {
+            "agent_uuid": "<agent identifier>", 
+            "subtask_query": "<specific subtask description>", 
+            "predecessors": ["<agent identifier>"]
+        }
+    ]
+}
 ```
 The error output format should be a dictionary with 'Error' and 'Reason' keys: 
 ```json
-{'Error': '<error type>', 'Reason': '<detailed explanation>'}
+{
+    "Error": "<error_type>", 
+    "Reason": "<detailed_explanation>"
+}
 ```
+
+Examples:
+Input
+User Query: "Please retrieve products related to carpet cleaning and provide detailed specifications. Then translate the product information into Chinese for effective communication with the supplier. Include key details such as cleaning method, material compatibility, and usage instructions."
+
+Output
+{
+    "subtask_queries": [
+        {
+            "agent_uuid": "agent-mock-001",
+            "predecessors": [],
+            "subtask_query": "Retrieve products related to carpet cleaning using `get_results_from_knowledge_rag` and present the response in English, summarizing key points and citing sources if available."
+        },
+        {
+            "agent_uuid": "agent-mock-002", 
+            "predecessors": ["agent-mock-001"],
+            "subtask_query": "Translate the product retrieval results into Chinese and format the message for the provider, ensuring clarity and professionalism."
+        }
+    ]
+}
+
+Output (Error)
+{
+    "Error": "Incomplete Information",
+    "Reason": "The task query requires clarification for the sequence of translation and delivery, and there is no specified method for sending the translated message to the provider."
+}
 """
 
 
@@ -114,72 +150,13 @@ def invoke_next_iteration(
     )
 
 
-def async_decompose_task_query(
-    logger: logging.Logger, setting: Dict[str, Any], **kwargs: Dict[str, Any]
+def _process_task_completion(
+    info: ResolveInfo, ask_model: Dict[str, Any], **variables: Dict[str, Any]
 ) -> None:
-    # Initialize info and get session
-    info = create_listener_info(logger, "async_decompose_task_query", setting, **kwargs)
-    session = resolve_session(
-        info,
-        coordination_uuid=kwargs["coordination_uuid"],
-        session_uuid=kwargs["session_uuid"],
-    )
-
-    # Get decompose agent
-    decompose_agent = next(
-        (a for a in session.coordination["agents"] if a["agent_type"] == "decompose"),
-        None,
-    )
-
-    # Get non-task agents with their actions
-    agents = [
-        {
-            **agent,
-            "predecessors": session.task["agent_actions"]
-            .get(agent["agent_uuid"], {})
-            .get("predecessors"),
-            "primary_path": session.task["agent_actions"]
-            .get(agent["agent_uuid"], {})
-            .get("primary_path"),
-        }
-        for agent in session.coordination["agents"]
-        if agent["agent_type"] != "task"
-    ]
-
-    # Create query for task decomposition
-    query = (
-        f"Analyze agents: {Utility.json_dumps(agents)}\n\n"
-        f"Decompose task: '{session.task_query}' into subtasks for available agents.\n\n"
-        "Consider:\n"
-        "- Match agent capabilities\n"
-        "- Follow dependencies\n"
-        "- Make subtasks clear and actionable\n"
-        "- Maintain workflow order\n\n"
-        "Return JSON array with format:\n"
-        "{'agent_uuid': '<id>', 'subtask_query': '<description>', 'predecessors': ['<id>']}"
-    )
-
-    # Ask model to decompose task
-    ask_model = invoke_ask_model(
-        info.context.get("logger"),
-        info.context.get("endpoint_id"),
-        setting=info.context.get("setting"),
-        agentUuid=decompose_agent["agent_uuid"],
-        userQuery=query,
-        updatedBy="operation_hub",
-    )
-
-    # Track task status
-    variables = {
-        "coordination_uuid": session.coordination["coordination_uuid"],
-        "session_uuid": session.session_uuid,
-        "status": "dispatched",
-        "updated_by": "procedure_hub",
-    }
-
-    # Wait for task completion
     start = time.time()
-    while True:
+    timeout = 60
+
+    while time.time() - start <= timeout:
         task = get_async_task(
             info.context.get("logger"),
             info.context.get("endpoint_id"),
@@ -190,22 +167,26 @@ def async_decompose_task_query(
 
         if task["status"] == "completed":
             result = Utility.json_loads(task["result"])
-            if "Error" in result:
-                variables.update(
-                    {
-                        "status": "failed",
-                        "logs": Utility.json_dumps(
-                            [
-                                {
-                                    "run_uuid": ask_model["current_run_uuid"],
-                                    "log": f"{result['Error']}: {result['Reason']}",
-                                }
-                            ]
-                        ),
-                    }
-                )
-            else:
-                variables["subtask_queries"] = result
+            info.context["logger"].info(f"Result: {result}.")
+
+            if "subtask_queries" in result:
+                variables["subtask_queries"] = result["subtask_queries"]
+                break
+
+            error_msg = (
+                f"{result['Error']}/{result['Reason']}"
+                if "Error" in result
+                else "An unexpected error occurred in the task processing. Please review the system logs and configuration for details."
+            )
+
+            variables.update(
+                {
+                    "status": "failed",
+                    "logs": Utility.json_dumps(
+                        [{"run_uuid": ask_model["current_run_uuid"], "log": error_msg}]
+                    ),
+                }
+            )
             break
 
         if task["status"] == "failed":
@@ -224,60 +205,147 @@ def async_decompose_task_query(
             )
             break
 
-        if time.time() - start > 60:
-            variables.update(
-                {
-                    "status": "failed",
-                    "logs": Utility.json_dumps(
-                        [
-                            {
-                                "run_uuid": ask_model["current_run_uuid"],
-                                "log": "Task timed out after 60 seconds",
-                            }
-                        ]
-                    ),
-                }
-            )
-            break
-
         time.sleep(1)
+    else:
+        variables.update(
+            {
+                "status": "failed",
+                "logs": Utility.json_dumps(
+                    [
+                        {
+                            "run_uuid": ask_model["current_run_uuid"],
+                            "log": f"Task timed out after {timeout} seconds",
+                        }
+                    ]
+                ),
+            }
+        )
+
+    return variables
+
+
+def async_decompose_task_query(
+    logger: logging.Logger, setting: Dict[str, Any], **kwargs: Dict[str, Any]
+) -> None:
+    # Initialize info and get session
+    info = create_listener_info(logger, "async_decompose_task_query", setting, **kwargs)
+    session = resolve_session(
+        info,
+        coordination_uuid=kwargs["coordination_uuid"],
+        session_uuid=kwargs["session_uuid"],
+    )
+
+    # Get decompose agent
+    decompose_agent = next(
+        (
+            agent
+            for agent in session.coordination["agents"]
+            if agent["agent_type"] == "decompose"
+        ),
+        None,
+    )
+
+    # Get task agents with their actions
+    agents = [
+        {
+            **agent,
+            "predecessors": session.task["agent_actions"]
+            .get(agent["agent_uuid"], {})
+            .get("predecessors"),
+            "primary_path": session.task["agent_actions"]
+            .get(agent["agent_uuid"], {})
+            .get("primary_path"),
+        }
+        for agent in session.coordination["agents"]
+        if agent["agent_type"] == "task"
+    ]
+
+    # Create query for task decomposition
+    query = (
+        f"Analyze agents: {Utility.json_dumps(agents)}\n\n"
+        f"Decompose task: '{session.task_query}' into subtasks for available agents.\n\n"
+        "Consider:\n"
+        "- Match agent capabilities\n"
+        "- Follow dependencies\n"
+        "- Make subtasks clear and actionable\n"
+        "- Maintain workflow order\n\n"
+        "Return the results in JSON format."
+    )
+
+    # Ask model to decompose task
+    ask_model = invoke_ask_model(
+        info.context.get("logger"),
+        info.context.get("endpoint_id"),
+        setting=info.context.get("setting"),
+        agentUuid=decompose_agent["agent_uuid"],
+        userQuery=query,
+        updatedBy="operation_hub",
+    )
+
+    # Wait for task completion
+    variables = _process_task_completion(
+        info,
+        ask_model,
+        **{
+            "coordination_uuid": session.coordination["coordination_uuid"],
+            "session_uuid": session.session_uuid,
+            "status": "dispatched",
+            "updated_by": "procedure_hub",
+        },
+    )
 
     insert_update_session(info, **variables)
 
 
 def _check_session_status(info: ResolveInfo, **kwargs: Dict[str, Any]) -> SessionType:
-    """Check and update task session status if needed
-    Args:
-        logger (logging.Logger): Logger instance
-        endpoint_id (str): ID of the endpoint
-        task_uuid (str): UUID of the task
-        session_uuid (str): UUID of the session
-        task_session (Dict): Dictionary containing task session details
-        setting (Dict): Dictionary containing settings
-    Returns:
-        Dict: Updated task session details or None if completed/failed
-    """
-    session = resolve_session(
-        info,
-        **{
-            "coordination_uuid": kwargs["coordination_uuid"],
-            "session_uuid": kwargs["session_uuid"],
-        },
-    )
+    """Check session status and update to in_progress if dispatched
 
-    if session.status in ["completed", "failed"]:
-        return None
-    elif session.status == "initial":
-        return insert_update_session(
+    Polls the session status for up to 60 seconds, checking if:
+    - Session is dispatched -> Updates to in_progress
+    - Session is completed/failed -> Returns session
+    - Times out after 60s of polling
+
+    Args:
+        info (ResolveInfo): GraphQL resolve info containing context
+        **kwargs: Must contain:
+            - coordination_uuid (str): UUID of the coordination
+            - session_uuid (str): UUID of the session
+
+    Returns:
+        SessionType: The session object with updated status
+
+    Raises:
+        TimeoutError: If status check exceeds 60 second timeout
+    """
+    session = None
+    start = time.time()
+    timeout_seconds = 60
+
+    while time.time() - start < timeout_seconds:
+        session = resolve_session(
             info,
-            **{
-                "coordination_uuid": session.task["coordination"]["coordination_uuid"],
-                "session_uuid": session.session_uuid,
-                "status": "in_progress",
-                "updated_by": "procedure_hub",
-            },
+            coordination_uuid=kwargs["coordination_uuid"],
+            session_uuid=kwargs["session_uuid"],
         )
-    return session
+
+        if session.status == "dispatched":
+            session = insert_update_session(
+                info,
+                coordination_uuid=session.task["coordination"]["coordination_uuid"],
+                session_uuid=session.session_uuid,
+                status="in_progress",
+                updated_by="procedure_hub",
+            )
+            return session
+
+        if session.status in ["completed", "failed"]:
+            return session
+
+        time.sleep(1)
+
+    raise TimeoutError(
+        f"Session status check timed out after {timeout_seconds} seconds"
+    )
 
 
 def _handle_no_ready_agents(

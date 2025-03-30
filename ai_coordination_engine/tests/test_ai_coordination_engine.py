@@ -42,6 +42,10 @@ setting = {
             "module_name": "ai_coordination_engine",
             "class_name": "AICoordinationEngine",
         },
+        "async_decompose_task_query": {
+            "module_name": "ai_coordination_engine",
+            "class_name": "AICoordinationEngine",
+        },
         "ai_agent_core_graphql": {
             "module_name": "ai_agent_core_engine",
             "class_name": "AIAgentCoreEngine",
@@ -169,7 +173,7 @@ class AICoordinationEngineTest(unittest.TestCase):
         response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
         logger.info(response)
 
-    # @unittest.skip("demonstrating skipping")
+    @unittest.skip("demonstrating skipping")
     def test_graphql_insert_update_session(self):
         query = Utility.generate_graphql_operation(
             "insertUpdateSession", "Mutation", self.schema
@@ -513,7 +517,7 @@ class AICoordinationEngineTest(unittest.TestCase):
         response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
         logger.info(response)
 
-    @unittest.skip("demonstrating skipping")
+    # @unittest.skip("demonstrating skipping")
     def test_graphql_execute_procedure_task_session(self):
         query = Utility.generate_graphql_operation(
             "executeProcedureTaskSession", "Mutation", self.schema
@@ -523,7 +527,11 @@ class AICoordinationEngineTest(unittest.TestCase):
             "variables": {
                 "coordinationUuid": "8033443114236711408",
                 "taskUuid": "6753533827658093040",
-                "taskQuery": "Communication! Please find products related to carpet cleaning and translate the result in Chinese.",
+                "taskQuery": (
+                    "Please retrieve products related to carpet cleaning and provide detailed specifications.\n"
+                    "Then translate the product information into Chinese for effective communication with the supplier.\n"
+                    "Include key details such as cleaning method, material compatibility, and usage instructions."
+                ),
             },
         }
         response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
