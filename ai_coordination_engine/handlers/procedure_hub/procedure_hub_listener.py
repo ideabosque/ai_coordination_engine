@@ -337,9 +337,10 @@ def _check_session_status(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Sessio
                 updated_by="procedure_hub",
             )
             return session
-
-        if session.status in ["completed", "failed"]:
+        elif session.status == "in_progress":
             return session
+        elif session.status in ["completed", "failed"]:
+            return None
 
         time.sleep(1)
 

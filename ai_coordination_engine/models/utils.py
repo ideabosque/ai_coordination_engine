@@ -58,6 +58,7 @@ def _get_session(coordination_uuid: str, session_uuid: str) -> Dict[str, Any]:
         "endpoint_id": session.endpoint_id,
         "task_query": session.task_query,
         "iteration_count": session.iteration_count,
+        "subtask_queries": session.subtask_queries,
         "status": session.status,
         "logs": session.logs,
     }
