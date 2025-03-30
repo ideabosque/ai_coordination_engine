@@ -192,6 +192,20 @@ def execute_procedure_task_session(
     # 5. Optimizing subtask distribution for parallel execution where possible
     # 6. Storing subtask assignments and metadata in the session for tracking    # This involves:
 
+    # Invoke async update function on AWS Lambda
+    Utility.invoke_funct_on_aws_lambda(
+        info.context["logger"],
+        info.context["endpoint_id"],
+        "async_decompose_task_query",
+        params={
+            "coordination_uuid": session.coordination["coordination_uuid"],
+            "session_uuid": session.session_uuid,
+        },
+        setting=info.context["setting"],
+        test_mode=info.context["setting"].get("test_mode"),
+        aws_lambda=Config.aws_lambda,
+    )
+
     procedure_task_session.session = {
         "coordination_uuid": session.coordination["coordination_uuid"],
         "session_uuid": session.session_uuid,

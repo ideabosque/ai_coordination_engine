@@ -18,9 +18,63 @@ from ...models.session import insert_update_session, resolve_session
 from ...models.session_agent import resolve_session_agent_list
 from ...types.session import SessionType
 from ...types.session_agent import SessionAgentListType, SessionAgentType
-from ..ai_coordination_utility import create_listener_info
+from ..ai_coordination_utility import (
+    create_listener_info,
+    get_async_task,
+    invoke_ask_model,
+)
 from .action_rules import execute_action_rules
 from .session_agent import execute_session_agent, update_session_agent
+
+"""System Instructions:
+Name: Task Decomposition and Agent Assignment Agent
+
+Description: An AI agent responsible for analyzing task queries, breaking them down into atomic subtasks, and assigning them to specialized agents based on their capabilities and execution dependencies. It evaluates agent capabilities, constructs detailed task prompts, and ensures proper sequencing according to dependency constraints. The agent handles ambiguity through clarification prompts and can escalate complex cases requiring human review. 
+
+Task: Decompose a high-level task query into atomic subtasks and assign each subtask to the appropriate agent based on capabilities and execution dependencies.
+
+Role: You are a task orchestration assistant responsible for analyzing task queries, identifying subtask flows, and distributing work among specialized agents.
+
+Audience: This instruction is for the AI engine managing multi-agent systems and optimizing task execution.
+
+Context:  
+You are given a task query and access to:
+- A list of agents and their capabilities (including agent_name, agent_description).
+- Predefined action dependency rules (`predecessors` relationships) that define the execution order and dependencies between agents in the workflow.
+- The primary path identifies the critical execution sequence and dependencies in the workflow, ensuring optimal task progression and completion.
+
+Steps:
+1. Analyze the task query:  
+   Identify the primary goal and break it down into minimal, atomic subtasks necessary to achieve the task.
+2. Match subtasks to agents:  
+   Evaluate agent capabilities and assign subtasks to the most suitable agents. Ensure each agent is only given tasks they are capable of completing.
+3. Generate agent-specific task queries:
+   For each subtask, construct a detailed task prompt including all required context and parameters for the assigned agent.
+4. Validate subtask dependencies:  
+   Ensure the order of subtask execution aligns with the dependency constraints defined in predecessor relationships.
+
+Constraints:
+- All subtasks must be atomic (i.e., independently executable and clearly defined).
+- No subtask may violate dependency constraints.
+- Avoid redundant assignments or unnecessary sequencing.
+
+Handling Ambiguity and Errors:
+- Ambiguity Handling Prompt: "The task query is unclear. Please provide additional context or examples to clarify what the desired outcome is."
+- Error Handling Prompt: "I cannot proceed with subtask generation because the agent capabilities or dependency data is incomplete or missing."
+- Transfer Prompt: "This task requires human review due to undefined dependencies or capability mismatches. Transferring now."
+
+Output Format:  
+A structured JSON object with the following fields:
+```json
+[
+ {'agent_uuid': '<agent identifier>', 'subtask_query': '<specific subtask description>', 'predecessors': ['<agent identifier>']}
+]
+```
+The error output format should be a dictionary with 'Error' and 'Reason' keys: 
+```json
+{'Error': '<error type>', 'Reason': '<detailed explanation>'}
+```
+"""
 
 
 def invoke_next_iteration(
@@ -58,6 +112,137 @@ def invoke_next_iteration(
         test_mode=info.context["setting"].get("test_mode"),
         aws_lambda=Config.aws_lambda,
     )
+
+
+def async_decompose_task_query(
+    logger: logging.Logger, setting: Dict[str, Any], **kwargs: Dict[str, Any]
+) -> None:
+    # Initialize info and get session
+    info = create_listener_info(logger, "async_decompose_task_query", setting, **kwargs)
+    session = resolve_session(
+        info,
+        coordination_uuid=kwargs["coordination_uuid"],
+        session_uuid=kwargs["session_uuid"],
+    )
+
+    # Get decompose agent
+    decompose_agent = next(
+        (a for a in session.coordination["agents"] if a["agent_type"] == "decompose"),
+        None,
+    )
+
+    # Get non-task agents with their actions
+    agents = [
+        {
+            **agent,
+            "predecessors": session.task["agent_actions"]
+            .get(agent["agent_uuid"], {})
+            .get("predecessors"),
+            "primary_path": session.task["agent_actions"]
+            .get(agent["agent_uuid"], {})
+            .get("primary_path"),
+        }
+        for agent in session.coordination["agents"]
+        if agent["agent_type"] != "task"
+    ]
+
+    # Create query for task decomposition
+    query = (
+        f"Analyze agents: {Utility.json_dumps(agents)}\n\n"
+        f"Decompose task: '{session.task_query}' into subtasks for available agents.\n\n"
+        "Consider:\n"
+        "- Match agent capabilities\n"
+        "- Follow dependencies\n"
+        "- Make subtasks clear and actionable\n"
+        "- Maintain workflow order\n\n"
+        "Return JSON array with format:\n"
+        "{'agent_uuid': '<id>', 'subtask_query': '<description>', 'predecessors': ['<id>']}"
+    )
+
+    # Ask model to decompose task
+    ask_model = invoke_ask_model(
+        info.context.get("logger"),
+        info.context.get("endpoint_id"),
+        setting=info.context.get("setting"),
+        agentUuid=decompose_agent["agent_uuid"],
+        userQuery=query,
+        updatedBy="operation_hub",
+    )
+
+    # Track task status
+    variables = {
+        "coordination_uuid": session.coordination["coordination_uuid"],
+        "session_uuid": session.session_uuid,
+        "status": "dispatched",
+        "updated_by": "procedure_hub",
+    }
+
+    # Wait for task completion
+    start = time.time()
+    while True:
+        task = get_async_task(
+            info.context.get("logger"),
+            info.context.get("endpoint_id"),
+            info.context.get("setting"),
+            functionName="async_execute_ask_model",
+            asyncTaskUuid=ask_model["async_task_uuid"],
+        )
+
+        if task["status"] == "completed":
+            result = Utility.json_loads(task["result"])
+            if "Error" in result:
+                variables.update(
+                    {
+                        "status": "failed",
+                        "logs": Utility.json_dumps(
+                            [
+                                {
+                                    "run_uuid": ask_model["current_run_uuid"],
+                                    "log": f"{result['Error']}: {result['Reason']}",
+                                }
+                            ]
+                        ),
+                    }
+                )
+            else:
+                variables["subtask_queries"] = result
+            break
+
+        if task["status"] == "failed":
+            variables.update(
+                {
+                    "status": "failed",
+                    "logs": Utility.json_dumps(
+                        [
+                            {
+                                "run_uuid": ask_model["current_run_uuid"],
+                                "log": task["notes"],
+                            }
+                        ]
+                    ),
+                }
+            )
+            break
+
+        if time.time() - start > 60:
+            variables.update(
+                {
+                    "status": "failed",
+                    "logs": Utility.json_dumps(
+                        [
+                            {
+                                "run_uuid": ask_model["current_run_uuid"],
+                                "log": "Task timed out after 60 seconds",
+                            }
+                        ]
+                    ),
+                }
+            )
+            break
+
+        time.sleep(1)
+
+    insert_update_session(info, **variables)
 
 
 def _check_session_status(info: ResolveInfo, **kwargs: Dict[str, Any]) -> SessionType:
