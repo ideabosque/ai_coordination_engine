@@ -184,6 +184,18 @@ class AICoordinationEngine(SilvaEngineDynamoDBBase):
         )
         return
 
+    def async_decompose_task_query(self, **params: Dict[str, Any]) -> Any:
+        ## Test the waters 🧪 before diving in!
+        ##<--Testing Data-->##
+        if params.get("endpoint_id") is None:
+            params["endpoint_id"] = self.setting.get("endpoint_id")
+        ##<--Testing Data-->##
+
+        procedure_hub_listener.async_decompose_task_query(
+            self.logger, self.setting, **params
+        )
+        return
+
     def ai_coordination_graphql(self, **params: Dict[str, Any]) -> Any:
         ## Test the waters 🧪 before diving in!
         ##<--Testing Data-->##

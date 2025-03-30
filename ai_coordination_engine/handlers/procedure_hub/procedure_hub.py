@@ -183,7 +183,7 @@ def execute_procedure_task_session(
         **variables,
     )
 
-    # TODO: Process the task query and generate subtasks for each agent based on their capabilities and dependencies.
+    # * Process the task query and generate subtasks for each agent based on their capabilities and dependencies.
     # This involves:
     # 1. Analyzing and decomposing the task query into atomic subtasks
     # 2. Evaluating agent capabilities and matching them with appropriate subtasks
@@ -222,18 +222,19 @@ def execute_procedure_task_session(
 
     procedure_task_session.session_agents = updated_session_agents
 
+    #! Disable the section for testing.
     # Invoke async update function on AWS Lambda
-    Utility.invoke_funct_on_aws_lambda(
-        info.context["logger"],
-        info.context["endpoint_id"],
-        "async_execute_procedure_task_session",
-        params={
-            "coordination_uuid": session.coordination["coordination_uuid"],
-            "session_uuid": session.session_uuid,
-        },
-        setting=info.context["setting"],
-        test_mode=info.context["setting"].get("test_mode"),
-        aws_lambda=Config.aws_lambda,
-    )
+    # Utility.invoke_funct_on_aws_lambda(
+    #     info.context["logger"],
+    #     info.context["endpoint_id"],
+    #     "async_execute_procedure_task_session",
+    #     params={
+    #         "coordination_uuid": session.coordination["coordination_uuid"],
+    #         "session_uuid": session.session_uuid,
+    #     },
+    #     setting=info.context["setting"],
+    #     test_mode=info.context["setting"].get("test_mode"),
+    #     aws_lambda=Config.aws_lambda,
+    # )
 
     return procedure_task_session

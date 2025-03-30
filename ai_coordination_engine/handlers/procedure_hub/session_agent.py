@@ -105,24 +105,41 @@ def handle_session_agent_completion(
 
 
 def update_session_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
+    """
+    Updates the state and output of a session agent based on async task results.
+
+    Args:
+        info: GraphQL resolve info containing context
+        kwargs: Must contain session_uuid, session_agent_uuid and async_task_uuid
+    """
     try:
+        # Retrieve the session agent
         session_agent = resolve_session_agent(
             info,
-            **{
-                "session_uuid": kwargs["session_uuid"],
-                "session_agent_uuid": kwargs["session_agent_uuid"],
-            },
+            session_uuid=kwargs["session_uuid"],
+            session_agent_uuid=kwargs["session_agent_uuid"],
         )
-        session_agent.state = "completed"
-        if session_agent.agent_action.get("action_rules"):
-            session_agent.state = "pending"
+
+        # Set initial state based on agent action rules
+        session_agent.state = (
+            "wait_for_user_input"
+            if session_agent.agent_action.get("user_in_the_loop")
+            else (
+                "pending"
+                if session_agent.agent_action.get("action_rules")
+                else "completed"
+            )
+        )
 
         if session_agent.agent_action.get("user_in_the_loop"):
             info.context["logger"].info("🚀 Executing user_in_the_loop session_agent.")
-            session_agent.state = "wait_for_user_input"
 
+        # Poll async task with configurable timeout
         start_time = time.time()
-        while True:
+        TIMEOUT = 60  # seconds
+        POLL_INTERVAL = 1  # seconds
+
+        while time.time() - start_time < TIMEOUT:
             async_task = get_async_task(
                 info.context.get("logger"),
                 info.context.get("endpoint_id"),
@@ -132,24 +149,29 @@ def update_session_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
                     "asyncTaskUuid": kwargs["async_task_uuid"],
                 },
             )
-            if async_task["status"] == "completed":
+
+            status = async_task["status"]
+            if status == "completed":
                 session_agent.agent_output = async_task["result"]
                 break
-            if async_task["status"] == "failed":
-                session_agent.state = async_task["status"]
+            elif status == "failed":
+                session_agent.state = "failed"
                 session_agent.notes = async_task["notes"]
                 break
-            if time.time() - start_time > 60:
-                session_agent.state = "failed"
-                session_agent.notes = "Task timed out after 60 seconds"
-                break
 
+            time.sleep(POLL_INTERVAL)  # Avoid tight polling loop
+        else:
+            # Handle timeout
+            session_agent.state = "failed"
+            session_agent.notes = f"Task timed out after {TIMEOUT} seconds"
     except Exception as e:
+        # Handle exceptions by logging and marking agent as failed
         log = traceback.format_exc()
         info.context["logger"].error(log)
         session_agent.state = "failed"
         session_agent.notes = log
 
+    # Update session agent in database
     session_agent = insert_update_session_agent(
         info,
         **{
@@ -162,20 +184,31 @@ def update_session_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
         },
     )
 
+    # Handle completion state and update successors
     handle_session_agent_completion(info, session_agent)
 
-    return
 
-
-def get_agent_input(user_input: str, predecessors: List[SessionAgentType]) -> str:
+def get_agent_input(
+    session_agent: SessionAgentType, predecessors: List[SessionAgentType]
+) -> str:
     """Get agent input from either agent input or task session."""
-    if len(predecessors) == 0:
-        return None
-
-    agents = predecessors[0].session["coordination"]["agents"]
     agent_inputs = []
-    if user_input and user_input != "":
-        agent_inputs.append(f"user_input: {user_input}")
+    subtask_queries = session_agent.session.get("subtask_queries", [])
+    agent_inputs.append(
+        next(
+            (
+                subtask_query["subtask_query"]
+                for subtask_query in subtask_queries
+                if subtask_query["agent_uuid"] == session_agent.agent_uuid
+            ),
+            "",
+        )
+    )
+
+    agents = session_agent.session["coordination"]["agents"]
+    agent_inputs = []
+    if session_agent.user_input and session_agent.user_input != "":
+        agent_inputs.append(f"user_input: {session_agent.user_input}")
     for predecessor in predecessors:
         agent = next(
             (
@@ -229,7 +262,7 @@ def execute_session_agent(info: ResolveInfo, session_agent: SessionAgentType) ->
     try:
         # Initialize the session agent state to "executing"
         predecessors = get_predecessors(info, session_agent)
-        agent_input = get_agent_input(session_agent.user_input, predecessors)
+        agent_input = get_agent_input(session_agent, predecessors)
 
         agent_input = agent_input or session_agent.session["task_query"]
         info.context["logger"].info(f"User query: {agent_input}")
