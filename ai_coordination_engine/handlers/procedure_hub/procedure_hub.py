@@ -225,7 +225,6 @@ def execute_procedure_task_session(
 
     procedure_task_session.session_agents = updated_session_agents
 
-    #! Disable the section for testing.
     # Invoke async update function on AWS Lambda
     Utility.invoke_funct_on_aws_lambda(
         info.context["logger"],
