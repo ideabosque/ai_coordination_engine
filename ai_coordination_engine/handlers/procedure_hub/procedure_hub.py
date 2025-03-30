@@ -43,6 +43,9 @@ def _init_session_agents(
     """
     session_agents = []
     for agent in task.coordination["agents"]:
+        if agent["agent_type"] != "task":
+            continue
+
         # Create or update session agent
         session_agent = insert_update_session_agent(
             info,
@@ -224,17 +227,17 @@ def execute_procedure_task_session(
 
     #! Disable the section for testing.
     # Invoke async update function on AWS Lambda
-    # Utility.invoke_funct_on_aws_lambda(
-    #     info.context["logger"],
-    #     info.context["endpoint_id"],
-    #     "async_execute_procedure_task_session",
-    #     params={
-    #         "coordination_uuid": session.coordination["coordination_uuid"],
-    #         "session_uuid": session.session_uuid,
-    #     },
-    #     setting=info.context["setting"],
-    #     test_mode=info.context["setting"].get("test_mode"),
-    #     aws_lambda=Config.aws_lambda,
-    # )
+    Utility.invoke_funct_on_aws_lambda(
+        info.context["logger"],
+        info.context["endpoint_id"],
+        "async_execute_procedure_task_session",
+        params={
+            "coordination_uuid": session.coordination["coordination_uuid"],
+            "session_uuid": session.session_uuid,
+        },
+        setting=info.context["setting"],
+        test_mode=info.context["setting"].get("test_mode"),
+        aws_lambda=Config.aws_lambda,
+    )
 
     return procedure_task_session

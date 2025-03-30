@@ -206,7 +206,6 @@ def get_agent_input(
     )
 
     agents = session_agent.session["coordination"]["agents"]
-    agent_inputs = []
     if session_agent.user_input and session_agent.user_input != "":
         agent_inputs.append(f"user_input: {session_agent.user_input}")
     for predecessor in predecessors:
@@ -226,7 +225,7 @@ def get_agent_input(
                 f"agent_output({agent["agent_name"]}): {predecessor.agent_output}"
             )
 
-    agent_input = "\n".join(agent_inputs)
+    agent_input = "\n\n".join(agent_inputs)
     return agent_input
 
 
@@ -264,7 +263,6 @@ def execute_session_agent(info: ResolveInfo, session_agent: SessionAgentType) ->
         predecessors = get_predecessors(info, session_agent)
         agent_input = get_agent_input(session_agent, predecessors)
 
-        agent_input = agent_input or session_agent.session["task_query"]
         info.context["logger"].info(f"User query: {agent_input}")
 
         session_agent = insert_update_session_agent(
