@@ -5,8 +5,11 @@ from __future__ import print_function
 __author__ = "bibow"
 
 import logging
+import os
+import sys
 import traceback
-from typing import Any, Dict, Optional
+import zipfile
+from typing import Any, Callable, Dict, Optional
 
 import humps
 from boto3.dynamodb.conditions import Attr, Key
@@ -70,6 +73,54 @@ def execute_graphql_query(
         test_mode=setting.get("test_mode"),
     )
     return result
+
+
+def _module_exists(logger: logging.Logger, module_name: str) -> bool:
+    """Check if the module exists in the specified path."""
+    module_dir = os.path.join(Config.module_extract_path, module_name)
+    if os.path.exists(module_dir) and os.path.isdir(module_dir):
+        logger.info(f"Module {module_name} found in {Config.module_extract_path}.")
+        return True
+    logger.info(f"Module {module_name} not found in {Config.module_extract_path}.")
+    return False
+
+
+def _download_and_extract_module(logger: logging.Logger, module_name: str) -> None:
+    """Download and extract the module from S3 if not already extracted."""
+    key = f"{module_name}.zip"
+    zip_path = f"{Config.module_zip_path}/{key}"
+
+    logger.info(
+        f"Downloading module from S3: bucket={Config.module_bucket_name}, key={key}"
+    )
+    Config.aws_s3.download_file(Config.module_bucket_name, key, zip_path)
+    logger.info(f"Downloaded {key} from S3 to {zip_path}")
+
+    # Extract the ZIP file
+    with zipfile.ZipFile(zip_path, "r") as zip_ref:
+        zip_ref.extractall(Config.module_extract_path)
+    logger.info(f"Extracted module to {Config.module_extract_path}")
+
+
+def get_action_rules_function(
+    logger: logging.Logger, module_name: str, function_name: str
+) -> Optional[Callable]:
+    try:
+        if not _module_exists(logger, module_name):
+            # Download and extract the module if it doesn't exist
+            _download_and_extract_module(logger, module_name)
+
+        # Add the extracted module to sys.path
+        module_path = f"{Config.module_extract_path}/{module_name}"
+        if module_path not in sys.path:
+            sys.path.append(module_path)
+
+        return getattr(__import__(module_name), function_name)
+
+    except Exception as e:
+        log = traceback.format_exc()
+        logger.error(log)
+        raise e
 
 
 def invoke_ask_model(

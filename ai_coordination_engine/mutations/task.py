@@ -8,6 +8,7 @@ import traceback
 from typing import Any, Dict
 
 from graphene import Boolean, Field, List, Mutation, String
+
 from silvaengine_utility import JSON
 
 from ..models.task import delete_task, insert_update_task
@@ -23,6 +24,7 @@ class InsertUpdateTask(Mutation):
         task_name = String(required=True)
         task_description = String(required=False)
         initial_task_query = String(required=False)
+        subtask_queries = List(JSON, required=False)
         agent_actions = JSON(required=False)
         updated_by = String(required=True)
 

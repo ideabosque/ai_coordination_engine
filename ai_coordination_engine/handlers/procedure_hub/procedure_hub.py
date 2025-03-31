@@ -179,6 +179,8 @@ def execute_procedure_task_session(
         "task_query": kwargs.get("task_query", task.initial_task_query),
         "updated_by": "procedure_hub",
     }
+    if task.subtask_queries:
+        variables["subtask_queries"] = task.subtask_queries
     if kwargs.get("user_id"):
         variables["user_id"] = kwargs["user_id"]
     session = insert_update_session(
@@ -196,18 +198,19 @@ def execute_procedure_task_session(
     # 6. Storing subtask assignments and metadata in the session for tracking    # This involves:
 
     # Invoke async update function on AWS Lambda
-    Utility.invoke_funct_on_aws_lambda(
-        info.context["logger"],
-        info.context["endpoint_id"],
-        "async_decompose_task_query",
-        params={
-            "coordination_uuid": session.coordination["coordination_uuid"],
-            "session_uuid": session.session_uuid,
-        },
-        setting=info.context["setting"],
-        test_mode=info.context["setting"].get("test_mode"),
-        aws_lambda=Config.aws_lambda,
-    )
+    if not session.subtask_queries:
+        Utility.invoke_funct_on_aws_lambda(
+            info.context["logger"],
+            info.context["endpoint_id"],
+            "async_decompose_task_query",
+            params={
+                "coordination_uuid": session.coordination["coordination_uuid"],
+                "session_uuid": session.session_uuid,
+            },
+            setting=info.context["setting"],
+            test_mode=info.context["setting"].get("test_mode"),
+            aws_lambda=Config.aws_lambda,
+        )
 
     procedure_task_session.session = {
         "coordination_uuid": session.coordination["coordination_uuid"],

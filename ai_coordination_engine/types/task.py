@@ -16,6 +16,7 @@ class TaskType(ObjectType):
     task_name = String()
     task_description = String()
     initial_task_query = String()
+    subtask_queries = List(JSON)
     agent_actions = JSON()
     updated_by = String()
     created_at = DateTime()
