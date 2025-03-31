@@ -10,7 +10,8 @@ from typing import Any, Dict
 from graphene import ResolveInfo
 
 from ...models.session_agent import insert_update_session_agent, resolve_session_agent
-from .session_agent import handle_session_agent_completion
+from ..ai_coordination_utility import get_action_rules_function
+from .session_agent import get_successors, handle_session_agent_completion
 
 
 def execute_action_rules(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
@@ -25,6 +26,34 @@ def execute_action_rules(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
         session_agent.state = "completed"
 
         # TODO: Process action_rules.
+        for action, function_name in session_agent.agent_action["action_rules"][
+            "actions"
+        ].items():
+            action_rules_function = get_action_rules_function(
+                info,
+                session_agent.agent_action["action_rules"]["module_name"],
+                function_name,
+            )
+            if action == " routing":
+                successors = action_rules_function(
+                    info,
+                    session_agent.agent_output,
+                    get_successors(info, session_agent),
+                )
+                # TODO: Update successors for the next iteration.
+                pass
+            elif action == "post_process":
+                session_agent.agent_output = action_rules_function(
+                    info,
+                    session_agent.agent_output,
+                )
+            elif action == "notification":
+                action_rules_function(
+                    info,
+                    session_agent.agent_output,
+                )
+            else:
+                raise Exception(f"Action {action} not supported.")
 
     except Exception as e:
         log = traceback.format_exc()
@@ -37,7 +66,7 @@ def execute_action_rules(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
         **{
             "session_uuid": session_agent.session["session_uuid"],
             "session_agent_uuid": session_agent.session_agent_uuid,
-            "user_input": session_agent.user_input,
+            "agent_output": session_agent.agent_output,
             "state": session_agent.state,
             "notes": session_agent.notes if session_agent.state == "failed" else None,
             "updated_by": "procedure_hub",

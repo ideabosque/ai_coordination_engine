@@ -77,6 +77,7 @@ def _get_task(coordination_uuid: str, task_uuid: str) -> Dict[str, Any]:
         "task_name": task.task_name,
         "task_description": task.task_description,
         "initial_task_query": task.initial_task_query,
+        "subtask_queries": task.subtask_queries,
         "agent_actions": task.agent_actions,
     }
 

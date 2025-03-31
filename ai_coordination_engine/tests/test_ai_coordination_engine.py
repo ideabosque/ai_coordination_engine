@@ -312,11 +312,21 @@ class AICoordinationEngineTest(unittest.TestCase):
         payload = {
             "query": query,
             "variables": {
-                "coordinationUuid": "7339318953952874992",
-                "taskUuid": "6753533827658093040",
+                "coordinationUuid": "8033443114236711408",
+                "taskUuid": "16481663761411543536",
                 "taskName": "process_data",
                 "taskDescription": "process_datsa",
                 "initialTaskQuery": "Please find the data",
+                "subtaskQueries": [
+                    {
+                        "agent_uuid": "agent-1742100810-b249e03b",
+                        "subtask_query": "Retrieve products related to carpet cleaning using `get_results_from_knowledge_rag`. Provide detailed product specifications including cleaning method, material compatibility, and usage instructions.",
+                    },
+                    {
+                        "agent_uuid": "agent-1742509982-34c5835d",
+                        "subtask_query": "Translate the product information retrieved about carpet cleaning into Chinese. Ensure the translation is clear and suitable for supplier communication, focusing on key details such as cleaning method, material compatibility, and usage instructions.",
+                    },
+                ],
                 "agentActions": {},
                 "updatedBy": "XYZ",
             },

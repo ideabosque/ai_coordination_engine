@@ -42,6 +42,7 @@ class TaskModel(BaseModel):
     task_description = UnicodeAttribute(null=True)
     initial_task_query = UnicodeAttribute()
     endpoint_id = UnicodeAttribute()
+    subtask_queries = ListAttribute(of=MapAttribute, default=[])
     agent_actions = MapAttribute(default={})
     updated_by = UnicodeAttribute()
     created_at = UTCDateTimeAttribute()
@@ -138,6 +139,27 @@ def resolve_task_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
 def insert_update_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     coordination_uuid = kwargs.get("coordination_uuid")
     task_uuid = kwargs.get("task_uuid")
+
+    if "subtask_queries" in kwargs or "agent_actions" in kwargs:
+        coordination = _get_coordination(info.context["endpoint_id"], coordination_uuid)
+        valid_agent_uuids = [agent["agent_uuid"] for agent in coordination["agents"]]
+
+        # Filter subtask queries
+        if "subtask_queries" in kwargs:
+            kwargs["subtask_queries"] = [
+                query
+                for query in kwargs["subtask_queries"]
+                if query["agent_uuid"] in valid_agent_uuids
+            ]
+
+        # Filter agent actions
+        if "agent_actions" in kwargs:
+            kwargs["agent_actions"] = {
+                uuid: action
+                for uuid, action in kwargs["agent_actions"].items()
+                if uuid in valid_agent_uuids
+            }
+
     if kwargs.get("entity") is None:
         cols = {
             "task_name": kwargs["task_name"],
@@ -146,7 +168,12 @@ def insert_update_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
             "created_at": pendulum.now("UTC"),
             "updated_at": pendulum.now("UTC"),
         }
-        for key in ["task_description", "initial_task_query", "agent_actions"]:
+        for key in [
+            "task_description",
+            "initial_task_query",
+            "subtask_queries",
+            "agent_actions",
+        ]:
             if key in kwargs:
                 cols[key] = kwargs[key]
         TaskModel(
@@ -166,6 +193,7 @@ def insert_update_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
         "task_name": TaskModel.task_name,
         "task_description": TaskModel.task_description,
         "initial_task_query": TaskModel.initial_task_query,
+        "subtask_queries": TaskModel.subtask_queries,
         "agent_actions": TaskModel.agent_actions,
     }
 

@@ -71,8 +71,7 @@ A structured JSON object with the following fields:
     "subtask_queries": [
         {
             "agent_uuid": "<agent identifier>", 
-            "subtask_query": "<specific subtask description>", 
-            "predecessors": ["<agent identifier>"]
+            "subtask_query": "<specific subtask description>"
         }
     ]
 }
@@ -94,12 +93,10 @@ Output
     "subtask_queries": [
         {
             "agent_uuid": "agent-mock-001",
-            "predecessors": [],
             "subtask_query": "Retrieve products related to carpet cleaning using `get_results_from_knowledge_rag` and present the response in English, summarizing key points and citing sources if available."
         },
         {
             "agent_uuid": "agent-mock-002", 
-            "predecessors": ["agent-mock-001"],
             "subtask_query": "Translate the product retrieval results into Chinese and format the message for the provider, ensuring clarity and professionalism."
         }
     ]

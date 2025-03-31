@@ -4,6 +4,7 @@ from __future__ import print_function
 __author__ = "bibow"
 
 import logging
+import os
 from typing import Any, Dict
 
 import boto3
@@ -22,8 +23,12 @@ class Config:
     aws_lambda = None
     aws_dynamodb = None
     aws_ses = None
+    aws_s3 = None
     source_email = None
     schemas = {}
+    module_bucket_name = None
+    module_zip_path = None
+    module_extract_path = None
 
     @classmethod
     def initialize(cls, logger: logging.Logger, **setting: Dict[str, Any]) -> None:
@@ -35,6 +40,7 @@ class Config:
         """
         try:
             cls._set_parameters(setting)
+            cls._setup_function_paths(setting)
             cls._initialize_aws_services(setting)
             if setting.get("test_mode") == "local_for_all":
                 cls._initialize_tables(logger)
@@ -51,6 +57,14 @@ class Config:
             setting (Dict[str, Any]): Configuration dictionary.
         """
         cls.source_email = setting.get("source_email")
+
+    @classmethod
+    def _setup_function_paths(cls, setting: Dict[str, Any]) -> None:
+        cls.module_bucket_name = setting.get("module_bucket_name")
+        cls.module_zip_path = setting.get("module_zip_path", "/tmp/adaptor_zips")
+        cls.module_extract_path = setting.get("module_extract_path", "/tmp/adaptors")
+        os.makedirs(cls.module_zip_path, exist_ok=True)
+        os.makedirs(cls.module_extract_path, exist_ok=True)
 
     @classmethod
     def _initialize_tables(cls, logger: logging.Logger) -> None:
@@ -82,6 +96,7 @@ class Config:
         cls.aws_lambda = boto3.client("lambda", **aws_credentials)
         cls.dynamodb = boto3.resource("dynamodb", **aws_credentials)
         cls.aws_ses = boto3.client("ses", **aws_credentials)
+        cls.aws_s3 = boto3.client("s3", **aws_credentials)
 
     # Fetches and caches GraphQL schema for a given function
     @classmethod
