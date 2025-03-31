@@ -13,7 +13,7 @@ from ...models.session_agent import insert_update_session_agent, resolve_session
 from .session_agent import handle_session_agent_completion
 
 
-def execute_action_rules(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
+def execute_agent_action(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     try:
         session_agent = resolve_session_agent(
             info,
@@ -24,7 +24,7 @@ def execute_action_rules(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
         )
         session_agent.state = "completed"
 
-        # TODO: Process action_rules.
+        # TODO: Process agent_action.
 
     except Exception as e:
         log = traceback.format_exc()

@@ -23,7 +23,7 @@ from ..ai_coordination_utility import (
     get_async_task,
     invoke_ask_model,
 )
-from .action_rules import execute_action_rules
+from .agent_action import execute_agent_action
 from .session_agent import execute_session_agent, update_session_agent
 
 """System Instructions:
@@ -487,7 +487,7 @@ def _execute_ready_agents(
     for session_agent in ready_session_agents:
         if session_agent.state == "pending":
             # TODO: Implement logic to handle pending state
-            execute_action_rules(info, session_agent)
+            execute_agent_action(info, session_agent)
         else:
             # TODO: Execute execute_session_agent
             info.context["logger"].info(
