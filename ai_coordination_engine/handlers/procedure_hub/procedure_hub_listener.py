@@ -226,25 +226,17 @@ def _process_task_completion(
     return variables
 
 
-def async_decompose_task_query(
+def async_orchestrate_task_query(
     logger: logging.Logger, setting: Dict[str, Any], **kwargs: Dict[str, Any]
 ) -> None:
     # Initialize info and get session
-    info = create_listener_info(logger, "async_decompose_task_query", setting, **kwargs)
+    info = create_listener_info(
+        logger, "async_orchestrate_task_query", setting, **kwargs
+    )
     session = resolve_session(
         info,
         coordination_uuid=kwargs["coordination_uuid"],
         session_uuid=kwargs["session_uuid"],
-    )
-
-    # Get decompose agent
-    decompose_agent = next(
-        (
-            agent
-            for agent in session.coordination["agents"]
-            if agent["agent_type"] == "decompose"
-        ),
-        None,
     )
 
     # Get task agents with their actions
@@ -262,24 +254,42 @@ def async_decompose_task_query(
         if agent["agent_type"] == "task"
     ]
 
-    # Create query for task decomposition
-    query = (
-        f"Analyze agents: {Utility.json_dumps(agents)}\n\n"
-        f"Decompose task: '{session.task_query}' into subtasks for available agents.\n\n"
-        "Consider:\n"
-        "- Match agent capabilities\n"
-        "- Follow dependencies\n"
-        "- Make subtasks clear and actionable\n"
-        "- Maintain workflow order\n\n"
-        "Return the results in JSON format."
+    # Get orchestrator agent
+    orchestrator_agent = next(
+        (
+            agent
+            for agent in session.coordination["agents"]
+            if agent["agent_type"] in ["decompose"]
+        ),
+        None,
     )
+
+    if orchestrator_agent is None:
+        raise Exception("Orchestrator agent not found.")
+
+    if orchestrator_agent["agent_type"] == "decompose":
+        # Create query for task decomposition
+        query = (
+            f"Analyze agents: {Utility.json_dumps(agents)}\n\n"
+            f"Decompose task: '{session.task_query}' into subtasks for available agents.\n\n"
+            "Consider:\n"
+            "- Match agent capabilities\n"
+            "- Follow dependencies\n"
+            "- Make subtasks clear and actionable\n"
+            "- Maintain workflow order\n\n"
+            "Return the results in JSON format."
+        )
+    else:
+        raise Exception(
+            f"Unknown orchestrator agent type: {orchestrator_agent['agent_type']}"
+        )
 
     # Ask model to decompose task
     ask_model = invoke_ask_model(
         info.context.get("logger"),
         info.context.get("endpoint_id"),
         setting=info.context.get("setting"),
-        agentUuid=decompose_agent["agent_uuid"],
+        agentUuid=orchestrator_agent["agent_uuid"],
         userQuery=query,
         updatedBy="operation_hub",
     )
