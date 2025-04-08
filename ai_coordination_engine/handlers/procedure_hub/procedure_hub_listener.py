@@ -302,7 +302,9 @@ def async_decompose_task_query(
 
     # Initialize in-degree values for session agents
     updated_session_agents = init_in_degree(info, session_agents)
-    info.context["logger"].info(f"Updated session agents: {updated_session_agents}")
+    info.context["logger"].info(
+        f"Updated session agents: {Utility.json_dumps(updated_session_agents)}"
+    )
     return
 
 
