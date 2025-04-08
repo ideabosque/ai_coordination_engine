@@ -42,7 +42,7 @@ setting = {
             "module_name": "ai_coordination_engine",
             "class_name": "AICoordinationEngine",
         },
-        "async_decompose_task_query": {
+        "async_orchestrate_task_query": {
             "module_name": "ai_coordination_engine",
             "class_name": "AICoordinationEngine",
         },

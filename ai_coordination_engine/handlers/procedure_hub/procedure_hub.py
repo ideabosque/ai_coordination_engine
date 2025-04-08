@@ -79,7 +79,7 @@ def execute_procedure_task_session(
         Utility.invoke_funct_on_aws_lambda(
             info.context["logger"],
             info.context["endpoint_id"],
-            "async_decompose_task_query",
+            "async_generate_subtask_queries",
             params={
                 "coordination_uuid": session.coordination["coordination_uuid"],
                 "session_uuid": session.session_uuid,
