@@ -79,7 +79,7 @@ def init_session_agents(info: ResolveInfo, session: SessionType) -> list:
                 }
             )
 
-    insert_update_session(
+    session = insert_update_session(
         info,
         **{
             "coordination_uuid": session.coordination["coordination_uuid"],
