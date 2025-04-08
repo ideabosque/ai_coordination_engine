@@ -19,9 +19,149 @@ from ...models.session_agent import (
     resolve_session_agent_list,
 )
 from ...models.session_run import insert_update_session_run, resolve_session_run_list
+from ...types.session import SessionType
 from ...types.session_agent import SessionAgentType
 from ..ai_coordination_utility import get_async_task, invoke_ask_model
 from ..config import Config
+
+
+def init_session_agents(info: ResolveInfo, session: SessionType) -> list:
+    """Initializes session agents for each agent in the agent list
+    Args:
+        info (ResolveInfo): GraphQL resolve info containing context
+        session (SessionType): Session object containing task and coordination details
+    Returns:
+        list: List of dictionaries containing initialized session agent details including:
+            - session_uuid
+            - session_agent_uuid
+            - agent_uuid
+            - agent_action
+    """
+    session_agents = []
+    subtask_queries = []
+    for agent in session.task["coordination"]["agents"]:
+        if agent["agent_type"] != "task":
+            continue
+
+        # Create or update session agent
+        for subtask_query in list(
+            filter(
+                lambda x: x["agent_uuid"] == agent["agent_uuid"],
+                session.subtask_queries,
+            )
+        ):
+            session_agent = insert_update_session_agent(
+                info,
+                **{
+                    "session_uuid": session.session_uuid,
+                    "coordination_uuid": session.task["coordination"][
+                        "coordination_uuid"
+                    ],
+                    "agent_uuid": agent["agent_uuid"],
+                    "agent_action": session.task["agent_actions"].get(
+                        agent["agent_uuid"], {}
+                    ),
+                    "updated_by": "procedure_hub",
+                },
+            )
+            subtask_query.update(
+                {"session_agent_uuid": session_agent.session_agent_uuid}
+            )
+            subtask_queries.append(subtask_query)
+
+            # Add session agent details to list
+            session_agents.append(
+                {
+                    "session_uuid": session_agent.session["session_uuid"],
+                    "session_agent_uuid": session_agent.session_agent_uuid,
+                    "agent_uuid": session_agent.agent_uuid,
+                    "agent_action": session_agent.agent_action,
+                }
+            )
+
+    insert_update_session(
+        info,
+        **{
+            "coordination_uuid": session.coordination["coordination_uuid"],
+            "session_uuid": session.session_uuid,
+            "subtask_queries": subtask_queries,
+            "updated_by": "procedure_hub",
+        },
+    )
+
+    return session_agents
+
+
+def init_in_degree(info: ResolveInfo, session_agents: List[Dict[str, Any]]) -> None:
+    """
+    Initializes the in-degree for each session_agent in a task session.
+    The in-degree represents the number of dependencies each session_agent has.
+    """
+    try:
+
+        # Step 2: Build dependency graph (successor -> predecessors mapping)
+        dependency_graph = {}
+
+        for session_agent in session_agents:
+            # Multiple successors to one predecessor.
+            predecessors = session_agent.get("agent_action", {}).get("predecessors", [])
+            for predecessor in predecessors:
+                dependency_graph.setdefault(predecessor, []).append(
+                    session_agent["agent_uuid"]
+                )
+
+        # Step 3: Compute in-degree for each agent
+        in_degree_map = {
+            session_agent["agent_uuid"]: 0 for session_agent in session_agents
+        }
+
+        for predecessor, successors in dependency_graph.items():
+            for successor in successors:
+                if successor in in_degree_map:
+                    in_degree_map[successor] += 1
+
+        # Step 4: Batch update session agents with computed in-degree
+        updated_agents = []
+        for session_agent in session_agents:
+            session_agent["in_degree"] = in_degree_map.get(
+                session_agent["agent_uuid"], 0
+            )
+            updated_agents.append(
+                {
+                    "session_uuid": session_agent["session_uuid"],
+                    "session_agent_uuid": session_agent["session_agent_uuid"],
+                    "in_degree": session_agent["in_degree"],
+                    "updated_by": "procedure_hub",
+                }
+            )
+
+        # Batch update instead of multiple insert/update calls
+
+        updated_session_agents = []
+        for agent_update in updated_agents:
+            updated_session_agent = insert_update_session_agent(info, **agent_update)
+
+            # Add session agent details to list
+            updated_session_agents.append(
+                {
+                    "session_agent_uuid": updated_session_agent.session_agent_uuid,
+                    "agent_uuid": updated_session_agent.agent_uuid,
+                    "agent_action": updated_session_agent.agent_action,
+                    "in_degree": updated_session_agent.in_degree,
+                }
+            )
+
+        info.context["logger"].info(
+            f"In-degree initialized for {len(session_agents)} session agents."
+        )
+
+        return updated_session_agents
+
+    except Exception as e:
+        info.context["logger"].error(
+            f"Error initializing in-degree: {traceback.format_exc()}"
+        )
+        raise e
 
 
 def decrement_in_degree(info: ResolveInfo, session_agent: SessionAgentType) -> None:
@@ -199,7 +339,8 @@ def get_agent_input(
             (
                 subtask_query["subtask_query"]
                 for subtask_query in subtask_queries
-                if subtask_query["agent_uuid"] == session_agent.agent_uuid
+                if subtask_query["session_agent_uuid"]
+                == session_agent.session_agent_uuid
             ),
             "",
         )

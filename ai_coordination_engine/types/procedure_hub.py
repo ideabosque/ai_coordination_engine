@@ -4,11 +4,12 @@ from __future__ import print_function
 
 __author__ = "bibow"
 
-from graphene import List, ObjectType, String
-
-from silvaengine_utility import JSON
+from graphene import ObjectType, String
 
 
 class ProcedureTaskSessionType(ObjectType):
-    session = JSON()
-    session_agents = List(JSON)
+    coordination_uuid = String()
+    session_uuid = String()
+    task_uuid = String()
+    user_id = String()
+    task_query = String()
