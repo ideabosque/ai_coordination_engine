@@ -24,7 +24,12 @@ from ..ai_coordination_utility import (
     invoke_ask_model,
 )
 from .action_rules import execute_action_rules
-from .session_agent import execute_session_agent, update_session_agent
+from .session_agent import (
+    execute_session_agent,
+    init_in_degree,
+    init_session_agents,
+    update_session_agent,
+)
 
 """System Instructions:
 Name: Task Decomposition and Agent Assignment Agent
@@ -291,7 +296,14 @@ def async_decompose_task_query(
         },
     )
 
-    insert_update_session(info, **variables)
+    session = insert_update_session(info, **variables)
+    # Initialize session agents for all active agents
+    session_agents = init_session_agents(info, session)
+
+    # Initialize in-degree values for session agents
+    updated_session_agents = init_in_degree(info, session_agents)
+    info.context["logger"].info(f"Updated session agents: {updated_session_agents}")
+    return
 
 
 def _check_session_status(info: ResolveInfo, **kwargs: Dict[str, Any]) -> SessionType:
