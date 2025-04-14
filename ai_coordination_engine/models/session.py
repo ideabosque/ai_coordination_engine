@@ -74,7 +74,7 @@ class SessionModel(BaseModel):
     endpoint_id = UnicodeAttribute()
     task_query = UnicodeAttribute(null=True)
     iteration_count = NumberAttribute(default=0)
-    subtask_queries = ListAttribute(of=MapAttribute, default=[])
+    subtask_queries = ListAttribute(of=MapAttribute)
     status = UnicodeAttribute(default="initial")
     logs = UnicodeAttribute(null=True)
     updated_by = UnicodeAttribute()
@@ -194,6 +194,7 @@ def insert_update_session(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     if kwargs.get("entity") is None:
         cols = {
             "endpoint_id": info.context["endpoint_id"],
+            "subtask_queries": [],
             "updated_by": kwargs["updated_by"],
             "created_at": pendulum.now("UTC"),
             "updated_at": pendulum.now("UTC"),
