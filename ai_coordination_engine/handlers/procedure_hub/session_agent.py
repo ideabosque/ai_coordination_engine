@@ -363,7 +363,7 @@ def get_agent_input(
 
         if predecessor.agent_output and predecessor.agent_output != "":
             agent_inputs.append(
-                f"agent_output({agent["agent_name"]}): {predecessor.agent_output}"
+                f"agent_output({agent['agent_name']}): {predecessor.agent_output}"
             )
 
     agent_input = "\n\n".join(agent_inputs)
