@@ -10,14 +10,7 @@ from typing import Any, Dict
 
 import pendulum
 from graphene import ResolveInfo
-from pynamodb.attributes import (
-    ListAttribute,
-    MapAttribute,
-    NumberAttribute,
-    UnicodeAttribute,
-    UTCDateTimeAttribute,
-)
-from pynamodb.indexes import AllProjection, LocalSecondaryIndex
+from pynamodb.attributes import UnicodeAttribute, UTCDateTimeAttribute
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from silvaengine_dynamodb_base import (

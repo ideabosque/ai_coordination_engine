@@ -10,7 +10,12 @@ from typing import Any, Dict
 
 import pendulum
 from graphene import ResolveInfo
-from pynamodb.attributes import ListAttribute, UnicodeAttribute, UTCDateTimeAttribute
+from pynamodb.attributes import (
+    ListAttribute,
+    MapAttribute,
+    UnicodeAttribute,
+    UTCDateTimeAttribute,
+)
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from silvaengine_dynamodb_base import (
@@ -33,7 +38,7 @@ class CoordinationModel(BaseModel):
     coordination_uuid = UnicodeAttribute(range_key=True)
     coordination_name = UnicodeAttribute()
     coordination_description = UnicodeAttribute()
-    agents = ListAttribute(default=[])
+    agents = ListAttribute(of=MapAttribute)
     updated_by = UnicodeAttribute()
     created_at = UTCDateTimeAttribute()
     updated_at = UTCDateTimeAttribute()
@@ -123,15 +128,19 @@ def insert_update_coordination(info: ResolveInfo, **kwargs: Dict[str, Any]) -> N
     coordination_uuid = kwargs.get("coordination_uuid")
     if kwargs.get("entity") is None:
         cols = {
-            "coordination_name": kwargs["coordination_name"],
-            "coordination_description": kwargs["coordination_description"],
-            "agents": kwargs["agents"],
+            "agents": [],
             "updated_by": kwargs["updated_by"],
             "created_at": pendulum.now("UTC"),
             "updated_at": pendulum.now("UTC"),
         }
-        if "additional_instructions" in kwargs:
-            cols["additional_instructions"] = kwargs["additional_instructions"]
+        for key in [
+            "coordination_name",
+            "coordination_description",
+            "agents",
+        ]:
+            if key in kwargs:
+                cols[key] = kwargs[key]
+
         CoordinationModel(
             endpoint_id,
             coordination_uuid,
