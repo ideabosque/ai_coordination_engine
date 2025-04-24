@@ -26,34 +26,14 @@ def execute_action_rules(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
         session_agent.state = "completed"
 
         # TODO: Process action_rules.
-        for action, function_name in session_agent.agent_action["action_rules"][
-            "actions"
-        ].items():
-            action_rules_function = get_action_rules_function(
-                info,
-                session_agent.agent_action["action_rules"]["module_name"],
-                function_name,
-            )
-            if action == " routing":
-                successors = action_rules_function(
-                    info,
-                    session_agent.agent_output,
-                    get_successors(info, session_agent),
-                )
-                # TODO: Update successors for the next iteration.
-                pass
-            elif action == "post_process":
-                session_agent.agent_output = action_rules_function(
-                    info,
-                    session_agent.agent_output,
-                )
-            elif action == "notification":
-                action_rules_function(
-                    info,
-                    session_agent.agent_output,
-                )
-            else:
-                raise Exception(f"Action {action} not supported.")
+        action_rules_function = get_action_rules_function(
+            info,
+            session_agent.agent_action["action_rules"]["module_name"],
+            session_agent.agent_action["action_rules"]["function_name"],
+        )
+        session_agent, successors = action_rules_function(
+            info, session_agent, get_successors(info, session_agent)
+        )
 
     except Exception as e:
         log = traceback.format_exc()
