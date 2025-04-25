@@ -10,11 +10,11 @@ from typing import Any, Dict
 from graphene import ResolveInfo
 
 from ...models.session_agent import insert_update_session_agent, resolve_session_agent
-from ..ai_coordination_utility import get_action_rules_function
+from ..ai_coordination_utility import get_action_function
 from .session_agent import get_successors, handle_session_agent_completion
 
 
-def execute_action_rules(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
+def execute_action_function(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     try:
         session_agent = resolve_session_agent(
             info,
@@ -25,13 +25,13 @@ def execute_action_rules(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
         )
         session_agent.state = "completed"
 
-        # TODO: Process action_rules.
-        action_rules_function = get_action_rules_function(
+        # TODO: Process action_function.
+        action_function = get_action_function(
             info,
-            session_agent.agent_action["action_rules"]["module_name"],
-            session_agent.agent_action["action_rules"]["function_name"],
+            session_agent.agent_action["action_function"]["module_name"],
+            session_agent.agent_action["action_function"]["function_name"],
         )
-        session_agent, successors = action_rules_function(
+        session_agent, successors = action_function(
             info, session_agent, get_successors(info, session_agent)
         )
 

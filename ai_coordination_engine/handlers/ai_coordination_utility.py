@@ -14,7 +14,6 @@ from typing import Any, Callable, Dict, Optional
 import humps
 from boto3.dynamodb.conditions import Attr, Key
 from graphene import ResolveInfo
-
 from silvaengine_utility import Utility
 
 from .config import Config
@@ -102,7 +101,7 @@ def _download_and_extract_module(logger: logging.Logger, module_name: str) -> No
     logger.info(f"Extracted module to {Config.module_extract_path}")
 
 
-def get_action_rules_function(
+def get_action_function(
     logger: logging.Logger, module_name: str, function_name: str
 ) -> Optional[Callable]:
     try:

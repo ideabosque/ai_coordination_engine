@@ -10,7 +10,6 @@ import traceback
 from typing import Any, Dict, List
 
 from graphene import ResolveInfo
-
 from silvaengine_utility import Utility
 
 from ...handlers.config import Config
@@ -23,7 +22,7 @@ from ..ai_coordination_utility import (
     get_async_task,
     invoke_ask_model,
 )
-from .action_rules import execute_action_rules
+from .action_function import execute_action_function
 from .session_agent import (
     execute_session_agent,
     init_in_degree,
@@ -508,7 +507,7 @@ def _execute_ready_agents(
     for session_agent in ready_session_agents:
         if session_agent.state == "pending":
             # TODO: Implement logic to handle pending state
-            execute_action_rules(info, session_agent)
+            execute_action_function(info, session_agent)
         else:
             # TODO: Execute execute_session_agent
             info.context["logger"].info(
