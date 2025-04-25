@@ -9,7 +9,6 @@ import traceback
 from typing import Any, Dict, List
 
 from graphene import ResolveInfo
-
 from silvaengine_utility import Utility
 
 from ...models.session import insert_update_session
@@ -266,7 +265,7 @@ def update_session_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
             if session_agent.agent_action.get("user_in_the_loop")
             else (
                 "pending"
-                if session_agent.agent_action.get("action_rules")
+                if session_agent.agent_action.get("action_function")
                 else "completed"
             )
         )

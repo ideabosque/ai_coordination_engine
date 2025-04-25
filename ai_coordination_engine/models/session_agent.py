@@ -16,8 +16,6 @@ from pynamodb.attributes import (
     UnicodeAttribute,
     UTCDateTimeAttribute,
 )
-from tenacity import retry, stop_after_attempt, wait_exponential
-
 from silvaengine_dynamodb_base import (
     BaseModel,
     delete_decorator,
@@ -26,6 +24,7 @@ from silvaengine_dynamodb_base import (
     resolve_list_decorator,
 )
 from silvaengine_utility import Utility
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..types.session_agent import SessionAgentListType, SessionAgentType
 from .utils import _get_session
@@ -178,7 +177,7 @@ def insert_update_session_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> 
                 "primary_path": True,
                 "user_in_the_loop": None,
                 "predecessors": [],
-                "action_rules": {},
+                "action_function": {},
             },
             "updated_by": kwargs["updated_by"],
             "created_at": pendulum.now("UTC"),
