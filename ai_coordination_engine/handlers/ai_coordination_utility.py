@@ -14,6 +14,7 @@ from typing import Any, Callable, Dict, Optional
 import humps
 from boto3.dynamodb.conditions import Attr, Key
 from graphene import ResolveInfo
+
 from silvaengine_utility import Utility
 
 from .config import Config
@@ -102,9 +103,11 @@ def _download_and_extract_module(logger: logging.Logger, module_name: str) -> No
 
 
 def get_action_function(
-    logger: logging.Logger, module_name: str, function_name: str
+    logger: logging.Logger, action_function: Dict[str, Any]
 ) -> Optional[Callable]:
     try:
+        module_name = action_function["module_name"]
+        function_name = action_function["function_name"]
         if not _module_exists(logger, module_name):
             # Download and extract the module if it doesn't exist
             _download_and_extract_module(logger, module_name)
