@@ -27,9 +27,7 @@ def execute_action_function(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None
 
         # TODO: Process action_function.
         action_function = get_action_function(
-            info,
-            session_agent.agent_action["action_function"]["module_name"],
-            session_agent.agent_action["action_function"]["function_name"],
+            info, session_agent.agent_action["action_function"]
         )
         session_agent, successors = action_function(
             info, session_agent, get_successors(info, session_agent)
