@@ -9,6 +9,7 @@ import traceback
 from typing import Any, Dict, List
 
 from graphene import ResolveInfo
+
 from silvaengine_utility import Utility
 
 from ...models.session import insert_update_session
@@ -64,7 +65,12 @@ def init_session_agents(info: ResolveInfo, session: SessionType) -> list:
                 },
             )
             subtask_query.update(
-                {"session_agent_uuid": session_agent.session_agent_uuid}
+                {
+                    "session_agent_uuid": session_agent.session_agent_uuid,
+                    "subtask_query": subtask_query["subtask_query"].format(
+                        **Utility.json_loads(session.task_query)
+                    ),
+                }
             )
             subtask_queries.append(subtask_query)
 

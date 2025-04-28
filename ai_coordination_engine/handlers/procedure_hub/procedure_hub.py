@@ -4,18 +4,15 @@ from __future__ import print_function
 
 __author__ = "bibow"
 
-import traceback
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 from graphene import ResolveInfo
 
 from silvaengine_utility import Utility
 
 from ...models.session import insert_update_session
-from ...models.session_agent import insert_update_session_agent
 from ...models.task import resolve_task
 from ...types.procedure_hub import ProcedureTaskSessionType
-from ...types.session import SessionType
 from ..config import Config
 from .session_agent import init_in_degree, init_session_agents
 
