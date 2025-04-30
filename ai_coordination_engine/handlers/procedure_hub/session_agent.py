@@ -431,7 +431,11 @@ def execute_session_agent(info: ResolveInfo, session_agent: SessionAgentType) ->
             info.context.get("logger"),
             info.context.get("endpoint_id"),
             setting=info.context.get("setting"),
-            connection_id=info.context.get("connectionId"),
+            connection_id=(
+                info.context.get("connectionId")
+                if len(get_successors(info, session_agent)) > 0
+                else None
+            ),
             **{
                 "agentUuid": session_agent.agent_uuid,
                 "threadUuid": thread_uuid,

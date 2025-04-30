@@ -76,6 +76,7 @@ sys.path.insert(4, f"{os.getenv('base_dir')}/ai_agent_handler")
 sys.path.insert(5, f"{os.getenv('base_dir')}/openai_agent_handler")
 sys.path.insert(6, f"{os.getenv('base_dir')}/ai_agent_funct_base")
 sys.path.insert(7, f"{os.getenv('base_dir')}/ai_marketing_engine")
+sys.path.insert(5, f"{os.getenv('base_dir')}/gemini_agent_handler")
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 logger = logging.getLogger()
@@ -544,7 +545,7 @@ class AICoordinationEngineTest(unittest.TestCase):
                 # ),
                 "coordinationUuid": "217434188865016304",
                 "taskUuid": "2145007703059665392",
-                "taskQuery": """{"company_name": "ingredientsonline.com", "topics": "Overview, Products and Services"}""",
+                "taskQuery": """{"company_name": "apple.com", "topics": "Overview, Products and Services, Financial Data, Leadership"}""",
             },
         }
         response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
