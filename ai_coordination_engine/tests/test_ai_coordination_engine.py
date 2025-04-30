@@ -535,13 +535,16 @@ class AICoordinationEngineTest(unittest.TestCase):
         payload = {
             "query": query,
             "variables": {
-                "coordinationUuid": "8033443114236711408",
-                "taskUuid": "6753533827658093040",
-                "taskQuery": (
-                    "Please retrieve products related to carpet cleaning and provide detailed specifications.\n"
-                    "Then translate the product information into Chinese for effective communication with the supplier.\n"
-                    "Include key details such as cleaning method, material compatibility, and usage instructions."
-                ),
+                # "coordinationUuid": "8033443114236711408",
+                # "taskUuid": "6753533827658093040",
+                # "taskQuery": (
+                #     "Please retrieve products related to carpet cleaning and provide detailed specifications.\n"
+                #     "Then translate the product information into Chinese for effective communication with the supplier.\n"
+                #     "Include key details such as cleaning method, material compatibility, and usage instructions."
+                # ),
+                "coordinationUuid": "217434188865016304",
+                "taskUuid": "2145007703059665392",
+                "taskQuery": """{"company_name": "ingredientsonline.com", "topics": "Overview, Products and Services"}""",
             },
         }
         response = self.ai_coordination_engine.ai_coordination_graphql(**payload)

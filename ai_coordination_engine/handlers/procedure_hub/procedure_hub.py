@@ -86,6 +86,15 @@ def execute_procedure_task_session(
             aws_lambda=Config.aws_lambda,
         )
     else:
+        session = insert_update_session(
+            info,
+            **{
+                "coordination_uuid": session.coordination["coordination_uuid"],
+                "session_uuid": session.session_uuid,
+                "status": "dispatched",
+                "updated_by": "procedure_hub",
+            },
+        )
         # Initialize session agents for all active agents
         session_agents = init_session_agents(info, session)
 
