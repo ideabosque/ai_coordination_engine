@@ -64,14 +64,37 @@ def init_session_agents(info: ResolveInfo, session: SessionType) -> list:
                     "updated_by": "procedure_hub",
                 },
             )
-            subtask_query.update(
-                {
-                    "session_agent_uuid": session_agent.session_agent_uuid,
-                    "subtask_query": subtask_query["subtask_query"].format(
-                        **Utility.json_loads(session.task_query)
-                    ),
-                }
-            )
+
+            try:
+                # Check if task_query is valid JSON and can be parsed
+                parsed_query = Utility.json_loads(session.task_query)
+                if parsed_query:
+                    variables = {
+                        k: ",".join(v) if isinstance(v, list) else v
+                        for k, v in parsed_query.items()
+                    }
+                    subtask_query.update(
+                        {
+                            "session_agent_uuid": session_agent.session_agent_uuid,
+                            "subtask_query": subtask_query["subtask_query"].format(
+                                variables
+                            ),
+                        }
+                    )
+                else:
+                    subtask_query.update(
+                        {
+                            "session_agent_uuid": session_agent.session_agent_uuid,
+                        }
+                    )
+            except:
+                # If task_query is not valid JSON, just update session_agent_uuid
+                subtask_query.update(
+                    {
+                        "session_agent_uuid": session_agent.session_agent_uuid,
+                    }
+                )
+
             subtask_queries.append(subtask_query)
 
             # Add session agent details to list
