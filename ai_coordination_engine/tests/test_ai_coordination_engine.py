@@ -114,7 +114,7 @@ class AICoordinationEngineTest(unittest.TestCase):
         response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
         logger.info(response)
 
-    @unittest.skip("demonstrating skipping")
+    # @unittest.skip("demonstrating skipping")
     def test_graphql_insert_update_coordination(self):
         query = Utility.generate_graphql_operation(
             "insertUpdateCoordination", "Mutation", self.schema
@@ -123,7 +123,7 @@ class AICoordinationEngineTest(unittest.TestCase):
         payload = {
             "query": query,
             "variables": {
-                "coordinationUuid": "7339318953952874992",
+                # "coordinationUuid": "7339318953952874992",
                 "coordinationName": "RFQ Op",
                 "coordinationDescription": "XXXXXXXXXXXXXXXXXXXX",
                 "agents": [],
@@ -543,6 +543,7 @@ class AICoordinationEngineTest(unittest.TestCase):
                 #     "Then translate the product information into Chinese for effective communication with the supplier.\n"
                 #     "Include key details such as cleaning method, material compatibility, and usage instructions."
                 # ),
+                #
                 "coordinationUuid": "217434188865016304",
                 "taskUuid": "2145007703059665392",
                 "taskQuery": Utility.json_dumps(
@@ -556,6 +557,10 @@ class AICoordinationEngineTest(unittest.TestCase):
                         ],
                     }
                 ),
+                #
+                # "coordinationUuid": "17700117941906182640",
+                # "taskUuid": "655993144917430768",
+                # "taskQuery": "find the overview and financial information for apple.com",
             },
         }
         response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
