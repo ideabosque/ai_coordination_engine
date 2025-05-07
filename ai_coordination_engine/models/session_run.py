@@ -23,6 +23,7 @@ from silvaengine_dynamodb_base import (
 )
 from silvaengine_utility import Utility
 
+from ..handlers.ai_coordination_utility import get_async_task
 from ..types.session_run import SessionRunListType, SessionRunType
 from .utils import _get_session, _get_session_agent
 
@@ -108,6 +109,19 @@ def get_session_run_type(
             session_agent = _get_session_agent(
                 session_run.session_uuid, session_run.session_agent_uuid
             )
+        async_task = {
+            k: v
+            for k, v in get_async_task(
+                info.context.get("logger"),
+                info.context.get("endpoint_id"),
+                info.context.get("setting"),
+                **{
+                    "functionName": "async_execute_ask_model",
+                    "asyncTaskUuid": session_run.async_task_uuid,
+                },
+            ).items()
+            if k not in ["updated_by", "created_at", "updated_at"]
+        }
     except Exception as e:
         log = traceback.format_exc()
         info.context.get("logger").exception(log)
@@ -119,6 +133,8 @@ def get_session_run_type(
     if session_agent:
         session_run["session_agent"] = session_agent
         session_run.pop("session_agent_uuid")
+    session_run["async_task"] = async_task
+    session_run.pop("async_task_uuid")
     return SessionRunType(**Utility.json_loads(Utility.json_dumps(session_run)))
 
 

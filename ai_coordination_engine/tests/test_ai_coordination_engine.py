@@ -114,7 +114,7 @@ class AICoordinationEngineTest(unittest.TestCase):
         response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
         logger.info(response)
 
-    # @unittest.skip("demonstrating skipping")
+    @unittest.skip("demonstrating skipping")
     def test_graphql_insert_update_coordination(self):
         query = Utility.generate_graphql_operation(
             "insertUpdateCoordination", "Mutation", self.schema
@@ -282,11 +282,12 @@ class AICoordinationEngineTest(unittest.TestCase):
         payload = {
             "query": query,
             "variables": {
-                "sessionUuid": "4175379880301105648",
-                "runUuid": "XXXXXXXXXXXXXXXXXXXX",
+                "sessionUuid": "10547781798079042032",
+                "runUuid": "17109886231683338736",
             },
         }
         response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
+        response = Utility.json_loads(response)
         logger.info(response)
 
     @unittest.skip("demonstrating skipping")
@@ -529,6 +530,63 @@ class AICoordinationEngineTest(unittest.TestCase):
         logger.info(response)
 
     # @unittest.skip("demonstrating skipping")
+    def test_run_chatbot_on_local(self):
+        logger.info("Starting chatbot on local usage mode...")
+
+        session_uuid = None
+        thread_uuid = None
+        while True:
+            user_input = input("User: ")
+            if user_input.strip().lower() in ["exit", "quit"]:
+                logger.info("User requested exit. Stopping the chatbot.")
+                print("Chatbot: Goodbye!")
+                break
+
+            query = Utility.generate_graphql_operation(
+                "askOperationHub", "Query", self.schema
+            )
+            logger.info(f"Query: {query}")
+            payload = {
+                "query": query,
+                "variables": {
+                    "coordinationUuid": "2435144671132914160",
+                    "agentUuid": "agent-1746418350-f66bc5d4",
+                    "sessionUuid": session_uuid,
+                    "threadUuid": thread_uuid,
+                    "userQuery": user_input,
+                    "userId": "XXXXXXXXXXXXXXXXXXX",
+                    "stream": False,
+                },
+            }
+            response = Utility.json_loads(
+                self.ai_coordination_engine.ai_coordination_graphql(**payload)
+            )
+
+            if response["data"]["askOperationHub"]["threadUuid"] is not None:
+                thread_uuid = response["data"]["askOperationHub"]["threadUuid"]
+                session_uuid = response["data"]["askOperationHub"]["session"][
+                    "session_uuid"
+                ]
+
+            query = Utility.generate_graphql_operation(
+                "sessionRun", "Query", self.schema
+            )
+            logger.info(f"Query: {query}")
+            payload = {
+                "query": query,
+                "variables": {
+                    "sessionUuid": session_uuid,
+                    "runUuid": response["data"]["askOperationHub"]["runUuid"],
+                },
+            }
+            response = Utility.json_loads(
+                self.ai_coordination_engine.ai_coordination_graphql(**payload)
+            )
+
+            # Print response to user
+            print(f"Chatbot: {response["data"]["sessionRun"]["asyncTask"]["result"]}")
+
+    @unittest.skip("demonstrating skipping")
     def test_graphql_execute_procedure_task_session(self):
         query = Utility.generate_graphql_operation(
             "executeProcedureTaskSession", "Mutation", self.schema

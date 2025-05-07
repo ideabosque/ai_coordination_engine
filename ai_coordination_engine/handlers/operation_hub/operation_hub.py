@@ -150,6 +150,7 @@ def ask_operation_hub(
                 "threadUuid": kwargs.get("thread_uuid"),
                 "userQuery": user_query,
                 "userId": kwargs.get("user_id"),
+                "stream": kwargs.get("stream", False),
                 "updatedBy": "operation_hub",
             },
         )
@@ -182,7 +183,7 @@ def ask_operation_hub(
                 "run_uuid": session_run.run_uuid,
                 "thread_uuid": session_run.thread_uuid,
                 "agent_uuid": session_run.agent_uuid,
-                "async_task_uuid": session_run.async_task_uuid,
+                "async_task_uuid": session_run.async_task["async_task_uuid"],
                 "updated_at": session_run.updated_at,
             }
         )
