@@ -77,6 +77,7 @@ sys.path.insert(5, f"{os.getenv('base_dir')}/openai_agent_handler")
 sys.path.insert(6, f"{os.getenv('base_dir')}/ai_agent_funct_base")
 sys.path.insert(7, f"{os.getenv('base_dir')}/ai_marketing_engine")
 sys.path.insert(5, f"{os.getenv('base_dir')}/gemini_agent_handler")
+sys.path.insert(9, f"{os.getenv('base_dir')}/shopify_connector")
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 logger = logging.getLogger()
@@ -550,7 +551,8 @@ class AICoordinationEngineTest(unittest.TestCase):
                 "query": query,
                 "variables": {
                     "coordinationUuid": "2435144671132914160",
-                    "agentUuid": "agent-1746418350-f66bc5d4",
+                    "agentUuid": "agent-1742422854-45fe2761",
+                    # "agentUuid": "agent-1746418350-f66bc5d4",
                     "sessionUuid": session_uuid,
                     "threadUuid": thread_uuid,
                     "userQuery": user_input,
