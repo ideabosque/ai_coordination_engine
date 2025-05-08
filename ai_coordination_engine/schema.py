@@ -160,6 +160,7 @@ class Query(ObjectType):
         user_query=String(required=True),
         receiver_email=String(required=False),
         thread_uuid=String(required=False),
+        stream=Boolean(required=False),
     )
 
     def resolve_ping(self, info: ResolveInfo) -> str:

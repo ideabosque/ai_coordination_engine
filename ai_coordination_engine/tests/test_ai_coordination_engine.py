@@ -555,7 +555,7 @@ class AICoordinationEngineTest(unittest.TestCase):
                     "threadUuid": thread_uuid,
                     "userQuery": user_input,
                     "userId": "XXXXXXXXXXXXXXXXXXX",
-                    "stream": False,
+                    "stream": True,
                 },
             }
             response = Utility.json_loads(
