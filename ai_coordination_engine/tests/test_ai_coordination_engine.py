@@ -530,7 +530,7 @@ class AICoordinationEngineTest(unittest.TestCase):
         response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
         logger.info(response)
 
-    # @unittest.skip("demonstrating skipping")
+    @unittest.skip("demonstrating skipping")
     def test_run_chatbot_on_local(self):
         logger.info("Starting chatbot on local usage mode...")
 
@@ -588,7 +588,7 @@ class AICoordinationEngineTest(unittest.TestCase):
             # Print response to user
             print(f"Chatbot: {response["data"]["sessionRun"]["asyncTask"]["result"]}")
 
-    @unittest.skip("demonstrating skipping")
+    # @unittest.skip("demonstrating skipping")
     def test_graphql_execute_procedure_task_session(self):
         query = Utility.generate_graphql_operation(
             "executeProcedureTaskSession", "Mutation", self.schema

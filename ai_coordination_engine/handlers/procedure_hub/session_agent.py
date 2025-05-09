@@ -348,7 +348,7 @@ def update_session_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     handle_session_agent_completion(info, session_agent)
 
 
-def get_agent_input(
+def get_agent_inputs(
     session_agent: SessionAgentType, predecessors: List[SessionAgentType]
 ) -> str:
     """Get agent input from either agent input or task session."""
@@ -386,8 +386,7 @@ def get_agent_input(
                 f"agent_output({agent['agent_name']}): {predecessor.agent_output}"
             )
 
-    agent_input = "\n\n".join(agent_inputs)
-    return agent_input
+    return agent_inputs
 
 
 def get_thread_uuid(
@@ -422,16 +421,18 @@ def execute_session_agent(info: ResolveInfo, session_agent: SessionAgentType) ->
     try:
         # Initialize the session agent state to "executing"
         predecessors = get_predecessors(info, session_agent)
-        agent_input = get_agent_input(session_agent, predecessors)
+        agent_inputs = get_agent_inputs(session_agent, predecessors)
 
-        info.context["logger"].info(f"User query: {agent_input}")
+        info.context["logger"].info(f"User query: {'\n\n'.join(agent_inputs)}")
 
         session_agent = insert_update_session_agent(
             info,
             **{
                 "session_uuid": session_agent.session["session_uuid"],
                 "session_agent_uuid": session_agent.session_agent_uuid,
-                "agent_input": agent_input,
+                "agent_input": "\n\n".join(
+                    list(filter(lambda x: x.find("agent_output(") == -1, agent_inputs))
+                ),
                 "state": "executing",
                 "updated_by": "procedure_hub",
             },
@@ -454,7 +455,7 @@ def execute_session_agent(info: ResolveInfo, session_agent: SessionAgentType) ->
             **{
                 "agentUuid": session_agent.agent_uuid,
                 "threadUuid": thread_uuid,
-                "userQuery": agent_input,
+                "userQuery": "\n\n".join(agent_inputs),
                 "userId": session_agent.session.get("user_id"),
                 "updatedBy": "operation_hub",
             },
