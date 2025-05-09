@@ -133,6 +133,16 @@ def deploy() -> List:
                     "settings": "beta_core_ai_agent",
                     "disabled_in_resources": True,  # Ignore adding to resource list.
                 },
+                "async_orchestrate_task_query": {
+                    "is_static": False,
+                    "label": "Async Orchestrate Task Query",
+                    "type": "Event",
+                    "support_methods": ["POST"],
+                    "is_auth_required": False,
+                    "is_graphql": False,
+                    "settings": "beta_core_ai_agent",
+                    "disabled_in_resources": True,  # Ignore adding to resource list.
+                },
             },
         }
     ]

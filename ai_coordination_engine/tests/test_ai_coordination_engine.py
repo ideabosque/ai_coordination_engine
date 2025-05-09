@@ -604,13 +604,13 @@ class AICoordinationEngineTest(unittest.TestCase):
                 #     "Include key details such as cleaning method, material compatibility, and usage instructions."
                 # ),
                 #
-                "coordinationUuid": "217434188865016304",
-                "taskUuid": "2145007703059665392",
-                "taskQuery": '{"company_name":"apple.com","topics":["Overview","ProductsandServices","FinancialData","Leadership"]}',
+                # "coordinationUuid": "217434188865016304",
+                # "taskUuid": "2145007703059665392",
+                # "taskQuery": '{"company_name":"apple.com","topics":["Overview","ProductsandServices","FinancialData","Leadership"]}',
                 #
-                # "coordinationUuid": "17700117941906182640",
-                # "taskUuid": "655993144917430768",
-                # "taskQuery": "find the overview and financial information for apple.com",
+                "coordinationUuid": "17700117941906182640",
+                "taskUuid": "655993144917430768",
+                "taskQuery": "find the overview and financial information for apple.com",
             },
         }
         response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
