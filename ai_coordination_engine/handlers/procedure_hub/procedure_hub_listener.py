@@ -620,7 +620,7 @@ def _handle_pending_agents(info: ResolveInfo, session: SessionType) -> None:
     )
 
     session.iteration_count += 1
-    MAX_ITERATIONS = 5
+    MAX_ITERATIONS = 10
 
     if session.iteration_count >= MAX_ITERATIONS:
         info.context["logger"].error(
