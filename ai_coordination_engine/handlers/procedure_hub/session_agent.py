@@ -431,7 +431,7 @@ def execute_session_agent(info: ResolveInfo, session_agent: SessionAgentType) ->
                 # "agent_input": "\n\n".join(
                 #     list(filter(lambda x: x.find("agent_output(") == -1, agent_inputs))
                 # ),
-                "agent_output": "\n\n".join(agent_inputs),
+                "agent_input": "\n\n".join(agent_inputs),
                 "state": "executing",
                 "updated_by": "procedure_hub",
             },
