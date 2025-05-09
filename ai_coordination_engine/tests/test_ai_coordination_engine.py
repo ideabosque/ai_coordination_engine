@@ -606,17 +606,7 @@ class AICoordinationEngineTest(unittest.TestCase):
                 #
                 "coordinationUuid": "217434188865016304",
                 "taskUuid": "2145007703059665392",
-                "taskQuery": Utility.json_dumps(
-                    {
-                        "company_name": "apple.com",
-                        "topics": [
-                            "Overview",
-                            "Products and Services",
-                            "Financial Data",
-                            "Leadership",
-                        ],
-                    }
-                ),
+                "taskQuery": '{"company_name":"apple.com","topics":["Overview","ProductsandServices","FinancialData","Leadership"]}',
                 #
                 # "coordinationUuid": "17700117941906182640",
                 # "taskUuid": "655993144917430768",

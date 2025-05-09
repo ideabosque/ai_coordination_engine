@@ -580,30 +580,28 @@ def _handle_no_ready_agents(
                 "updated_by": "procedure_hub",
             },
         )
-    if any(
+    elif any(
         agent.state == "wait_for_user_input"
         for agent in session_agent_list.session_agent_list
     ):
         info.context["logger"].info(
             "🔄 Pending due to the status of wait_for_user_input. Self-invoking for the next iteration."
         )
-        return
-
-    if any(
+    elif any(
         agent.state in ["initial", "pending", "executing"]
         for agent in session_agent_list.session_agent_list
     ):
         _handle_pending_agents(info, session)
-
-    insert_update_session(
-        info,
-        **{
-            "coordination_uuid": session.task["coordination"]["coordination_uuid"],
-            "session_uuid": session.session_uuid,
-            "status": "completed",
-            "updated_by": "procedure_hub",
-        },
-    )
+    else:
+        insert_update_session(
+            info,
+            **{
+                "coordination_uuid": session.task["coordination"]["coordination_uuid"],
+                "session_uuid": session.session_uuid,
+                "status": "completed",
+                "updated_by": "procedure_hub",
+            },
+        )
     return
 
 
