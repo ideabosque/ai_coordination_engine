@@ -423,8 +423,6 @@ def execute_session_agent(info: ResolveInfo, session_agent: SessionAgentType) ->
         predecessors = get_predecessors(info, session_agent)
         agent_inputs = get_agent_inputs(session_agent, predecessors)
 
-        info.context["logger"].info(f"User query: {"\n\n".join(agent_inputs)}")
-
         session_agent = insert_update_session_agent(
             info,
             **{
