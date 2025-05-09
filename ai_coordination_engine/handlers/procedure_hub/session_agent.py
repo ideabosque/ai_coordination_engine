@@ -124,9 +124,15 @@ def init_in_degree(info: ResolveInfo, session_agents: List[Dict[str, Any]]) -> N
 
         for session_agent in session_agents:
             # Multiple successors to one predecessor.
-            predecessors = session_agent.get("agent_action", {}).get("predecessors", [])
-            for predecessor in predecessors:
-                dependency_graph.setdefault(predecessor, []).append(
+            _session_agent = resolve_session_agent(
+                info,
+                **{
+                    "session_uuid": session_agent["session_uuid"],
+                    "session_agent_uuid": session_agent["session_agent_uuid"],
+                },
+            )
+            for predecessor in get_predecessors(info, _session_agent):
+                dependency_graph.setdefault(predecessor.agent_uuid, []).append(
                     session_agent["agent_uuid"]
                 )
 
