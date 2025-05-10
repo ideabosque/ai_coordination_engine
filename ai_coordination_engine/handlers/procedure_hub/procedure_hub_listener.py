@@ -476,7 +476,6 @@ def async_orchestrate_task_query(
         **{
             "coordination_uuid": session.coordination["coordination_uuid"],
             "session_uuid": session.session_uuid,
-            "status": "dispatched",
             "updated_by": "procedure_hub",
         },
     )
@@ -489,6 +488,15 @@ def async_orchestrate_task_query(
     updated_session_agents = init_in_degree(info, session_agents)
     info.context["logger"].info(
         f"Updated session agents: {Utility.json_dumps(updated_session_agents)}"
+    )
+    session = insert_update_session(
+        info,
+        **{
+            "coordination_uuid": session.coordination["coordination_uuid"],
+            "session_uuid": session.session_uuid,
+            "status": "dispatched",
+            "updated_by": "procedure_hub",
+        },
     )
     return
 
