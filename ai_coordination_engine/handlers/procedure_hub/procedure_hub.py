@@ -7,7 +7,6 @@ __author__ = "bibow"
 from typing import Any, Dict
 
 from graphene import ResolveInfo
-
 from silvaengine_utility import Utility
 
 from ...models.session import insert_update_session
@@ -62,6 +61,12 @@ def execute_procedure_task_session(
         **variables,
     )
 
+    params = {
+        "coordination_uuid": session.coordination["coordination_uuid"],
+        "session_uuid": session.session_uuid,
+    }
+    if info.context.get("connectionId"):
+        params.update({"connection_id": info.context["connectionId"]})
     # * Process the task query and generate subtasks for each agent based on their capabilities and dependencies.
     # This involves:
     # 1. Analyzing and decomposing the task query into atomic subtasks
@@ -77,10 +82,7 @@ def execute_procedure_task_session(
             info.context["logger"],
             info.context["endpoint_id"],
             "async_orchestrate_task_query",
-            params={
-                "coordination_uuid": session.coordination["coordination_uuid"],
-                "session_uuid": session.session_uuid,
-            },
+            params=params,
             setting=info.context["setting"],
             test_mode=info.context["setting"].get("test_mode"),
             aws_lambda=Config.aws_lambda,
@@ -109,10 +111,7 @@ def execute_procedure_task_session(
         info.context["logger"],
         info.context["endpoint_id"],
         "async_execute_procedure_task_session",
-        params={
-            "coordination_uuid": session.coordination["coordination_uuid"],
-            "session_uuid": session.session_uuid,
-        },
+        params=params,
         setting=info.context["setting"],
         test_mode=info.context["setting"].get("test_mode"),
         aws_lambda=Config.aws_lambda,

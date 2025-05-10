@@ -10,7 +10,6 @@ import traceback
 from typing import Any, Dict, List
 
 from graphene import ResolveInfo
-
 from silvaengine_utility import Utility
 
 from ...handlers.config import Config
@@ -303,12 +302,15 @@ def invoke_next_iteration(
             "updated_by": "procedure_hub",
         },
     )
+    params = {"coordination_uuid": coordination_uuid, "session_uuid": session_uuid}
+    if info.context.get("connectionId"):
+        params.update({"connection_id": info.context["connectionId"]})
 
     Utility.invoke_funct_on_aws_lambda(
         info.context["logger"],
         info.context["endpoint_id"],
         "async_execute_procedure_task_session",
-        params={"coordination_uuid": coordination_uuid, "session_uuid": session_uuid},
+        params=params,
         setting=info.context["setting"],
         test_mode=info.context["setting"].get("test_mode"),
         aws_lambda=Config.aws_lambda,

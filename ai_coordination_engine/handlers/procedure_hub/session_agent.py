@@ -447,15 +447,15 @@ def execute_session_agent(info: ResolveInfo, session_agent: SessionAgentType) ->
                 f"Found thread_uuid: {thread_uuid}"
             )  # Get user query from either agent input or task session
 
+        successors = get_successors(info, session_agent)
+        connection_id = (
+            info.context.get("connectionId") if len(successors) == 0 else None
+        )
         ask_model = invoke_ask_model(
             info.context.get("logger"),
             info.context.get("endpoint_id"),
             setting=info.context.get("setting"),
-            connection_id=(
-                info.context.get("connectionId")
-                if len(get_successors(info, session_agent)) > 0
-                else None
-            ),
+            connection_id=connection_id,
             **{
                 "agentUuid": session_agent.agent_uuid,
                 "threadUuid": thread_uuid,
@@ -487,6 +487,8 @@ def execute_session_agent(info: ResolveInfo, session_agent: SessionAgentType) ->
             "session_agent_uuid": session_agent.session_agent_uuid,
             "async_task_uuid": ask_model["async_task_uuid"],
         }
+        if info.context.get("connectionId"):
+            params.update({"connection_id": info.context["connectionId"]})
 
         # Invoke async update function on AWS Lambda
         Utility.invoke_funct_on_aws_lambda(
