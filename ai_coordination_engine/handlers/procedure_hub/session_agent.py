@@ -9,7 +9,6 @@ import traceback
 from typing import Any, Dict, List
 
 from graphene import ResolveInfo
-
 from silvaengine_utility import Utility
 
 from ...models.session import insert_update_session
@@ -25,7 +24,9 @@ from ..ai_coordination_utility import get_async_task, invoke_ask_model
 from ..config import Config
 
 
-def init_session_agents(info: ResolveInfo, session: SessionType) -> list:
+def init_session_agents(
+    info: ResolveInfo, session: SessionType
+) -> List[SessionAgentType]:
     """Initializes session agents for each agent in the agent list
     Args:
         info (ResolveInfo): GraphQL resolve info containing context
@@ -90,14 +91,7 @@ def init_session_agents(info: ResolveInfo, session: SessionType) -> list:
             subtask_queries.append(subtask_query)
 
             # Add session agent details to list
-            session_agents.append(
-                {
-                    "session_uuid": session_agent.session["session_uuid"],
-                    "session_agent_uuid": session_agent.session_agent_uuid,
-                    "agent_uuid": session_agent.agent_uuid,
-                    "agent_action": session_agent.agent_action,
-                }
-            )
+            session_agents.append(session_agent)
 
     session = insert_update_session(
         info,
@@ -112,7 +106,7 @@ def init_session_agents(info: ResolveInfo, session: SessionType) -> list:
     return session_agents
 
 
-def init_in_degree(info: ResolveInfo, session_agents: List[Dict[str, Any]]) -> None:
+def init_in_degree(info: ResolveInfo, session_agents: List[SessionAgentType]) -> None:
     """
     Initializes the in-degree for each session_agent in a task session.
     The in-degree represents the number of dependencies each session_agent has.
@@ -124,21 +118,14 @@ def init_in_degree(info: ResolveInfo, session_agents: List[Dict[str, Any]]) -> N
 
         for session_agent in session_agents:
             # Multiple successors to one predecessor.
-            _session_agent = resolve_session_agent(
-                info,
-                **{
-                    "session_uuid": session_agent["session_uuid"],
-                    "session_agent_uuid": session_agent["session_agent_uuid"],
-                },
-            )
-            for predecessor in get_predecessors(info, _session_agent):
+            for predecessor in get_predecessors(info, session_agent):
                 dependency_graph.setdefault(predecessor.agent_uuid, []).append(
-                    session_agent["agent_uuid"]
+                    session_agent.agent_uuid
                 )
 
         # Step 3: Compute in-degree for each agent
         in_degree_map = {
-            session_agent["agent_uuid"]: 0 for session_agent in session_agents
+            session_agent.agent_uuid: 0 for session_agent in session_agents
         }
 
         for predecessor, successors in dependency_graph.items():
@@ -149,14 +136,12 @@ def init_in_degree(info: ResolveInfo, session_agents: List[Dict[str, Any]]) -> N
         # Step 4: Batch update session agents with computed in-degree
         updated_agents = []
         for session_agent in session_agents:
-            session_agent["in_degree"] = in_degree_map.get(
-                session_agent["agent_uuid"], 0
-            )
+            session_agent.in_degree = in_degree_map.get(session_agent.agent_uuid, 0)
             updated_agents.append(
                 {
-                    "session_uuid": session_agent["session_uuid"],
-                    "session_agent_uuid": session_agent["session_agent_uuid"],
-                    "in_degree": session_agent["in_degree"],
+                    "session_uuid": session_agent.session["session_uuid"],
+                    "session_agent_uuid": session_agent.session_agent_uuid,
+                    "in_degree": session_agent.in_degree,
                     "updated_by": "procedure_hub",
                 }
             )

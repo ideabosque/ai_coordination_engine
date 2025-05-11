@@ -10,6 +10,7 @@ import traceback
 from typing import Any, Dict, List
 
 from graphene import ResolveInfo
+
 from silvaengine_utility import Utility
 
 from ...handlers.config import Config
@@ -318,8 +319,11 @@ def invoke_next_iteration(
 
 
 def _process_task_completion(
-    info: ResolveInfo, ask_model: Dict[str, Any], **variables: Dict[str, Any]
-) -> None:
+    info: ResolveInfo,
+    async_task_uuid: str,
+    current_run_uuid: str,
+    **variables: Dict[str, Any],
+) -> Dict[str, Any]:
     start = time.time()
     timeout = 60
 
@@ -329,7 +333,7 @@ def _process_task_completion(
             info.context.get("endpoint_id"),
             info.context.get("setting"),
             functionName="async_execute_ask_model",
-            asyncTaskUuid=ask_model["async_task_uuid"],
+            asyncTaskUuid=async_task_uuid,
         )
 
         if task["status"] == "completed":
@@ -350,7 +354,7 @@ def _process_task_completion(
                 {
                     "status": "failed",
                     "logs": Utility.json_dumps(
-                        [{"run_uuid": ask_model["current_run_uuid"], "log": error_msg}]
+                        [{"run_uuid": current_run_uuid, "log": error_msg}]
                     ),
                 }
             )
@@ -363,7 +367,7 @@ def _process_task_completion(
                     "logs": Utility.json_dumps(
                         [
                             {
-                                "run_uuid": ask_model["current_run_uuid"],
+                                "run_uuid": current_run_uuid,
                                 "log": task["notes"],
                             }
                         ]
@@ -380,7 +384,7 @@ def _process_task_completion(
                 "logs": Utility.json_dumps(
                     [
                         {
-                            "run_uuid": ask_model["current_run_uuid"],
+                            "run_uuid": current_run_uuid,
                             "log": f"Task timed out after {timeout} seconds",
                         }
                     ]
@@ -472,7 +476,8 @@ def async_orchestrate_task_query(
     # Wait for task completion
     variables = _process_task_completion(
         info,
-        ask_model,
+        ask_model["async_task_uuid"],
+        ask_model["current_run_uuid"],
         **{
             "coordination_uuid": session.coordination["coordination_uuid"],
             "session_uuid": session.session_uuid,
