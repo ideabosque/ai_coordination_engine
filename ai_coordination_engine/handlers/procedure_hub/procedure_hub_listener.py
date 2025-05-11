@@ -341,7 +341,7 @@ def _process_task_completion(
             info.context["logger"].info(f"Result: {result}.")
 
             if "subtask_queries" in result:
-                variables["subtask_queries"] = result["subtask_queries"]
+                variables.update({"subtask_queries": result["subtask_queries"]})
                 break
 
             error_msg = (
