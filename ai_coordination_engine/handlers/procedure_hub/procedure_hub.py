@@ -65,7 +65,7 @@ def execute_procedure_task_session(
         "coordination_uuid": session.coordination["coordination_uuid"],
         "session_uuid": session.session_uuid,
     }
-    if info.context.get("connectionId"):
+    if "connectionId" in info.context:
         params.update({"connection_id": info.context["connectionId"]})
     # * Process the task query and generate subtasks for each agent based on their capabilities and dependencies.
     # This involves:

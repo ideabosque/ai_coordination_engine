@@ -10,7 +10,6 @@ import traceback
 from typing import Any, Dict, List
 
 from graphene import ResolveInfo
-
 from silvaengine_utility import Utility
 
 from ...handlers.config import Config
@@ -304,7 +303,7 @@ def invoke_next_iteration(
         },
     )
     params = {"coordination_uuid": coordination_uuid, "session_uuid": session_uuid}
-    if info.context.get("connectionId"):
+    if "connectionId" in info.context:
         params.update({"connection_id": info.context["connectionId"]})
 
     Utility.invoke_funct_on_aws_lambda(

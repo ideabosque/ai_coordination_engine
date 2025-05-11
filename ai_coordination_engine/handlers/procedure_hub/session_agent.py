@@ -472,7 +472,7 @@ def execute_session_agent(info: ResolveInfo, session_agent: SessionAgentType) ->
             "session_agent_uuid": session_agent.session_agent_uuid,
             "async_task_uuid": ask_model["async_task_uuid"],
         }
-        if info.context.get("connectionId"):
+        if "connectionId" in info.context:
             params.update({"connection_id": info.context["connectionId"]})
 
         # Invoke async update function on AWS Lambda
