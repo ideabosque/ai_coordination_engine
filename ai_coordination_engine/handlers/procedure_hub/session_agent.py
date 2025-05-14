@@ -9,6 +9,7 @@ import traceback
 from typing import Any, Dict, List
 
 from graphene import ResolveInfo
+
 from silvaengine_utility import Utility
 
 from ...models.session import insert_update_session
@@ -434,7 +435,10 @@ def execute_session_agent(info: ResolveInfo, session_agent: SessionAgentType) ->
 
         successors = get_successors(info, session_agent)
         connection_id = (
-            info.context.get("connectionId") if len(successors) == 0 else None
+            info.context.get("connectionId")
+            if len(successors) == 0
+            or session_agent.agent_action.get("user_in_the_loop")
+            else None
         )
         ask_model = invoke_ask_model(
             info.context.get("logger"),
