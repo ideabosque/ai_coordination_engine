@@ -59,4 +59,4 @@ def execute_for_user_input(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
         session_agent.session["session_uuid"],
     )
 
-    return
+    return True
