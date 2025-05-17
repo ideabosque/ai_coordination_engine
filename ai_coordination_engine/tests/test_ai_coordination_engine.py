@@ -58,7 +58,7 @@ setting = {
             "module_name": "ai_agent_core_engine",
             "class_name": "AIAgentCoreEngine",
         },
-        "send_data_to_websocket": {
+        "send_data_to_stream": {
             "module_name": "ai_agent_core_engine",
             "class_name": "AIAgentCoreEngine",
         },
