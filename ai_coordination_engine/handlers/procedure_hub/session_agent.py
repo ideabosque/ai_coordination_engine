@@ -6,7 +6,7 @@ __author__ = "bibow"
 
 import time
 import traceback
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 
 from graphene import ResolveInfo
 
@@ -340,27 +340,22 @@ def update_session_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     handle_session_agent_completion(info, session_agent)
 
 
-def get_agent_inputs(
+def prepare_task_query(
     session_agent: SessionAgentType, predecessors: List[SessionAgentType]
-) -> str:
+) -> Tuple[str, List]:
     """Get agent input from either agent input or task session."""
-    agent_inputs = []
     subtask_queries = session_agent.session.get("subtask_queries", [])
-    agent_inputs.append(
-        next(
-            (
-                subtask_query["subtask_query"]
-                for subtask_query in subtask_queries
-                if subtask_query["session_agent_uuid"]
-                == session_agent.session_agent_uuid
-            ),
-            "",
-        )
+    subtask_query = next(
+        (
+            subtask_query["subtask_query"]
+            for subtask_query in subtask_queries
+            if subtask_query["session_agent_uuid"] == session_agent.session_agent_uuid
+        ),
+        "",
     )
 
+    predecessors_outputs = []
     agents = session_agent.session["coordination"]["agents"]
-    if session_agent.user_input and session_agent.user_input != "":
-        agent_inputs.append(f"user_input: {session_agent.user_input}")
     for predecessor in predecessors:
         agent = next(
             (
@@ -374,11 +369,13 @@ def get_agent_inputs(
             continue
 
         if predecessor.agent_output and predecessor.agent_output != "":
-            agent_inputs.append(
+            predecessors_outputs.append(
                 f"agent_output({agent['agent_name']}): {predecessor.agent_output}"
             )
+        if predecessor.user_input and predecessor.user_input != "":
+            predecessors_outputs.append(f"user_input: {predecessor.user_input}")
 
-    return agent_inputs
+    return subtask_query, predecessors_outputs
 
 
 def get_thread_uuid(
@@ -413,16 +410,16 @@ def execute_session_agent(info: ResolveInfo, session_agent: SessionAgentType) ->
     try:
         # Initialize the session agent state to "executing"
         predecessors = get_predecessors(info, session_agent)
-        agent_inputs = get_agent_inputs(session_agent, predecessors)
+        subtask_query, predecessors_outputs = prepare_task_query(
+            session_agent, predecessors
+        )
 
         session_agent = insert_update_session_agent(
             info,
             **{
                 "session_uuid": session_agent.session["session_uuid"],
                 "session_agent_uuid": session_agent.session_agent_uuid,
-                "agent_input": "\n\n".join(
-                    list(filter(lambda x: x.find("agent_output(") == -1, agent_inputs))
-                ),
+                "agent_input": subtask_query,
                 "state": "executing",
                 "updated_by": "procedure_hub",
             },
@@ -448,7 +445,7 @@ def execute_session_agent(info: ResolveInfo, session_agent: SessionAgentType) ->
             **{
                 "agentUuid": session_agent.agent_uuid,
                 "threadUuid": thread_uuid,
-                "userQuery": "\n\n".join(agent_inputs),
+                "userQuery": subtask_query + "\n\n" + "\n\n".join(predecessors_outputs),
                 "userId": session_agent.session.get("user_id"),
                 "updatedBy": "operation_hub",
             },

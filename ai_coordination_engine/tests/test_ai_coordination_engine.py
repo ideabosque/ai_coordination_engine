@@ -588,7 +588,7 @@ class AICoordinationEngineTest(unittest.TestCase):
             # Print response to user
             print(f"Chatbot: {response["data"]["sessionRun"]["asyncTask"]["result"]}")
 
-    # @unittest.skip("demonstrating skipping")
+    @unittest.skip("demonstrating skipping")
     def test_graphql_execute_procedure_task_session(self):
         query = Utility.generate_graphql_operation(
             "executeProcedureTaskSession", "Mutation", self.schema
@@ -608,9 +608,29 @@ class AICoordinationEngineTest(unittest.TestCase):
                 # "taskUuid": "2145007703059665392",
                 # "taskQuery": '{"company_name":"apple.com","topics":["Overview","Products and Services","Financial Data","Leadership"]}',
                 #
-                "coordinationUuid": "17700117941906182640",
-                "taskUuid": "655993144917430768",
-                "taskQuery": "find the overview and financial information for apple.com",
+                # "coordinationUuid": "17700117941906182640",
+                # "taskUuid": "655993144917430768",
+                # "taskQuery": "find the overview and financial information for apple.com",
+                #
+                "coordinationUuid": "64512187470233406923",
+                "taskUuid": "83542177430094155211",
+                "taskQuery": '{"company_name":"apple.com","user":"Bibo Wang","email":"bibo72@outlook.com"}',
+            },
+        }
+        response = self.ai_coordination_engine.ai_coordination_graphql(**payload)
+        logger.info(response)
+
+    # @unittest.skip("demonstrating skipping")
+    def test_graphql_execute_for_user_input(self):
+        query = Utility.generate_graphql_operation(
+            "executeForUserInput", "Mutation", self.schema
+        )
+        payload = {
+            "query": query,
+            "variables": {
+                "sessionUuid": "98498313263155790541",
+                "sessionAgentUuid": "73681775574623470285",
+                "userInput": "Please forcus on the 'Apple Vision Pro' for the collabration.",
             },
         }
         response = self.ai_coordination_engine.ai_coordination_graphql(**payload)

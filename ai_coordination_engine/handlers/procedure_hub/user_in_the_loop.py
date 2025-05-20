@@ -23,9 +23,11 @@ def execute_for_user_input(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
                 "session_agent_uuid": kwargs["session_agent_uuid"],
             },
         )
-        session_agent.state = "completed"
-        if session_agent.agent_action:
-            session_agent.state = "pending"
+        session_agent.state = (
+            "pending"
+            if session_agent.agent_action.get("action_function")
+            else "completed"
+        )
 
         session_agent.user_input = kwargs["user_input"]
 
@@ -43,7 +45,7 @@ def execute_for_user_input(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
             "user_input": session_agent.user_input,
             "state": session_agent.state,
             "notes": session_agent.notes if session_agent.state == "failed" else None,
-            "updatedBy": "procedure_hub",
+            "updated_by": "procedure_hub",
         },
     )
 

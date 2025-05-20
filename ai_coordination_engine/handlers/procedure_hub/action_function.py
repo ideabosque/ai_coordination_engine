@@ -10,19 +10,13 @@ from typing import Any, Dict
 from graphene import ResolveInfo
 
 from ...models.session_agent import insert_update_session_agent, resolve_session_agent
+from ...types.session_agent import SessionAgentType
 from ..ai_coordination_utility import get_action_function
 from .session_agent import get_successors, handle_session_agent_completion
 
 
-def execute_action_function(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
+def execute_action_function(info: ResolveInfo, session_agent: SessionAgentType) -> None:
     try:
-        session_agent = resolve_session_agent(
-            info,
-            **{
-                "session_uuid": kwargs["session_uuid"],
-                "session_agent_uuid": kwargs["session_agent_uuid"],
-            },
-        )
         session_agent.state = "completed"
 
         # TODO: Process action_function.
