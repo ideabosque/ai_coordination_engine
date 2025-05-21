@@ -8,7 +8,6 @@ import os
 from typing import Any, Dict
 
 import boto3
-
 from silvaengine_utility import Utility
 
 from ..models import utils
@@ -27,8 +26,8 @@ class Config:
     source_email = None
     schemas = {}
     module_bucket_name = None
-    module_zip_path = None
-    module_extract_path = None
+    funct_zip_path = None
+    funct_extract_path = None
 
     @classmethod
     def initialize(cls, logger: logging.Logger, **setting: Dict[str, Any]) -> None:
@@ -61,10 +60,10 @@ class Config:
     @classmethod
     def _setup_function_paths(cls, setting: Dict[str, Any]) -> None:
         cls.module_bucket_name = setting.get("module_bucket_name")
-        cls.module_zip_path = setting.get("module_zip_path", "/tmp/adaptor_zips")
-        cls.module_extract_path = setting.get("module_extract_path", "/tmp/adaptors")
-        os.makedirs(cls.module_zip_path, exist_ok=True)
-        os.makedirs(cls.module_extract_path, exist_ok=True)
+        cls.funct_zip_path = setting.get("funct_zip_path", "/tmp/funct_zips")
+        cls.funct_extract_path = setting.get("funct_extract_path", "/tmp/functs")
+        os.makedirs(cls.funct_zip_path, exist_ok=True)
+        os.makedirs(cls.funct_extract_path, exist_ok=True)
 
     @classmethod
     def _initialize_tables(cls, logger: logging.Logger) -> None:

@@ -628,8 +628,8 @@ class AICoordinationEngineTest(unittest.TestCase):
         payload = {
             "query": query,
             "variables": {
-                "sessionUuid": "98498313263155790541",
-                "sessionAgentUuid": "73681775574623470285",
+                "sessionUuid": "27669055653931664077",
+                "sessionAgentUuid": "04537042933512946381",
                 "userInput": "Please forcus on the 'Apple Vision Pro' for the collabration.",
             },
         }

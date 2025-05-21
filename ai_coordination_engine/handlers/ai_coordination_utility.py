@@ -14,7 +14,6 @@ from typing import Any, Callable, Dict, Optional
 import humps
 from boto3.dynamodb.conditions import Attr, Key
 from graphene import ResolveInfo
-
 from silvaengine_utility import Utility
 
 from .config import Config
@@ -77,18 +76,18 @@ def execute_graphql_query(
 
 def _module_exists(logger: logging.Logger, module_name: str) -> bool:
     """Check if the module exists in the specified path."""
-    module_dir = os.path.join(Config.module_extract_path, module_name)
+    module_dir = os.path.join(Config.funct_extract_path, module_name)
     if os.path.exists(module_dir) and os.path.isdir(module_dir):
-        logger.info(f"Module {module_name} found in {Config.module_extract_path}.")
+        logger.info(f"Module {module_name} found in {Config.funct_extract_path}.")
         return True
-    logger.info(f"Module {module_name} not found in {Config.module_extract_path}.")
+    logger.info(f"Module {module_name} not found in {Config.funct_extract_path}.")
     return False
 
 
 def _download_and_extract_module(logger: logging.Logger, module_name: str) -> None:
     """Download and extract the module from S3 if not already extracted."""
     key = f"{module_name}.zip"
-    zip_path = f"{Config.module_zip_path}/{key}"
+    zip_path = f"{Config.funct_zip_path}/{key}"
 
     logger.info(
         f"Downloading module from S3: bucket={Config.module_bucket_name}, key={key}"
@@ -98,22 +97,22 @@ def _download_and_extract_module(logger: logging.Logger, module_name: str) -> No
 
     # Extract the ZIP file
     with zipfile.ZipFile(zip_path, "r") as zip_ref:
-        zip_ref.extractall(Config.module_extract_path)
-    logger.info(f"Extracted module to {Config.module_extract_path}")
+        zip_ref.extractall(Config.funct_extract_path)
+    logger.info(f"Extracted module to {Config.funct_extract_path}")
 
 
 def get_action_function(
-    logger: logging.Logger, action_function: Dict[str, Any]
+    info: ResolveInfo, action_function: Dict[str, Any]
 ) -> Optional[Callable]:
     try:
         module_name = action_function["module_name"]
         function_name = action_function["function_name"]
-        if not _module_exists(logger, module_name):
+        if not _module_exists(info.context["logger"], module_name):
             # Download and extract the module if it doesn't exist
-            _download_and_extract_module(logger, module_name)
+            _download_and_extract_module(info.context["logger"], module_name)
 
         # Add the extracted module to sys.path
-        module_path = f"{Config.module_extract_path}/{module_name}"
+        module_path = f"{Config.funct_extract_path}/{module_name}"
         if module_path not in sys.path:
             sys.path.append(module_path)
 
@@ -121,7 +120,7 @@ def get_action_function(
 
     except Exception as e:
         log = traceback.format_exc()
-        logger.error(log)
+        info.context["logger"].error(log)
         raise e
 
 
