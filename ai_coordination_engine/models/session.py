@@ -135,6 +135,10 @@ def get_session_type(info: ResolveInfo, session: SessionModel) -> SessionType:
 
 
 def resolve_session(info: ResolveInfo, **kwargs: Dict[str, Any]) -> SessionType:
+    count = get_session_count(kwargs["coordination_uuid"], kwargs["session_uuid"])
+    if count == 0:
+        return None
+
     return get_session_type(
         info,
         get_session(kwargs["coordination_uuid"], kwargs["session_uuid"]),

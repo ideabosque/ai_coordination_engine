@@ -139,6 +139,10 @@ def get_session_run_type(
 
 
 def resolve_session_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> SessionRunType:
+    count = get_session_run_count(kwargs["session_uuid"], kwargs["run_uuid"])
+    if count == 0:
+        return None
+
     return get_session_run_type(
         info,
         get_session_run(kwargs["session_uuid"], kwargs["run_uuid"]),

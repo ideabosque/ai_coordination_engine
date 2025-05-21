@@ -76,6 +76,10 @@ def get_coordination_type(
 
 
 def resolve_coordination(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
+    count = get_coordination_count(kwargs["endpoint_id"], kwargs["coordination_uuid"])
+    if count == 0:
+        return None
+
     return get_coordination_type(
         info,
         get_coordination(info.context["endpoint_id"], kwargs["coordination_uuid"]),

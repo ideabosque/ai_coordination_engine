@@ -14,8 +14,13 @@ from .procedure_hub_listener import invoke_next_iteration
 from .session_agent import handle_session_agent_completion
 
 
-def execute_for_user_input(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
+def execute_for_user_input(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
+    """
+    Process user input for a session agent and handle its execution flow.
+    Updates session agent state and triggers next iteration if needed.
+    """
     try:
+        # Retrieve the session agent
         session_agent = resolve_session_agent(
             info,
             **{
@@ -23,20 +28,31 @@ def execute_for_user_input(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
                 "session_agent_uuid": kwargs["session_agent_uuid"],
             },
         )
+
+        # Validate session agent exists
+        if session_agent is None:
+            raise Exception("Session agent not found")
+
+        # Determine state based on action function presence
         session_agent.state = (
             "pending"
             if session_agent.agent_action.get("action_function")
             else "completed"
         )
 
+        # Update with user input
         session_agent.user_input = kwargs["user_input"]
 
     except Exception as e:
+        # Handle errors and log them
         log = traceback.format_exc()
         info.context["logger"].error(log)
+        if "Session agent not found" in str(e):
+            raise
         session_agent.state = "failed"
         session_agent.notes = log
 
+    # Persist session agent updates
     session_agent = insert_update_session_agent(
         info,
         **{
@@ -49,9 +65,11 @@ def execute_for_user_input(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
         },
     )
 
+    # Handle completion if needed
     if session_agent.state == "completed":
         handle_session_agent_completion(info, session_agent)
 
+    # Log and trigger next iteration
     info.context["logger"].info(
         "🔄 Pending session_agent exist. Self-invoking for the next iteration."
     )

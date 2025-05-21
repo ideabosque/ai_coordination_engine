@@ -86,6 +86,10 @@ def get_task_type(info: ResolveInfo, task: TaskModel) -> TaskType:
 
 
 def resolve_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> TaskType:
+    count = get_task_count(kwargs["coordination_uuid"], kwargs["task_uuid"])
+    if count == 0:
+        return None
+
     return get_task_type(
         info, get_task(kwargs["coordination_uuid"], kwargs["task_uuid"])
     )

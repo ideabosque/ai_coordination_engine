@@ -93,6 +93,10 @@ def get_task_schedule_type(
 def resolve_task_schedule(
     info: ResolveInfo, **kwargs: Dict[str, Any]
 ) -> TaskScheduleType:
+    count = get_task_schedule_count(kwargs["task_uuid"], kwargs["schedule_uuid"])
+    if count == 0:
+        return None
+
     return get_task_schedule_type(
         info, get_task_schedule(kwargs["task_uuid"], kwargs["schedule_uuid"])
     )

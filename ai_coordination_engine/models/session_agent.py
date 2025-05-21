@@ -16,6 +16,8 @@ from pynamodb.attributes import (
     UnicodeAttribute,
     UTCDateTimeAttribute,
 )
+from tenacity import retry, stop_after_attempt, wait_exponential
+
 from silvaengine_dynamodb_base import (
     BaseModel,
     delete_decorator,
@@ -24,7 +26,6 @@ from silvaengine_dynamodb_base import (
     resolve_list_decorator,
 )
 from silvaengine_utility import Utility
-from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..types.session_agent import SessionAgentListType, SessionAgentType
 from .utils import _get_session
@@ -96,6 +97,12 @@ def get_session_agent_type(
 def resolve_session_agent(
     info: ResolveInfo, **kwargs: Dict[str, Any]
 ) -> SessionAgentType:
+    count = get_session_agent_count(
+        kwargs["session_uuid"], kwargs["session_agent_uuid"]
+    )
+    if count == 0:
+        return None
+
     return get_session_agent_type(
         info,
         get_session_agent(kwargs["session_uuid"], kwargs["session_agent_uuid"]),
