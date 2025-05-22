@@ -3,39 +3,36 @@ from __future__ import print_function
 
 __author__ = "bibow"
 
+import logging
 from typing import Any, Dict, List
 
 
-def _get_coordination(coordination_type: str, coordination_uuid: str) -> Dict[str, Any]:
+def _initialize_tables(logger: logging.Logger) -> None:
+    from .coordination import create_coordination_table
+    from .session import create_session_table
+    from .session_agent import create_session_agent_table
+    from .session_run import create_session_run_table
+    from .task import create_task_table
+    from .task_schedule import create_task_schedule_table
+
+    create_coordination_table(logger)
+    create_session_table(logger)
+    create_session_agent_table(logger)
+    create_session_run_table(logger)
+    create_task_table(logger)
+    create_task_schedule_table(logger)
+
+
+def _get_coordination(endpoint_id: str, coordination_uuid: str) -> Dict[str, Any]:
     from .coordination import get_coordination
 
-    coordination = get_coordination(coordination_type, coordination_uuid)
+    coordination = get_coordination(endpoint_id, coordination_uuid)
     return {
-        "coordination_type": coordination.coordination_type,
+        "endpoint_id": coordination.endpoint_id,
         "coordination_uuid": coordination.coordination_uuid,
         "coordination_name": coordination.coordination_name,
         "coordination_description": coordination.coordination_description,
-        "assistant_id": coordination.assistant_id,
-        "assistant_type": coordination.assistant_type,
-        "additional_instructions": coordination.additional_instructions,
-    }
-
-
-def _get_agent(coordination_uuid: str, agent_uuid: str) -> Dict[str, Any]:
-    from .agent import get_agent
-
-    agent = get_agent(coordination_uuid, agent_uuid)
-    return {
-        "coordination_uuid": agent.coordination_uuid,
-        "agent_uuid": agent.agent_uuid,
-        "agent_name": agent.agent_name,
-        "agent_instructions": agent.agent_instructions,
-        "coordination_type": agent.coordination_type,
-        "response_format": agent.response_format,
-        "json_schema": agent.json_schema,
-        "tools": agent.tools,
-        "predecessor": agent.predecessor,
-        "successor": agent.successor,
+        "agents": coordination.agents,
     }
 
 
@@ -45,19 +42,56 @@ def _get_session(coordination_uuid: str, session_uuid: str) -> Dict[str, Any]:
     session = get_session(coordination_uuid, session_uuid)
     return {
         "coordination": _get_coordination(
-            session.coordination_type,
+            session.endpoint_id,
             session.coordination_uuid,
         ),
         "session_uuid": session.session_uuid,
+        "task": (
+            {}
+            if session.task_uuid is None
+            else _get_task(
+                session.coordination_uuid,
+                session.task_uuid,
+            )
+        ),
+        "user_id": session.user_id,
+        "endpoint_id": session.endpoint_id,
+        "task_query": session.task_query,
+        "iteration_count": session.iteration_count,
+        "subtask_queries": session.subtask_queries,
         "status": session.status,
-        "notes": session.notes,
+        "logs": session.logs,
     }
 
 
-def _get_thread_ids(session_uuid: str) -> List[str]:
-    from .thread import ThreadModel
+def _get_task(coordination_uuid: str, task_uuid: str) -> Dict[str, Any]:
+    from .task import get_task
 
-    results = ThreadModel.query(session_uuid, None)
-    thread_ids = [result.thread_id for result in results]
+    task = get_task(coordination_uuid, task_uuid)
+    return {
+        "coordination": _get_coordination(
+            task.endpoint_id,
+            task.coordination_uuid,
+        ),
+        "task_uuid": task.task_uuid,
+        "task_name": task.task_name,
+        "task_description": task.task_description,
+        "initial_task_query": task.initial_task_query,
+        "subtask_queries": task.subtask_queries,
+        "agent_actions": task.agent_actions,
+    }
 
-    return thread_ids
+
+def _get_session_agent(session_uuid: str, session_agent_uuid: str) -> Dict[str, Any]:
+    from .session_agent import get_session_agent
+
+    session_agent = get_session_agent(session_uuid, session_agent_uuid)
+    return {
+        "agent_action": session_agent.agent_action,
+        "user_input": session_agent.user_input,
+        "agent_input": session_agent.agent_input,
+        "agent_output": session_agent.agent_output,
+        "in_degree": session_agent.in_degree,
+        "state": session_agent.state,
+        "notes": session_agent.notes,
+    }

@@ -10,20 +10,16 @@ from silvaengine_dynamodb_base import ListObjectType
 from silvaengine_utility import JSON
 
 
-class SessionType(ObjectType):
-    coordination = JSON()
+class TaskScheduleType(ObjectType):
     task = JSON()
-    session_uuid = String()
-    user_id = String()
-    task_query = String()
-    iteration_count = Int()
-    subtask_queries = List(JSON)
+    coordination = JSON()
+    schedule_uuid = String()
+    schedule = String()
     status = String()
-    logs = String()
     updated_by = String()
     created_at = DateTime()
     updated_at = DateTime()
 
 
-class SessionListType(ListObjectType):
-    session_list = List(SessionType)
+class TaskScheduleListType(ListObjectType):
+    task_schedule_list = List(TaskScheduleType)

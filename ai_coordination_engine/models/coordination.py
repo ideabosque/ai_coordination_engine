@@ -5,11 +5,17 @@ from __future__ import print_function
 __author__ = "bibow"
 
 
+import logging
 from typing import Any, Dict
 
 import pendulum
 from graphene import ResolveInfo
-from pynamodb.attributes import UnicodeAttribute, UTCDateTimeAttribute
+from pynamodb.attributes import (
+    ListAttribute,
+    MapAttribute,
+    UnicodeAttribute,
+    UTCDateTimeAttribute,
+)
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from silvaengine_dynamodb_base import (
@@ -28,16 +34,23 @@ class CoordinationModel(BaseModel):
     class Meta(BaseModel.Meta):
         table_name = "ace-coordinations"
 
-    coordination_type = UnicodeAttribute(hash_key=True)
+    endpoint_id = UnicodeAttribute(hash_key=True)
     coordination_uuid = UnicodeAttribute(range_key=True)
     coordination_name = UnicodeAttribute()
     coordination_description = UnicodeAttribute()
-    assistant_id = UnicodeAttribute()
-    assistant_type = UnicodeAttribute()
-    additional_instructions = UnicodeAttribute(null=True)
+    agents = ListAttribute(of=MapAttribute)
     updated_by = UnicodeAttribute()
     created_at = UTCDateTimeAttribute()
     updated_at = UTCDateTimeAttribute()
+
+
+def create_coordination_table(logger: logging.Logger) -> bool:
+    """Create the Coordination table if it doesn't exist."""
+    if not CoordinationModel.exists():
+        # Create with on-demand billing (PAY_PER_REQUEST)
+        CoordinationModel.create_table(billing_mode="PAY_PER_REQUEST", wait=True)
+        logger.info("The Coordination table has been created.")
+    return True
 
 
 @retry(
@@ -45,15 +58,13 @@ class CoordinationModel(BaseModel):
     wait=wait_exponential(multiplier=1, max=60),
     stop=stop_after_attempt(5),
 )
-def get_coordination(
-    coordination_type: str, coordination_uuid: str
-) -> CoordinationModel:
-    return CoordinationModel.get(coordination_type, coordination_uuid)
+def get_coordination(endpoint_id: str, coordination_uuid: str) -> CoordinationModel:
+    return CoordinationModel.get(endpoint_id, coordination_uuid)
 
 
-def get_coordination_count(coordination_type: str, coordination_uuid: str) -> int:
+def get_coordination_count(endpoint_id: str, coordination_uuid: str) -> int:
     return CoordinationModel.count(
-        coordination_type, CoordinationModel.coordination_uuid == coordination_uuid
+        endpoint_id, CoordinationModel.coordination_uuid == coordination_uuid
     )
 
 
@@ -65,29 +76,31 @@ def get_coordination_type(
 
 
 def resolve_coordination(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
+    count = get_coordination_count(kwargs["endpoint_id"], kwargs["coordination_uuid"])
+    if count == 0:
+        return None
+
     return get_coordination_type(
         info,
-        get_coordination(kwargs["coordination_type"], kwargs["coordination_uuid"]),
+        get_coordination(info.context["endpoint_id"], kwargs["coordination_uuid"]),
     )
 
 
 @monitor_decorator
 @resolve_list_decorator(
-    attributes_to_get=["coordination_type", "coordination_uuid"],
+    attributes_to_get=["endpoint_id", "coordination_uuid"],
     list_type_class=CoordinationListType,
     type_funct=get_coordination_type,
 )
 def resolve_coordination_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
-    coordination_type = kwargs.get("coordination_type")
+    endpoint_id = info.context["endpoint_id"]
     coordination_name = kwargs.get("coordination_name")
     coordination_description = kwargs.get("coordination_description")
-    assistant_id = kwargs.get("assistant_id")
-    assistant_types = kwargs.get("assistant_types")
     args = []
     inquiry_funct = CoordinationModel.scan
     count_funct = CoordinationModel.count
-    if coordination_type:
-        args = [coordination_type, None]
+    if endpoint_id:
+        args = [endpoint_id, None]
         inquiry_funct = CoordinationModel.query
 
     the_filters = None  # We can add filters for the query.
@@ -97,10 +110,6 @@ def resolve_coordination_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> An
         the_filters &= CoordinationModel.coordination_description.contains(
             coordination_description
         )
-    if assistant_id is not None:
-        the_filters &= CoordinationModel.assistant_id == assistant_id
-    if assistant_types is not None:
-        the_filters &= CoordinationModel.assistant_type.is_in(*assistant_types)
     if the_filters is not None:
         args.append(the_filters)
 
@@ -109,7 +118,7 @@ def resolve_coordination_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> An
 
 @insert_update_decorator(
     keys={
-        "hash_key": "coordination_type",
+        "hash_key": "endpoint_id",
         "range_key": "coordination_uuid",
     },
     model_funct=get_coordination,
@@ -119,22 +128,25 @@ def resolve_coordination_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> An
     # activity_history_funct=None,
 )
 def insert_update_coordination(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
-    coordination_type = kwargs.get("coordination_type")
+    endpoint_id = kwargs.get("endpoint_id")
     coordination_uuid = kwargs.get("coordination_uuid")
     if kwargs.get("entity") is None:
         cols = {
-            "coordination_name": kwargs["coordination_name"],
-            "coordination_description": kwargs["coordination_description"],
-            "assistant_id": kwargs["assistant_id"],
-            "assistant_type": kwargs["assistant_type"],
+            "agents": [],
             "updated_by": kwargs["updated_by"],
             "created_at": pendulum.now("UTC"),
             "updated_at": pendulum.now("UTC"),
         }
-        if kwargs.get("additional_instructions") is not None:
-            cols["additional_instructions"] = kwargs["additional_instructions"]
+        for key in [
+            "coordination_name",
+            "coordination_description",
+            "agents",
+        ]:
+            if key in kwargs:
+                cols[key] = kwargs[key]
+
         CoordinationModel(
-            coordination_type,
+            endpoint_id,
             coordination_uuid,
             **cols,
         ).save()
@@ -149,9 +161,7 @@ def insert_update_coordination(info: ResolveInfo, **kwargs: Dict[str, Any]) -> N
     field_map = {
         "coordination_name": CoordinationModel.coordination_name,
         "coordination_description": CoordinationModel.coordination_description,
-        "assistant_id": CoordinationModel.assistant_id,
-        "assistant_type": CoordinationModel.assistant_type,
-        "additional_instructions": CoordinationModel.additional_instructions,
+        "agents": CoordinationModel.agents,
     }
 
     # Check if a key exists in kwargs before adding it to the update actions
@@ -166,7 +176,7 @@ def insert_update_coordination(info: ResolveInfo, **kwargs: Dict[str, Any]) -> N
 
 @delete_decorator(
     keys={
-        "hash_key": "coordination_type",
+        "hash_key": "endpoint_id",
         "range_key": "coordination_uuid",
     },
     model_funct=get_coordination,

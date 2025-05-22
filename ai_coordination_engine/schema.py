@@ -7,32 +7,46 @@ __author__ = "bibow"
 import time
 from typing import Any, Dict
 
-from graphene import Field, Int, List, ObjectType, ResolveInfo, String
+from graphene import Boolean, Field, Int, List, ObjectType, ResolveInfo, String
 
-from .mutations.agent import DeleteAgent, InsertUpdateAgent
 from .mutations.coordination import DeleteCoordination, InsertUpdateCoordination
+from .mutations.procedure_hub import ExecuteForUserInput, ExecuteProcedureTaskSession
 from .mutations.session import DeleteSession, InsertUpdateSession
-from .mutations.thread import DeleteThread, InsertUpdateThread
-from .queries.agent import resolve_agent, resolve_agent_list
+from .mutations.session_agent import DeleteSessionAgent, InsertUpdateSessionAgent
+from .mutations.session_run import DeleteSessionRun, InsertUpdateSessionRun
+from .mutations.task import DeleteTask, InsertUpdateTask
+from .mutations.task_schedule import DeleteTaskSchedule, InsertUpdateTaskSchedule
 from .queries.coordination import resolve_coordination, resolve_coordination_list
+from .queries.operation_hub import resolve_ask_operation_hub
 from .queries.session import resolve_session, resolve_session_list
-from .queries.thread import resolve_thread, resolve_thread_list
-from .types.agent import AgentListType, AgentType
+from .queries.session_agent import resolve_session_agent, resolve_session_agent_list
+from .queries.session_run import resolve_session_run, resolve_session_run_list
+from .queries.task import resolve_task, resolve_task_list
+from .queries.task_schedule import resolve_task_schedule, resolve_task_schedule_list
 from .types.coordination import CoordinationListType, CoordinationType
+from .types.operation_hub import AskOperationHubType
 from .types.session import SessionListType, SessionType
-from .types.thread import ThreadListType, ThreadType
+from .types.session_agent import SessionAgentListType, SessionAgentType
+from .types.session_run import SessionRunListType, SessionRunType
+from .types.task import TaskListType, TaskType
+from .types.task_schedule import TaskScheduleListType, TaskScheduleType
 
 
 def type_class():
     return [
-        AgentListType,
-        AgentType,
         CoordinationListType,
-        ThreadType,
-        ThreadListType,
         SessionListType,
         SessionType,
         CoordinationType,
+        TaskType,
+        TaskListType,
+        TaskScheduleType,
+        TaskScheduleListType,
+        SessionAgentType,
+        SessionAgentListType,
+        SessionRunType,
+        SessionRunListType,
+        AskOperationHubType,
     ]
 
 
@@ -41,7 +55,6 @@ class Query(ObjectType):
 
     coordination = Field(
         CoordinationType,
-        coordination_type=String(required=True),
         coordination_uuid=String(required=True),
     )
 
@@ -49,29 +62,8 @@ class Query(ObjectType):
         CoordinationListType,
         page_number=Int(required=False),
         limit=Int(required=False),
-        coordination_type=String(required=False),
         coordination_name=String(required=False),
         coordination_description=String(required=False),
-        assistant_id=String(required=False),
-        assistant_types=List(String, required=False),
-    )
-
-    agent = Field(
-        AgentType,
-        coordination_uuid=String(required=True),
-        agent_uuid=String(required=True),
-    )
-
-    agent_list = Field(
-        AgentListType,
-        page_number=Int(required=False),
-        limit=Int(required=False),
-        coordination_uuid=String(required=False),
-        agent_name=String(required=False),
-        coordination_types=List(String, required=False),
-        response_format=String(required=False),
-        predecessor=String(required=False),
-        successor=String(required=False),
     )
 
     session = Field(
@@ -85,23 +77,90 @@ class Query(ObjectType):
         page_number=Int(required=False),
         limit=Int(required=False),
         coordination_uuid=String(required=False),
-        coordination_types=List(String, required=False),
+        task_uuid=String(required=False),
+        user_id=String(required=False),
         statuses=List(String, required=False),
     )
 
-    thread = Field(
-        ThreadType,
+    session_run = Field(
+        SessionRunType,
         session_uuid=String(required=True),
-        thread_id=String(required=True),
+        run_uuid=String(required=True),
     )
 
-    thread_list = Field(
-        ThreadListType,
+    session_run_list = Field(
+        SessionRunListType,
         page_number=Int(required=False),
         limit=Int(required=False),
         session_uuid=String(required=False),
         coordination_uuid=String(required=False),
         agent_uuid=String(required=False),
+        thread_uuid=String(required=False),
+    )
+
+    task = Field(
+        TaskType,
+        coordination_uuid=String(required=True),
+        task_uuid=String(required=True),
+    )
+
+    task_list = Field(
+        TaskListType,
+        page_number=Int(required=False),
+        limit=Int(required=False),
+        coordination_uuid=String(required=False),
+        task_name=String(required=False),
+        task_description=String(required=False),
+        initial_task_query=String(required=False),
+    )
+
+    session_agent = Field(
+        SessionAgentType,
+        session_uuid=String(required=True),
+        session_agent_uuid=String(required=True),
+    )
+
+    session_agent_list = Field(
+        SessionAgentListType,
+        page_number=Int(required=False),
+        limit=Int(required=False),
+        session_uuid=String(required=False),
+        coordination_uuid=String(required=False),
+        task_uuid=String(required=False),
+        agent_name=String(required=False),
+        primary_path=Boolean(required=False),
+        user_in_the_loop=String(required=False),
+        predecessor=String(required=False),
+        predecessors=List(String, required=False),
+        in_degree=Int(required=False),
+        states=List(String, required=False),
+    )
+
+    task_schedule = Field(
+        TaskScheduleType,
+        task_uuid=String(required=True),
+        schedule_uuid=String(required=True),
+    )
+
+    task_schedule_list = Field(
+        TaskScheduleListType,
+        page_number=Int(required=False),
+        limit=Int(required=False),
+        task_uuid=String(required=False),
+        coordination_uuid=String(required=False),
+        statuses=List(String, required=False),
+    )
+
+    ask_operation_hub = Field(
+        AskOperationHubType,
+        coordination_uuid=String(required=True),
+        user_id=String(required=False),
+        agent_uuid=String(required=False),
+        session_uuid=String(required=False),
+        user_query=String(required=True),
+        receiver_email=String(required=False),
+        thread_uuid=String(required=False),
+        stream=Boolean(required=False),
     )
 
     def resolve_ping(self, info: ResolveInfo) -> str:
@@ -117,14 +176,6 @@ class Query(ObjectType):
     ) -> CoordinationListType:
         return resolve_coordination_list(info, **kwargs)
 
-    def resolve_agent(self, info: ResolveInfo, **kwargs: Dict[str, Any]) -> AgentType:
-        return resolve_agent(info, **kwargs)
-
-    def resolve_agent_list(
-        self, info: ResolveInfo, **kwargs: Dict[str, Any]
-    ) -> AgentListType:
-        return resolve_agent_list(info, **kwargs)
-
     def resolve_session(
         self, info: ResolveInfo, **kwargs: Dict[str, Any]
     ) -> SessionType:
@@ -135,21 +186,62 @@ class Query(ObjectType):
     ) -> SessionListType:
         return resolve_session_list(info, **kwargs)
 
-    def resolve_thread(self, info: ResolveInfo, **kwargs: Dict[str, Any]) -> ThreadType:
-        return resolve_thread(info, **kwargs)
-
-    def resolve_thread_list(
+    def resolve_session_run(
         self, info: ResolveInfo, **kwargs: Dict[str, Any]
-    ) -> ThreadListType:
-        return resolve_thread_list(info, **kwargs)
+    ) -> SessionRunType:
+        return resolve_session_run(info, **kwargs)
+
+    def resolve_session_run_list(
+        self, info: ResolveInfo, **kwargs: Dict[str, Any]
+    ) -> SessionRunListType:
+        return resolve_session_run_list(info, **kwargs)
+
+    def resolve_task(self, info: ResolveInfo, **kwargs: Dict[str, Any]) -> TaskType:
+        return resolve_task(info, **kwargs)
+
+    def resolve_task_list(
+        self, info: ResolveInfo, **kwargs: Dict[str, Any]
+    ) -> TaskListType:
+        return resolve_task_list(info, **kwargs)
+
+    def resolve_session_agent(
+        self, info: ResolveInfo, **kwargs: Dict[str, Any]
+    ) -> SessionAgentType:
+        return resolve_session_agent(info, **kwargs)
+
+    def resolve_session_agent_list(
+        self, info: ResolveInfo, **kwargs: Dict[str, Any]
+    ) -> SessionAgentListType:
+        return resolve_session_agent_list(info, **kwargs)
+
+    def resolve_task_schedule(
+        self, info: ResolveInfo, **kwargs: Dict[str, Any]
+    ) -> TaskScheduleType:
+        return resolve_task_schedule(info, **kwargs)
+
+    def resolve_task_schedule_list(
+        self, info: ResolveInfo, **kwargs: Dict[str, Any]
+    ) -> TaskScheduleListType:
+        return resolve_task_schedule_list(info, **kwargs)
+
+    def resolve_ask_operation_hub(
+        self, info: ResolveInfo, **kwargs: Dict[str, Any]
+    ) -> AskOperationHubType:
+        return resolve_ask_operation_hub(info, **kwargs)
 
 
 class Mutations(ObjectType):
     insert_update_coordination = InsertUpdateCoordination.Field()
     delete_coordination = DeleteCoordination.Field()
-    insert_update_agent = InsertUpdateAgent.Field()
-    delete_agent = DeleteAgent.Field()
     insert_update_session = InsertUpdateSession.Field()
     delete_session = DeleteSession.Field()
-    insert_update_thread = InsertUpdateThread.Field()
-    delete_thread = DeleteThread.Field()
+    insert_update_session_run = InsertUpdateSessionRun.Field()
+    delete_session_run = DeleteSessionRun.Field()
+    insert_update_task = InsertUpdateTask.Field()
+    delete_task = DeleteTask.Field()
+    insert_update_session_agent = InsertUpdateSessionAgent.Field()
+    delete_session_agent = DeleteSessionAgent.Field()
+    insert_update_task_schedule = InsertUpdateTaskSchedule.Field()
+    delete_task_schedule = DeleteTaskSchedule.Field()
+    execute_procedure_task_session = ExecuteProcedureTaskSession.Field()
+    execute_for_user_input = ExecuteForUserInput.Field()

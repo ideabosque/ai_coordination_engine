@@ -4,12 +4,20 @@ from __future__ import print_function
 
 __author__ = "bibow"
 
+import logging
 import traceback
 from typing import Any, Dict
 
 import pendulum
 from graphene import ResolveInfo
-from pynamodb.attributes import UnicodeAttribute, UTCDateTimeAttribute
+from pynamodb.attributes import (
+    ListAttribute,
+    MapAttribute,
+    NumberAttribute,
+    UnicodeAttribute,
+    UTCDateTimeAttribute,
+)
+from pynamodb.indexes import AllProjection, LocalSecondaryIndex
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from silvaengine_dynamodb_base import (
@@ -21,9 +29,38 @@ from silvaengine_dynamodb_base import (
 )
 from silvaengine_utility import Utility
 
-from ..models.thread import ThreadModel
 from ..types.session import SessionListType, SessionType
-from .utils import _get_coordination, _get_thread_ids
+from .utils import _get_coordination, _get_task
+
+
+class UserIdIndex(LocalSecondaryIndex):
+    """
+    This class represents a local secondary index
+    """
+
+    class Meta:
+        billing_mode = "PAY_PER_REQUEST"
+        # All attributes are projected
+        projection = AllProjection()
+        index_name = "user_id-index"
+
+    coordination_uuid = UnicodeAttribute(hash_key=True)
+    user_id = UnicodeAttribute(range_key=True)
+
+
+class TaskUuidIndex(LocalSecondaryIndex):
+    """
+    This class represents a local secondary index
+    """
+
+    class Meta:
+        billing_mode = "PAY_PER_REQUEST"
+        # All attributes are projected
+        projection = AllProjection()
+        index_name = "task_uuid-index"
+
+    coordination_uuid = UnicodeAttribute(hash_key=True)
+    task_uuid = UnicodeAttribute(range_key=True)
 
 
 class SessionModel(BaseModel):
@@ -32,12 +69,28 @@ class SessionModel(BaseModel):
 
     coordination_uuid = UnicodeAttribute(hash_key=True)
     session_uuid = UnicodeAttribute(range_key=True)
-    coordination_type = UnicodeAttribute()
+    task_uuid = UnicodeAttribute(null=True)
+    user_id = UnicodeAttribute(null=True)
+    endpoint_id = UnicodeAttribute()
+    task_query = UnicodeAttribute(null=True)
+    iteration_count = NumberAttribute(default=0)
+    subtask_queries = ListAttribute(of=MapAttribute)
     status = UnicodeAttribute(default="initial")
-    notes = UnicodeAttribute(null=True)
+    logs = UnicodeAttribute(null=True)
     updated_by = UnicodeAttribute()
     created_at = UTCDateTimeAttribute()
     updated_at = UTCDateTimeAttribute()
+    task_uuid_index = TaskUuidIndex()
+    user_id_index = UserIdIndex()
+
+
+def create_session_table(logger: logging.Logger) -> bool:
+    """Create the Session table if it doesn't exist."""
+    if not SessionModel.exists():
+        # Create with on-demand billing (PAY_PER_REQUEST)
+        SessionModel.create_table(billing_mode="PAY_PER_REQUEST", wait=True)
+        logger.info("The Session table has been created.")
+    return True
 
 
 @retry(
@@ -58,23 +111,34 @@ def get_session_count(coordination_uuid: str, session_uuid: str) -> int:
 def get_session_type(info: ResolveInfo, session: SessionModel) -> SessionType:
     try:
         coordination = _get_coordination(
-            session.coordination_type,
+            session.endpoint_id,
             session.coordination_uuid,
         )
-        thread_ids = _get_thread_ids(session.session_uuid)
+        task = None
+        if session.task_uuid:
+            task = _get_task(
+                session.coordination_uuid,
+                session.task_uuid,
+            )
     except Exception as e:
         log = traceback.format_exc()
         info.context.get("logger").exception(log)
         raise e
     session = session.__dict__["attribute_values"]
     session["coordination"] = coordination
-    session["thread_ids"] = thread_ids
-    session.pop("coordination_type")
+    session.pop("endpoint_id")
     session.pop("coordination_uuid")
+    if task:
+        session["task"] = task
+        session.pop("task_uuid")
     return SessionType(**Utility.json_loads(Utility.json_dumps(session)))
 
 
 def resolve_session(info: ResolveInfo, **kwargs: Dict[str, Any]) -> SessionType:
+    count = get_session_count(kwargs["coordination_uuid"], kwargs["session_uuid"])
+    if count == 0:
+        return None
+
     return get_session_type(
         info,
         get_session(kwargs["coordination_uuid"], kwargs["session_uuid"]),
@@ -83,13 +147,15 @@ def resolve_session(info: ResolveInfo, **kwargs: Dict[str, Any]) -> SessionType:
 
 @monitor_decorator
 @resolve_list_decorator(
-    attributes_to_get=["coordination_uuid", "session_uuid"],
+    attributes_to_get=["coordination_uuid", "session_uuid", "task_uuid", "user_id"],
     list_type_class=SessionListType,
     type_funct=get_session_type,
 )
 def resolve_session_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     coordination_uuid = kwargs.get("coordination_uuid")
-    coordination_types = kwargs.get("coordination_types")
+    task_uuid = kwargs.get("task_uuid")
+    user_id = kwargs.get("user_id")
+    endpoint_id = info.context["endpoint_id"]
     statuses = kwargs.get("statuses")
     args = []
     inquiry_funct = SessionModel.scan
@@ -97,10 +163,18 @@ def resolve_session_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     if coordination_uuid:
         args = [coordination_uuid, None]
         inquiry_funct = SessionModel.query
+        if task_uuid:
+            count_funct = SessionModel.task_uuid_index.count
+            args[1] = SessionModel.task_uuid_index == task_uuid
+            inquiry_funct = SessionModel.task_uuid_index.query
+        if user_id:
+            count_funct = SessionModel.user_id_index.count
+            args[1] = SessionModel.user_id_index == user_id
+            inquiry_funct = SessionModel.user_id_index.query
 
     the_filters = None  # We can add filters for the query.
-    if coordination_types is not None:
-        the_filters &= SessionModel.coordination_type.is_in(*coordination_types)
+    if endpoint_id is not None:
+        the_filters &= SessionModel.endpoint_id == endpoint_id
     if statuses is not None:
         the_filters &= SessionModel.status.is_in(*statuses)
     if the_filters is not None:
@@ -117,23 +191,29 @@ def resolve_session_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     model_funct=get_session,
     count_funct=get_session_count,
     type_funct=get_session_type,
-    # data_attributes_except_for_data_diff=data_attributes_except_for_data_diff,
-    # activity_history_funct=None,
 )
 def insert_update_session(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     coordination_uuid = kwargs.get("coordination_uuid")
     session_uuid = kwargs.get("session_uuid")
     if kwargs.get("entity") is None:
         cols = {
-            "coordination_type": kwargs["coordination_type"],
+            "endpoint_id": info.context["endpoint_id"],
+            "subtask_queries": [],
             "updated_by": kwargs["updated_by"],
             "created_at": pendulum.now("UTC"),
             "updated_at": pendulum.now("UTC"),
         }
-        if kwargs.get("status") is not None:
-            cols["status"] = kwargs["status"]
-        if kwargs.get("notes") is not None:
-            cols["notes"] = kwargs["notes"]
+        for key in [
+            "status",
+            "logs",
+            "task_uuid",
+            "user_id",
+            "task_query",
+            "iteration_count",
+            "subtask_queries",
+        ]:
+            if key in kwargs:
+                cols[key] = kwargs[key]
         SessionModel(
             coordination_uuid,
             session_uuid,
@@ -146,11 +226,14 @@ def insert_update_session(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
         SessionModel.updated_by.set(kwargs["updated_by"]),
         SessionModel.updated_at.set(pendulum.now("UTC")),
     ]
+
     # Map of kwargs keys to SessionModel attributes
     field_map = {
-        "coordination_type": SessionModel.coordination_type,
         "status": SessionModel.status,
-        "notes": SessionModel.notes,
+        "logs": SessionModel.logs,
+        "task_query": SessionModel.task_query,
+        "iteration_count": SessionModel.iteration_count,
+        "subtask_queries": SessionModel.subtask_queries,
     }
 
     # Add actions dynamically based on the presence of keys in kwargs
