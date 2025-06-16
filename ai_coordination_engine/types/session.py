@@ -16,6 +16,7 @@ class SessionType(ObjectType):
     session_uuid = String()
     user_id = String()
     task_query = String()
+    input_files = List(JSON)
     iteration_count = Int()
     subtask_queries = List(JSON)
     status = String()

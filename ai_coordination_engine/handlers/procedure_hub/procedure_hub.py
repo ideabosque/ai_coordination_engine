@@ -7,6 +7,7 @@ __author__ = "bibow"
 from typing import Any, Dict
 
 from graphene import ResolveInfo
+
 from silvaengine_utility import Utility
 
 from ...models.session import insert_update_session
@@ -52,9 +53,11 @@ def execute_procedure_task_session(
         "task_query": kwargs.get("task_query", task.initial_task_query),
         "updated_by": "procedure_hub",
     }
+    if "input_files" in kwargs:
+        variables["input_files"] = kwargs["input_files"]
     if task.subtask_queries:
         variables["subtask_queries"] = task.subtask_queries
-    if kwargs.get("user_id"):
+    if "user_id" in kwargs:
         variables["user_id"] = kwargs["user_id"]
     session = insert_update_session(
         info,

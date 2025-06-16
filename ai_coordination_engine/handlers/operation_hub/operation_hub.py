@@ -140,19 +140,24 @@ def ask_operation_hub(
         connection_id = _handle_connection_routing(info, agent, **kwargs)
 
         # Step 5: Execute AI model and record session run
+        variables = {
+            "agentUuid": agent["agent_uuid"],
+            "threadUuid": kwargs.get("thread_uuid"),
+            "userQuery": user_query,
+            "userId": kwargs.get("user_id"),
+            "stream": kwargs.get("stream", False),
+            "updatedBy": "operation_hub",
+        }
+
+        if "input_files" in kwargs:
+            variables["inputFiles"] = kwargs["input_files"]
+
         ask_model = invoke_ask_model(
             info.context.get("logger"),
             info.context.get("endpoint_id"),
             setting=info.context.get("setting"),
             connection_id=connection_id,
-            **{
-                "agentUuid": agent["agent_uuid"],
-                "threadUuid": kwargs.get("thread_uuid"),
-                "userQuery": user_query,
-                "userId": kwargs.get("user_id"),
-                "stream": kwargs.get("stream", False),
-                "updatedBy": "operation_hub",
-            },
+            **variables,
         )
         session_run = insert_update_session_run(
             info,

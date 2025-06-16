@@ -73,6 +73,7 @@ class SessionModel(BaseModel):
     user_id = UnicodeAttribute(null=True)
     endpoint_id = UnicodeAttribute()
     task_query = UnicodeAttribute(null=True)
+    input_files = ListAttribute(of=MapAttribute)
     iteration_count = NumberAttribute(default=0)
     subtask_queries = ListAttribute(of=MapAttribute)
     status = UnicodeAttribute(default="initial")
@@ -198,6 +199,7 @@ def insert_update_session(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     if kwargs.get("entity") is None:
         cols = {
             "endpoint_id": info.context["endpoint_id"],
+            "input_files": [],
             "subtask_queries": [],
             "updated_by": kwargs["updated_by"],
             "created_at": pendulum.now("UTC"),
@@ -209,6 +211,7 @@ def insert_update_session(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
             "task_uuid",
             "user_id",
             "task_query",
+            "input_files",
             "iteration_count",
             "subtask_queries",
         ]:
@@ -232,6 +235,7 @@ def insert_update_session(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
         "status": SessionModel.status,
         "logs": SessionModel.logs,
         "task_query": SessionModel.task_query,
+        "input_files": SessionModel.input_files,
         "iteration_count": SessionModel.iteration_count,
         "subtask_queries": SessionModel.subtask_queries,
     }

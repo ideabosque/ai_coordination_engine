@@ -437,18 +437,27 @@ def execute_session_agent(info: ResolveInfo, session_agent: SessionAgentType) ->
             or session_agent.agent_action.get("user_in_the_loop")
             else None
         )
+        variables = {
+            "agentUuid": session_agent.agent_uuid,
+            "threadUuid": thread_uuid,
+            "userQuery": subtask_query + "\n\n" + "\n\n".join(predecessors_outputs),
+            "userId": session_agent.session.get("user_id"),
+            "updatedBy": "operation_hub",
+        }
+
+        # Check if session has input files and add them to variables if present
+        if (
+            session_agent.session.get("input_files")
+            and len(session_agent.session["input_files"]) > 0
+        ):
+            variables.update({"inputFiles": session_agent.session["input_files"]})
+
         ask_model = invoke_ask_model(
             info.context.get("logger"),
             info.context.get("endpoint_id"),
             setting=info.context.get("setting"),
             connection_id=connection_id,
-            **{
-                "agentUuid": session_agent.agent_uuid,
-                "threadUuid": thread_uuid,
-                "userQuery": subtask_query + "\n\n" + "\n\n".join(predecessors_outputs),
-                "userId": session_agent.session.get("user_id"),
-                "updatedBy": "operation_hub",
-            },
+            **variables,
         )
 
         insert_update_session_run(
