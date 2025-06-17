@@ -4,7 +4,7 @@ from __future__ import print_function
 
 __author__ = "bibow"
 
-from graphene import DateTime, List, ObjectType, String
+from graphene import DateTime, Int, ObjectType, String
 
 from silvaengine_utility import JSON
 
@@ -16,3 +16,9 @@ class AskOperationHubType(ObjectType):
     agent_uuid = String()
     async_task_uuid = String()
     updated_at = DateTime()
+
+
+class PresignedAWSS3UrlType(ObjectType):
+    url = String()
+    object_key = String()
+    expiration = Int()

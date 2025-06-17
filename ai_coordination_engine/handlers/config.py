@@ -8,6 +8,7 @@ import os
 from typing import Any, Dict
 
 import boto3
+
 from silvaengine_utility import Utility
 
 from ..models import utils
@@ -95,7 +96,11 @@ class Config:
         cls.aws_lambda = boto3.client("lambda", **aws_credentials)
         cls.dynamodb = boto3.resource("dynamodb", **aws_credentials)
         cls.aws_ses = boto3.client("ses", **aws_credentials)
-        cls.aws_s3 = boto3.client("s3", **aws_credentials)
+        cls.aws_s3 = boto3.client(
+            "s3",
+            **aws_credentials,
+            config=boto3.session.Config(signature_version="s3v4")
+        )
 
     # Fetches and caches GraphQL schema for a given function
     @classmethod

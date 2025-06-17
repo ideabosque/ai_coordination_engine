@@ -19,14 +19,17 @@ from .mutations.session_run import DeleteSessionRun, InsertUpdateSessionRun
 from .mutations.task import DeleteTask, InsertUpdateTask
 from .mutations.task_schedule import DeleteTaskSchedule, InsertUpdateTaskSchedule
 from .queries.coordination import resolve_coordination, resolve_coordination_list
-from .queries.operation_hub import resolve_ask_operation_hub
+from .queries.operation_hub import (
+    resolve_ask_operation_hub,
+    resolve_presigned_aws_s3_url,
+)
 from .queries.session import resolve_session, resolve_session_list
 from .queries.session_agent import resolve_session_agent, resolve_session_agent_list
 from .queries.session_run import resolve_session_run, resolve_session_run_list
 from .queries.task import resolve_task, resolve_task_list
 from .queries.task_schedule import resolve_task_schedule, resolve_task_schedule_list
 from .types.coordination import CoordinationListType, CoordinationType
-from .types.operation_hub import AskOperationHubType
+from .types.operation_hub import AskOperationHubType, PresignedAWSS3UrlType
 from .types.session import SessionListType, SessionType
 from .types.session_agent import SessionAgentListType, SessionAgentType
 from .types.session_run import SessionRunListType, SessionRunType
@@ -49,6 +52,7 @@ def type_class():
         SessionRunType,
         SessionRunListType,
         AskOperationHubType,
+        PresignedAWSS3UrlType,
     ]
 
 
@@ -166,6 +170,13 @@ class Query(ObjectType):
         stream=Boolean(required=False),
     )
 
+    presigned_aws_s3_url = Field(
+        PresignedAWSS3UrlType,
+        required=True,
+        client_method=String(required=False),
+        object_key=String(required=True),
+    )
+
     def resolve_ping(self, info: ResolveInfo) -> str:
         return f"Hello at {time.strftime('%X')}!!"
 
@@ -231,6 +242,11 @@ class Query(ObjectType):
         self, info: ResolveInfo, **kwargs: Dict[str, Any]
     ) -> AskOperationHubType:
         return resolve_ask_operation_hub(info, **kwargs)
+
+    def resolve_presigned_aws_s3_url(
+        self, info: ResolveInfo, **kwargs: Dict[str, Any]
+    ) -> PresignedAWSS3UrlType:
+        return resolve_presigned_aws_s3_url(info, **kwargs)
 
 
 class Mutations(ObjectType):
