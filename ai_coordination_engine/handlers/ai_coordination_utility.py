@@ -17,7 +17,6 @@ from graphene import ResolveInfo
 
 from silvaengine_utility import Utility
 
-from ..types.operation_hub import PresignedAWSS3UrlType
 from .config import Config
 
 
@@ -234,43 +233,4 @@ def send_email(
     except Exception as e:
         log = traceback.format_exc()
         logger.error(log)
-        raise e
-
-
-def get_presigned_aws_s3_url(
-    info: ResolveInfo, **kwargs: Dict[str, Any]
-) -> PresignedAWSS3UrlType:
-    # bucket_name, object_key, expiration=3600):
-    """
-    Generate a presigned URL to upload a file to an S3 bucket.
-
-    :param bucket_name: Name of the S3 bucket.
-    :param object_key: Name of the file to be uploaded (object key).
-    :param expiration: Time in seconds for the presigned URL to remain valid.
-    :return: Presigned URL as a string.
-    """
-    client_method = kwargs.get("client_method", "put_object")
-    bucket_name = info.context["setting"].get("aws_s3_bucket")
-    object_key = kwargs.get("object_key")
-    expiration = int(
-        info.context["setting"].get("expiration", 3600)
-    )  # Default to 1 hour
-
-    # Generate the presigned URL for put_object
-    try:
-        response = Config.aws_s3.generate_presigned_url(
-            ClientMethod=client_method,
-            Params={"Bucket": bucket_name, "Key": object_key},
-            ExpiresIn=expiration,
-            HttpMethod="PUT" if client_method == "put_object" else "GET",
-        )
-
-        return PresignedAWSS3UrlType(
-            url=response,
-            object_key=object_key,
-            expiration=expiration,
-        )
-    except Exception as e:
-        log = traceback.format_exc()
-        info.context.get("logger").error(log)
         raise e

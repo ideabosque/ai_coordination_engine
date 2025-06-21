@@ -16,9 +16,3 @@ class AskOperationHubType(ObjectType):
     agent_uuid = String()
     async_task_uuid = String()
     updated_at = DateTime()
-
-
-class PresignedAWSS3UrlType(ObjectType):
-    url = String()
-    object_key = String()
-    expiration = Int()
