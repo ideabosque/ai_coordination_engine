@@ -87,7 +87,7 @@ def get_task_schedule_type(
     task_schedule.pop("coordination_uuid")
     task_schedule.pop("endpoint_id")
     task_schedule.pop("task_uuid")
-    return TaskScheduleType(**Utility.json_loads(Utility.json_dumps(task_schedule)))
+    return TaskScheduleType(**Utility.json_normalize(task_schedule))
 
 
 def resolve_task_schedule(

@@ -135,7 +135,7 @@ def get_session_run_type(
         session_run.pop("session_agent_uuid")
     session_run["async_task"] = async_task
     session_run.pop("async_task_uuid")
-    return SessionRunType(**Utility.json_loads(Utility.json_dumps(session_run)))
+    return SessionRunType(**Utility.json_normalize(session_run))
 
 
 def resolve_session_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> SessionRunType:

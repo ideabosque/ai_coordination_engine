@@ -91,7 +91,7 @@ def get_session_agent_type(
     session_agent["session"] = session
     session_agent.pop("coordination_uuid")
     session_agent.pop("session_uuid")
-    return SessionAgentType(**Utility.json_loads(Utility.json_dumps(session_agent)))
+    return SessionAgentType(**Utility.json_normalize(session_agent))
 
 
 def resolve_session_agent(

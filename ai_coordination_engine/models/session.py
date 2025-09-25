@@ -132,7 +132,7 @@ def get_session_type(info: ResolveInfo, session: SessionModel) -> SessionType:
     if task:
         session["task"] = task
         session.pop("task_uuid")
-    return SessionType(**Utility.json_loads(Utility.json_dumps(session)))
+    return SessionType(**Utility.json_normalize(session))
 
 
 def resolve_session(info: ResolveInfo, **kwargs: Dict[str, Any]) -> SessionType:

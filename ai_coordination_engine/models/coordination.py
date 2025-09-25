@@ -72,7 +72,7 @@ def get_coordination_type(
     info: ResolveInfo, coordination: CoordinationModel
 ) -> CoordinationType:
     coordination = coordination.__dict__["attribute_values"]
-    return CoordinationType(**Utility.json_loads(Utility.json_dumps(coordination)))
+    return CoordinationType(**Utility.json_normalize(coordination))
 
 
 def resolve_coordination(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:

@@ -82,7 +82,7 @@ def get_task_type(info: ResolveInfo, task: TaskModel) -> TaskType:
     task["coordination"] = coordination
     task.pop("endpoint_id")
     task.pop("coordination_uuid")
-    return TaskType(**Utility.json_loads(Utility.json_dumps(task)))
+    return TaskType(**Utility.json_normalize(task))
 
 
 def resolve_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> TaskType:
