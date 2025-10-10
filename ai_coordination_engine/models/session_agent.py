@@ -4,6 +4,7 @@ from __future__ import print_function
 
 __author__ = "bibow"
 
+import functools
 import logging
 import traceback
 from typing import Any, Dict
@@ -25,8 +26,9 @@ from silvaengine_dynamodb_base import (
     monitor_decorator,
     resolve_list_decorator,
 )
-from silvaengine_utility import Utility
+from silvaengine_utility import Utility, method_cache
 
+from ..handlers.config import Config
 from ..types.session_agent import SessionAgentListType, SessionAgentType
 from .utils import _get_session
 
@@ -51,6 +53,46 @@ class SessionAgentModel(BaseModel):
     updated_at = UTCDateTimeAttribute()
 
 
+def purge_cache():
+    def actual_decorator(original_function):
+        @functools.wraps(original_function)
+        def wrapper_function(*args, **kwargs):
+            try:
+                # Use cascading cache purging for session agents
+                from ..models.cache import purge_entity_cascading_cache
+
+                try:
+                    session_agent = resolve_session_agent(args[0], **kwargs)
+                except Exception as e:
+                    session_agent = None
+
+                entity_keys = {}
+                if session_agent:
+                    entity_keys["session_agent_uuid"] = session_agent.session_agent_uuid
+                    entity_keys["session_uuid"] = session_agent.session["session_uuid"]
+
+                result = purge_entity_cascading_cache(
+                    args[0].context.get("logger"),
+                    entity_type="session_agent",
+                    context_keys=None,
+                    entity_keys=entity_keys if entity_keys else None,
+                    cascade_depth=3,
+                )
+
+                ## Original function.
+                result = original_function(*args, **kwargs)
+
+                return result
+            except Exception as e:
+                log = traceback.format_exc()
+                args[0].context.get("logger").error(log)
+                raise e
+
+        return wrapper_function
+
+    return actual_decorator
+
+
 def create_session_agent_table(logger: logging.Logger) -> bool:
     """Create the Session Agent table if it doesn't exist."""
     if not SessionAgentModel.exists():
@@ -64,6 +106,10 @@ def create_session_agent_table(logger: logging.Logger) -> bool:
     reraise=True,
     wait=wait_exponential(multiplier=1, max=60),
     stop=stop_after_attempt(5),
+)
+@method_cache(
+    ttl=Config.get_cache_ttl(),
+    cache_name=Config.get_cache_name("models", "session_agent"),
 )
 def get_session_agent(session_uuid: str, session_agent_uuid: str) -> SessionAgentModel:
     return SessionAgentModel.get(session_uuid, session_agent_uuid)
@@ -162,6 +208,7 @@ def resolve_session_agent_list(
     return inquiry_funct, count_funct, args
 
 
+@purge_cache()
 @insert_update_decorator(
     keys={
         "hash_key": "session_uuid",
@@ -241,6 +288,7 @@ def insert_update_session_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> 
     return
 
 
+@purge_cache()
 @delete_decorator(
     keys={
         "hash_key": "session_uuid",

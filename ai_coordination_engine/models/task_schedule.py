@@ -4,6 +4,7 @@ from __future__ import print_function
 
 __author__ = "bibow"
 
+import functools
 import logging
 import traceback
 from typing import Any, Dict
@@ -20,8 +21,9 @@ from silvaengine_dynamodb_base import (
     monitor_decorator,
     resolve_list_decorator,
 )
-from silvaengine_utility import Utility
+from silvaengine_utility import Utility, method_cache
 
+from ..handlers.config import Config
 from ..types.task_schedule import TaskScheduleListType, TaskScheduleType
 from .utils import _get_coordination, _get_task
 
@@ -41,6 +43,48 @@ class TaskScheduleModel(BaseModel):
     updated_at = UTCDateTimeAttribute()
 
 
+def purge_cache():
+    def actual_decorator(original_function):
+        @functools.wraps(original_function)
+        def wrapper_function(*args, **kwargs):
+            try:
+                # Use cascading cache purging for task schedules
+                from ..models.cache import purge_entity_cascading_cache
+
+                try:
+                    task_schedule = resolve_task_schedule(args[0], **kwargs)
+                except Exception as e:
+                    task_schedule = None
+
+                entity_keys = {}
+                if task_schedule:
+                    entity_keys["task_schedule_uuid"] = task_schedule.schedule_uuid
+                    entity_keys["coordination_uuid"] = task_schedule.coordination[
+                        "coordination_uuid"
+                    ]
+
+                result = purge_entity_cascading_cache(
+                    args[0].context.get("logger"),
+                    entity_type="task_schedule",
+                    context_keys=None,
+                    entity_keys=entity_keys if entity_keys else None,
+                    cascade_depth=3,
+                )
+
+                ## Original function.
+                result = original_function(*args, **kwargs)
+
+                return result
+            except Exception as e:
+                log = traceback.format_exc()
+                args[0].context.get("logger").error(log)
+                raise e
+
+        return wrapper_function
+
+    return actual_decorator
+
+
 def create_task_schedule_table(logger: logging.Logger) -> bool:
     """Create the TaskSchedule table if it doesn't exist."""
     if not TaskScheduleModel.exists():
@@ -54,6 +98,10 @@ def create_task_schedule_table(logger: logging.Logger) -> bool:
     reraise=True,
     wait=wait_exponential(multiplier=1, max=60),
     stop=stop_after_attempt(5),
+)
+@method_cache(
+    ttl=Config.get_cache_ttl(),
+    cache_name=Config.get_cache_name("models", "task_schedule"),
 )
 def get_task_schedule(task_uuid: str, schedule_uuid: str) -> TaskScheduleType:
     return TaskScheduleModel.get(
@@ -136,6 +184,7 @@ def resolve_task_schedule_list(
     return inquiry_funct, count_funct, args
 
 
+@purge_cache()
 @insert_update_decorator(
     keys={
         "hash_key": "task_uuid",
@@ -191,6 +240,7 @@ def insert_update_task_schedule(
     return
 
 
+@purge_cache()
 @delete_decorator(
     keys={
         "hash_key": "task_uuid",
