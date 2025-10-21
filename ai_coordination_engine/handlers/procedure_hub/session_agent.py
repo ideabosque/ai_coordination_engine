@@ -9,7 +9,6 @@ import traceback
 from typing import Any, Dict, List, Tuple
 
 from graphene import ResolveInfo
-
 from silvaengine_utility import Utility
 
 from ...models.session import insert_update_session
@@ -492,7 +491,7 @@ def execute_session_agent(info: ResolveInfo, session_agent: SessionAgentType) ->
             "async_update_session_agent",
             params=params,
             setting=info.context["setting"],
-            test_mode=info.context["setting"].get("test_mode"),
+            execute_mode=info.context["setting"].get("execute_mode"),
             aws_lambda=Config.aws_lambda,
         )
         return

@@ -10,7 +10,6 @@ import traceback
 from typing import Any, Dict, List
 
 from graphene import ResolveInfo
-
 from silvaengine_utility import Utility
 
 from ...handlers.config import Config
@@ -313,7 +312,7 @@ def invoke_next_iteration(
         "async_execute_procedure_task_session",
         params=params,
         setting=info.context["setting"],
-        test_mode=info.context["setting"].get("test_mode"),
+        execute_mode=info.context["setting"].get("execute_mode"),
         aws_lambda=Config.aws_lambda,
     )
 

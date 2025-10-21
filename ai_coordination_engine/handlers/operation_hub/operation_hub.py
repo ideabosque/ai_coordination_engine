@@ -8,7 +8,6 @@ import traceback
 from typing import Any, Dict, Optional
 
 from graphene import ResolveInfo
-
 from silvaengine_utility import Utility
 
 from ...models.coordination import resolve_coordination
@@ -369,7 +368,7 @@ def _trigger_async_update(
         "async_insert_update_session",
         params=params,
         setting=info.context["setting"],
-        test_mode=info.context["setting"].get("test_mode"),
+        execute_mode=info.context["setting"].get("execute_mode"),
         aws_lambda=Config.aws_lambda,
         invocation_type="Event",
     )

@@ -150,7 +150,7 @@ class Config:
             cls._set_parameters(setting)
             cls._setup_function_paths(setting)
             cls._initialize_aws_services(setting)
-            if setting.get("test_mode") == "local_for_all":
+            if setting.get("execute_mode") == "local_for_all":
                 cls._initialize_tables(logger)
             logger.info("Configuration initialized successfully.")
         except Exception as e:
@@ -272,6 +272,6 @@ class Config:
                 function_name,
                 setting=setting,
                 aws_lambda=Config.aws_lambda,
-                test_mode=setting.get("test_mode"),
+                execute_mode=setting.get("execute_mode"),
             )
         return Config.schemas[function_name]

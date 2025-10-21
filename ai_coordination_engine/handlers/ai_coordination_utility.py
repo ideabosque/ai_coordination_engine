@@ -14,7 +14,6 @@ from typing import Any, Callable, Dict, Optional
 import humps
 from boto3.dynamodb.conditions import Attr, Key
 from graphene import ResolveInfo
-
 from silvaengine_utility import Utility
 
 from .config import Config
@@ -70,7 +69,7 @@ def execute_graphql_query(
         setting=setting,
         aws_lambda=Config.aws_lambda,
         connection_id=connection_id,
-        test_mode=setting.get("test_mode"),
+        execute_mode=setting.get("execute_mode"),
     )
     return result
 

@@ -7,7 +7,6 @@ __author__ = "bibow"
 from typing import Any, Dict
 
 from graphene import ResolveInfo
-
 from silvaengine_utility import Utility
 
 from ...models.session import insert_update_session
@@ -87,7 +86,7 @@ def execute_procedure_task_session(
             "async_orchestrate_task_query",
             params=params,
             setting=info.context["setting"],
-            test_mode=info.context["setting"].get("test_mode"),
+            execute_mode=info.context["setting"].get("execute_mode"),
             aws_lambda=Config.aws_lambda,
         )
     else:
@@ -116,7 +115,7 @@ def execute_procedure_task_session(
         "async_execute_procedure_task_session",
         params=params,
         setting=info.context["setting"],
-        test_mode=info.context["setting"].get("test_mode"),
+        execute_mode=info.context["setting"].get("execute_mode"),
         aws_lambda=Config.aws_lambda,
     )
 
