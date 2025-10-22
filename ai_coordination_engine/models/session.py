@@ -182,7 +182,7 @@ def get_session_type(info: ResolveInfo, session: SessionModel) -> SessionType:
     return SessionType(**Utility.json_normalize(session))
 
 
-def resolve_session(info: ResolveInfo, **kwargs: Dict[str, Any]) -> SessionType:
+def resolve_session(info: ResolveInfo, **kwargs: Dict[str, Any]) -> SessionType | None:
     count = get_session_count(kwargs["coordination_uuid"], kwargs["session_uuid"])
     if count == 0:
         return None
