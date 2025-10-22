@@ -63,7 +63,7 @@ def purge_cache():
 
                 try:
                     session_agent = resolve_session_agent(args[0], **kwargs)
-                except Exception as e:
+                except Exception:
                     session_agent = None
 
                 entity_keys = {}
@@ -142,7 +142,7 @@ def get_session_agent_type(
 
 def resolve_session_agent(
     info: ResolveInfo, **kwargs: Dict[str, Any]
-) -> SessionAgentType:
+) -> SessionAgentType | None:
     count = get_session_agent_count(
         kwargs["session_uuid"], kwargs["session_agent_uuid"]
     )
@@ -163,7 +163,7 @@ def resolve_session_agent(
 )
 def resolve_session_agent_list(
     info: ResolveInfo, **kwargs: Dict[str, Any]
-) -> SessionAgentListType:
+) -> Any:
     session_uuid = kwargs.get("session_uuid")
     coordination_uuid = kwargs.get("coordination_uuid")
     agent_uuid = kwargs.get("agent_uuid")

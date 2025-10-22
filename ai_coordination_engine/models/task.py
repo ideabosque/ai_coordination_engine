@@ -17,7 +17,6 @@ from pynamodb.attributes import (
     UnicodeAttribute,
     UTCDateTimeAttribute,
 )
-from pynamodb.indexes import AllProjection, LocalSecondaryIndex
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from silvaengine_dynamodb_base import (
@@ -61,7 +60,7 @@ def purge_cache():
 
                 try:
                     task = resolve_task(args[0], **kwargs)
-                except Exception as e:
+                except Exception:
                     task = None
 
                 entity_keys = {}
@@ -132,7 +131,7 @@ def get_task_type(info: ResolveInfo, task: TaskModel) -> TaskType:
     return TaskType(**Utility.json_normalize(task))
 
 
-def resolve_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> TaskType:
+def resolve_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> TaskType | None:
     count = get_task_count(kwargs["coordination_uuid"], kwargs["task_uuid"])
     if count == 0:
         return None

@@ -97,7 +97,7 @@ def purge_cache():
 
                 try:
                     session = resolve_session(args[0], **kwargs)
-                except Exception as e:
+                except Exception:
                     session = None
 
                 entity_keys = {}

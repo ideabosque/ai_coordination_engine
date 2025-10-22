@@ -57,7 +57,7 @@ def purge_cache():
 
                 try:
                     coordination = resolve_coordination(args[0], **kwargs)
-                except Exception as e:
+                except Exception:
                     coordination = None
 
                 endpoint_id = args[0].context.get("endpoint_id") or kwargs.get(
