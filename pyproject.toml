@@ -39,12 +39,12 @@ Homepage = "https://github.com/ideabosque/ai_coordination_engine"
 Repository = "https://github.com/ideabosque/ai_coordination_engine"
 
 [tool.setuptools]
-packages = ["ai_coordination_engine"]
-include-package-data = true
 zip-safe = false
 
-[tool.setuptools.package-data]
-ai_coordination_engine = ["*"]
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["ai_coordination_engine*"]
+exclude = ["tests*", "*.tests*"]
 
 [tool.pyright]
 typeCheckingMode = "basic"
