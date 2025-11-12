@@ -467,9 +467,11 @@ def async_orchestrate_task_query(
         info.context.get("logger"),
         info.context.get("endpoint_id"),
         setting=info.context.get("setting"),
-        agentUuid=orchestrator_agent["agent_uuid"],
-        userQuery=query,
-        updatedBy="operation_hub",
+        **{
+            "agentUuid": orchestrator_agent["agent_uuid"],
+            "userQuery": query,
+            "updatedBy": "operation_hub",
+        },
     )
 
     # Wait for task completion
@@ -505,7 +507,9 @@ def async_orchestrate_task_query(
     return
 
 
-def _check_session_status(info: ResolveInfo, **kwargs: Dict[str, Any]) -> SessionType:
+def _check_session_status(
+    info: ResolveInfo, **kwargs: Dict[str, Any]
+) -> SessionType | None:
     """Check session status and update to in_progress if dispatched
 
     Polls the session status for up to 60 seconds, checking if:

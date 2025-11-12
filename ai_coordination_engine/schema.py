@@ -8,7 +8,6 @@ import time
 from typing import Any, Dict
 
 from graphene import Boolean, Field, Int, List, ObjectType, ResolveInfo, String
-
 from silvaengine_utility import JSON
 
 from .mutations.coordination import DeleteCoordination, InsertUpdateCoordination
@@ -164,6 +163,7 @@ class Query(ObjectType):
         receiver_email=String(required=False),
         thread_uuid=String(required=False),
         stream=Boolean(required=False),
+        thread_life_minutes=Int(required=False),
     )
 
     def resolve_ping(self, info: ResolveInfo) -> str:

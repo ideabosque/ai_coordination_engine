@@ -148,6 +148,9 @@ def ask_operation_hub(
             "updatedBy": "operation_hub",
         }
 
+        if "thread_life_minutes" in kwargs:
+            variables["threadLifeMinutes"] = kwargs["thread_life_minutes"]
+
         if "input_files" in kwargs:
             variables["inputFiles"] = kwargs["input_files"]
 
@@ -198,7 +201,7 @@ def ask_operation_hub(
         raise e
 
 
-def _handle_session(info: ResolveInfo, **kwargs: Dict[str, Any]) -> SessionType:
+def _handle_session(info: ResolveInfo, **kwargs: Dict[str, Any]) -> SessionType | None:
     """
     Helper function to create or update a session.
 
@@ -232,7 +235,7 @@ def _handle_session(info: ResolveInfo, **kwargs: Dict[str, Any]) -> SessionType:
 
 def _select_agent(
     coordination: CoordinationType, **kwargs: Dict[str, Any]
-) -> Dict[str, Any]:
+) -> Dict[str, Any] | None:
     """
     Helper function to select appropriate agent.
 
