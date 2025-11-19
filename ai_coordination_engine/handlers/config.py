@@ -8,6 +8,7 @@ import os
 from typing import Any, Dict, List
 
 import boto3
+
 from silvaengine_utility import Utility
 
 from ..models import utils
@@ -150,7 +151,7 @@ class Config:
             cls._set_parameters(setting)
             cls._setup_function_paths(setting)
             cls._initialize_aws_services(setting)
-            if setting.get("execute_mode") == "local_for_all":
+            if setting.get("initialize_tables"):
                 cls._initialize_tables(logger)
             logger.info("Configuration initialized successfully.")
         except Exception as e:
