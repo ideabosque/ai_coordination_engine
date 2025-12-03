@@ -19,8 +19,6 @@ from pynamodb.attributes import (
     UTCDateTimeAttribute,
 )
 from pynamodb.indexes import AllProjection, LocalSecondaryIndex
-from tenacity import retry, stop_after_attempt, wait_exponential
-
 from silvaengine_dynamodb_base import (
     BaseModel,
     delete_decorator,
@@ -29,10 +27,10 @@ from silvaengine_dynamodb_base import (
     resolve_list_decorator,
 )
 from silvaengine_utility import Utility, method_cache
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..handlers.config import Config
 from ..types.session import SessionListType, SessionType
-from .utils import _get_coordination, _get_task
 
 
 class UserIdIndex(LocalSecondaryIndex):
@@ -157,29 +155,23 @@ def get_session_count(coordination_uuid: str, session_uuid: str) -> int:
 
 
 def get_session_type(info: ResolveInfo, session: SessionModel) -> SessionType:
-    try:
-        coordination = _get_coordination(
-            session.endpoint_id,
-            session.coordination_uuid,
-        )
-        task = None
-        if session.task_uuid:
-            task = _get_task(
-                session.coordination_uuid,
-                session.task_uuid,
-            )
-    except Exception as e:
-        log = traceback.format_exc()
-        info.context.get("logger").exception(log)
-        raise e
-    session = session.__dict__["attribute_values"]
-    session["coordination"] = coordination
-    session.pop("endpoint_id")
-    session.pop("coordination_uuid")
-    if task:
-        session["task"] = task
-        session.pop("task_uuid")
-    return SessionType(**Utility.json_normalize(session))
+    """
+    Get SessionType from SessionModel without embedding nested objects.
+
+    Nested objects (coordination, task, session_agents, session_runs) are now
+    handled by GraphQL nested resolvers with batch loading for optimal performance.
+
+    Args:
+        info: GraphQL resolve info (kept for signature compatibility)
+        session: SessionModel instance
+
+    Returns:
+        SessionType with foreign keys intact for lazy loading via nested resolvers
+    """
+    _ = info  # Keep for signature compatibility with decorators
+    session_dict = session.__dict__["attribute_values"].copy()
+    # Keep all fields including FKs - nested resolvers will handle lazy loading
+    return SessionType(**Utility.json_normalize(session_dict))
 
 
 def resolve_session(info: ResolveInfo, **kwargs: Dict[str, Any]) -> SessionType | None:

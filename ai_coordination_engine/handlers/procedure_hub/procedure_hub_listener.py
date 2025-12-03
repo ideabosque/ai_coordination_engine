@@ -17,11 +17,8 @@ from ...models.session import insert_update_session, resolve_session
 from ...models.session_agent import resolve_session_agent_list
 from ...types.session import SessionType
 from ...types.session_agent import SessionAgentListType, SessionAgentType
-from ..ai_coordination_utility import (
-    create_listener_info,
-    get_async_task,
-    invoke_ask_model,
-)
+from ...utils.listener import create_listener_info
+from ..ai_coordination_utility import get_async_task, invoke_ask_model
 from .action_function import execute_action_function
 from .session_agent import (
     execute_session_agent,

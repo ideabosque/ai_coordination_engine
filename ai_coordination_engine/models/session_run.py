@@ -27,7 +27,6 @@ from silvaengine_utility import Utility, method_cache
 from ..handlers.ai_coordination_utility import get_async_task
 from ..handlers.config import Config
 from ..types.session_run import SessionRunListType, SessionRunType
-from .utils import _get_session, _get_session_agent
 
 
 class ThreadUuidIndex(LocalSecondaryIndex):
@@ -152,13 +151,22 @@ def get_session_run_count(session_uuid: str, run_uuid: str) -> int:
 def get_session_run_type(
     info: ResolveInfo, session_run: SessionRunModel
 ) -> SessionRunType:
+    """
+    Get SessionRunType from SessionRunModel without embedding nested objects.
+
+    Nested objects (session, session_agent) are now handled by GraphQL nested resolvers
+    with batch loading for optimal performance. The async_task is still embedded as it
+    comes from a different service (not DynamoDB).
+
+    Args:
+        info: GraphQL resolve info
+        session_run: SessionRunModel instance
+
+    Returns:
+        SessionRunType with foreign keys intact for lazy loading via nested resolvers
+    """
     try:
-        session = _get_session(session_run.coordination_uuid, session_run.session_uuid)
-        session_agent = None
-        if session_run.session_agent_uuid:
-            session_agent = _get_session_agent(
-                session_run.session_uuid, session_run.session_agent_uuid
-            )
+        # Still fetch async_task as it comes from external service (not a DynamoDB relation)
         async_task = {
             k: v
             for k, v in get_async_task(
@@ -176,16 +184,11 @@ def get_session_run_type(
         log = traceback.format_exc()
         info.context.get("logger").exception(log)
         raise e
-    session_run = session_run.__dict__["attribute_values"]
-    session_run["session"] = session
-    session_run.pop("coordination_uuid")
-    session_run.pop("session_uuid")
-    if session_agent:
-        session_run["session_agent"] = session_agent
-        session_run.pop("session_agent_uuid")
-    session_run["async_task"] = async_task
-    session_run.pop("async_task_uuid")
-    return SessionRunType(**Utility.json_normalize(session_run))
+
+    session_run_dict = session_run.__dict__["attribute_values"].copy()
+    # Keep FKs for nested resolvers, but embed async_task from external service
+    session_run_dict["async_task"] = async_task
+    return SessionRunType(**Utility.json_normalize(session_run_dict))
 
 
 def resolve_session_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> SessionRunType:

@@ -118,17 +118,23 @@ def get_task_count(coordination_uuid: str, task_uuid: str) -> int:
 
 
 def get_task_type(info: ResolveInfo, task: TaskModel) -> TaskType:
-    try:
-        coordination = _get_coordination(task.endpoint_id, task.coordination_uuid)
-    except Exception as e:
-        log = traceback.format_exc()
-        info.context.get("logger").exception(log)
-        raise e
-    task = task.__dict__["attribute_values"]
-    task["coordination"] = coordination
-    task.pop("endpoint_id")
-    task.pop("coordination_uuid")
-    return TaskType(**Utility.json_normalize(task))
+    """
+    Get TaskType from TaskModel without embedding nested objects.
+
+    Nested objects (coordination) are now handled by GraphQL nested resolvers
+    with batch loading for optimal performance.
+
+    Args:
+        info: GraphQL resolve info (kept for signature compatibility)
+        task: TaskModel instance
+
+    Returns:
+        TaskType with foreign keys intact for lazy loading via nested resolvers
+    """
+    _ = info  # Keep for signature compatibility with decorators
+    task_dict = task.__dict__["attribute_values"].copy()
+    # Keep all fields including FKs - nested resolvers will handle lazy loading
+    return TaskType(**Utility.json_normalize(task_dict))
 
 
 def resolve_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> TaskType | None:

@@ -30,7 +30,6 @@ from silvaengine_utility import Utility, method_cache
 
 from ..handlers.config import Config
 from ..types.session_agent import SessionAgentListType, SessionAgentType
-from .utils import _get_session
 
 
 class SessionAgentModel(BaseModel):
@@ -125,19 +124,23 @@ def get_session_agent_count(session_uuid: str, session_agent_uuid: str) -> int:
 def get_session_agent_type(
     info: ResolveInfo, session_agent: SessionAgentModel
 ) -> SessionAgentType:
-    try:
-        session = _get_session(
-            session_agent.coordination_uuid, session_agent.session_uuid
-        )
-    except Exception as e:
-        log = traceback.format_exc()
-        info.context.get("logger").exception(log)
-        raise e
-    session_agent = session_agent.__dict__["attribute_values"]
-    session_agent["session"] = session
-    session_agent.pop("coordination_uuid")
-    session_agent.pop("session_uuid")
-    return SessionAgentType(**Utility.json_normalize(session_agent))
+    """
+    Get SessionAgentType from SessionAgentModel without embedding nested objects.
+
+    Nested objects (session) are now handled by GraphQL nested resolvers
+    with batch loading for optimal performance.
+
+    Args:
+        info: GraphQL resolve info (kept for signature compatibility)
+        session_agent: SessionAgentModel instance
+
+    Returns:
+        SessionAgentType with foreign keys intact for lazy loading via nested resolvers
+    """
+    _ = info  # Keep for signature compatibility with decorators
+    session_agent_dict = session_agent.__dict__["attribute_values"].copy()
+    # Keep all fields including FKs - nested resolvers will handle lazy loading
+    return SessionAgentType(**Utility.json_normalize(session_agent_dict))
 
 
 def resolve_session_agent(

@@ -30,6 +30,7 @@ dependencies = [
     "graphene",
     "boto3",
     "pyhumps",
+    "promise",
     "silvaengine-dynamodb-base",
     "silvaengine-utility",
 ]
@@ -55,3 +56,5 @@ reportAttributeAccessIssue = "none"
 reportOptionalMemberAccess = "none"
 reportGeneralTypeIssues = "none"
 reportOptionalSubscript = "none"
+reportAssignmentType = "none"
+reportOptionalCall = "none"
