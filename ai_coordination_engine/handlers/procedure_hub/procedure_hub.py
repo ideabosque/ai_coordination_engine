@@ -64,7 +64,7 @@ def execute_procedure_task_session(
     )
 
     params = {
-        "coordination_uuid": session.coordination["coordination_uuid"],
+        "coordination_uuid": session.coordination_uuid,
         "session_uuid": session.session_uuid,
     }
     if "connectionId" in info.context:
@@ -93,7 +93,7 @@ def execute_procedure_task_session(
         session = insert_update_session(
             info,
             **{
-                "coordination_uuid": session.coordination["coordination_uuid"],
+                "coordination_uuid": session.coordination_uuid,
                 "session_uuid": session.session_uuid,
                 "status": "dispatched",
                 "updated_by": "procedure_hub",
@@ -121,9 +121,9 @@ def execute_procedure_task_session(
 
     return ProcedureTaskSessionType(
         **{
-            "coordination_uuid": session.coordination["coordination_uuid"],
+            "coordination_uuid": session.coordination_uuid,
             "session_uuid": session.session_uuid,
-            "task_uuid": session.task["task_uuid"],
+            "task_uuid": session.task_uuid,
             "user_id": session.user_id,
             "task_query": session.task_query,
         }

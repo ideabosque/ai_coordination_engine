@@ -168,7 +168,7 @@ def ask_operation_hub(
                 "run_uuid": ask_model["current_run_uuid"],
                 "thread_uuid": ask_model["thread_uuid"],
                 "agent_uuid": agent["agent_uuid"],
-                "coordination_uuid": session.coordination["coordination_uuid"],
+                "coordination_uuid": session.coordination_uuid,
                 "async_task_uuid": ask_model["async_task_uuid"],
                 "updated_by": "operation_hub",
             },
@@ -181,10 +181,10 @@ def ask_operation_hub(
         return AskOperationHubType(
             **{
                 "session": {
-                    "coordination_uuid": session.coordination["coordination_uuid"],
+                    "coordination_uuid": session.coordination_uuid,
                     "session_uuid": session.session_uuid,
                     "user_id": session.user_id,
-                    "endpoint_id": session.coordination["endpoint_id"],
+                    "endpoint_id": session.endpoint_id,
                     "status": session.status,
                 },
                 "run_uuid": session_run.run_uuid,

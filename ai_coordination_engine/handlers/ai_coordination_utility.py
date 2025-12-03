@@ -9,7 +9,7 @@ import os
 import sys
 import traceback
 import zipfile
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 import humps
 from boto3.dynamodb.conditions import Attr, Key
@@ -205,3 +205,291 @@ def send_email(
         log = traceback.format_exc()
         logger.error(log)
         raise e
+
+
+# ============================================================================
+# Nested Resolver Helper Functions
+# ============================================================================
+# These functions provide safe access to nested resolver properties that may
+# be either embedded dicts (legacy/listener mode) or GraphQL types with
+# lazy-loaded nested resolvers.
+#
+# Usage Pattern:
+# - For FK access: Use direct properties (session.coordination_uuid, session.task_uuid)
+# - For nested data: Use ensure_* functions (coordination.agents, task.agent_actions)
+# - For batch operations: Use batch_get_* functions to load multiple entities efficiently
+# ============================================================================
+
+
+# ============================================================================
+# Batch Loader Helper Functions
+# ============================================================================
+# These functions use DataLoader for efficient batch loading when processing
+# multiple sessions. They eliminate N+1 query problems by loading all needed
+# coordinations/tasks in a single query.
+# ============================================================================
+
+
+def batch_get_coordination_data(
+    sessions: List, info: ResolveInfo
+) -> Dict[str, Dict[str, Any]]:
+    """
+    Batch load coordination data for multiple sessions using DataLoader.
+
+    This is efficient for processing lists of sessions (e.g., in list queries)
+    as it loads all coordinations in a single query instead of N queries.
+
+    Args:
+        sessions: List of SessionType objects
+        info: GraphQL resolve info containing context with DataLoaders
+
+    Returns:
+        Dict mapping coordination_uuid -> coordination data dict
+
+    Example:
+        sessions = resolve_session_list(...)
+        coord_map = batch_get_coordination_data(sessions, info)
+        for session in sessions:
+            coord_data = coord_map[session.coordination_uuid]
+    """
+    from ..models.batch_loaders import get_loaders
+
+    # Collect all unique coordination keys needed using direct property access
+    coordination_keys = set()
+    for session in sessions:
+        coordination_uuid = getattr(session, "coordination_uuid", None)
+        endpoint_id = getattr(session, "endpoint_id", None)
+        if coordination_uuid and endpoint_id:
+            coordination_keys.add((endpoint_id, coordination_uuid))
+
+    if not coordination_keys:
+        return {}
+
+    # Use DataLoader to batch fetch all coordinations
+    loaders = get_loaders(info.context)
+    coordination_promises = {
+        coord_uuid: loaders.coordination_loader.load((endpoint_id, coord_uuid))
+        for endpoint_id, coord_uuid in coordination_keys
+    }
+
+    # Resolve all promises and build result map
+    result = {}
+    for coord_uuid, promise in coordination_promises.items():
+        coord_dict = promise.get()  # Synchronously wait for DataLoader result
+        if coord_dict:
+            result[coord_uuid[1]] = coord_dict  # Key by coordination_uuid only
+
+    return result
+
+
+def batch_get_task_data(sessions: List, info: ResolveInfo) -> Dict[str, Dict[str, Any]]:
+    """
+    Batch load task data for multiple sessions using DataLoader.
+
+    This is efficient for processing lists of sessions as it loads all tasks
+    in a single query instead of N queries.
+
+    Args:
+        sessions: List of SessionType objects
+        info: GraphQL resolve info containing context with DataLoaders
+
+    Returns:
+        Dict mapping task_uuid -> task data dict (with nested coordination)
+
+    Example:
+        sessions = resolve_session_list(...)
+        task_map = batch_get_task_data(sessions, info)
+        for session in sessions:
+            task_data = task_map[session.task_uuid]
+            agent_actions = task_data.get("agent_actions", {})
+    """
+    from ..models.batch_loaders import get_loaders
+
+    # Collect all unique task keys needed using direct property access
+    task_keys = set()
+    for session in sessions:
+        task_uuid = getattr(session, "task_uuid", None)
+        coordination_uuid = getattr(session, "coordination_uuid", None)
+        if task_uuid and coordination_uuid:
+            task_keys.add((coordination_uuid, task_uuid))
+
+    if not task_keys:
+        return {}
+
+    # Use DataLoader to batch fetch all tasks
+    loaders = get_loaders(info.context)
+    task_promises = {
+        task_uuid: loaders.task_loader.load((coord_uuid, task_uuid))
+        for coord_uuid, task_uuid in task_keys
+    }
+
+    # Resolve all promises and build result map
+    result = {}
+    for task_uuid, promise in task_promises.items():
+        task_dict = promise.get()  # Synchronously wait for DataLoader result
+        if task_dict:
+            result[task_uuid[1]] = task_dict  # Key by task_uuid only
+
+    return result
+
+
+# ============================================================================
+# Smart Ensure Functions
+# ============================================================================
+# These functions automatically choose the best method to get data based on
+# context. They use batch loading when info is available, fall back to simple
+# extraction otherwise.
+# ============================================================================
+
+
+def ensure_coordination_data(
+    session, info: ResolveInfo = None
+) -> Dict[str, Any]:
+    """
+    Smart function that automatically chooses best method to get coordination data.
+
+    This function has a 4-path fallback strategy:
+    1. If coordination is already embedded dict -> return directly
+    2. If coordination is GraphQL type -> extract to dict
+    3. If info is provided -> use DataLoader for batch efficiency
+    4. Otherwise -> use foreign keys only (minimal dict)
+
+    Args:
+        session: SessionType object
+        info: Optional GraphQL resolve info (enables batch loading)
+
+    Returns:
+        Dict containing coordination data
+
+    Example:
+        # In GraphQL resolver (has info):
+        coord_data = ensure_coordination_data(session, info)
+
+        # In listener/async function (no info):
+        coord_data = ensure_coordination_data(session)
+    """
+    coordination = getattr(session, "coordination", None)
+
+    # Path 1: Already embedded dict
+    if isinstance(coordination, dict):
+        return coordination
+
+    # Path 2: GraphQL type available
+    if coordination is not None and hasattr(coordination, "coordination_uuid"):
+        return {
+            "coordination_uuid": coordination.coordination_uuid,
+            "endpoint_id": coordination.endpoint_id,
+            "coordination_name": coordination.coordination_name,
+            "coordination_description": getattr(
+                coordination, "coordination_description", None
+            ),
+            "agents": getattr(coordination, "agents", []),
+        }
+
+    # Path 3: Use batch loader if info available
+    if info is not None:
+        from ..models.batch_loaders import get_loaders
+
+        coordination_uuid = getattr(session, "coordination_uuid", None)
+        endpoint_id = getattr(session, "endpoint_id", None)
+        if coordination_uuid and endpoint_id:
+            loaders = get_loaders(info.context)
+            coord_dict = loaders.coordination_loader.load(
+                (endpoint_id, coordination_uuid)
+            ).get()
+            if coord_dict:
+                return coord_dict
+
+    # Path 4: Fallback to minimal dict with FKs
+    return {
+        "coordination_uuid": getattr(session, "coordination_uuid", None),
+        "endpoint_id": getattr(session, "endpoint_id", None),
+        "agents": [],
+    }
+
+
+def ensure_task_data(session, info: ResolveInfo = None) -> Dict[str, Any]:
+    """
+    Smart function that automatically chooses best method to get task data.
+
+    This function has a 4-path fallback strategy:
+    1. If task is already embedded dict -> return directly
+    2. If task is GraphQL type -> extract to dict (with nested coordination)
+    3. If info is provided -> use DataLoader for batch efficiency
+    4. Otherwise -> use foreign keys only (minimal dict)
+
+    Args:
+        session: SessionType object
+        info: Optional GraphQL resolve info (enables batch loading)
+
+    Returns:
+        Dict containing task data (with nested coordination dict)
+
+    Example:
+        # In GraphQL resolver (has info):
+        task_data = ensure_task_data(session, info)
+
+        # In listener/async function (no info):
+        task_data = ensure_task_data(session)
+        agent_actions = task_data.get("agent_actions", {})
+    """
+    task = getattr(session, "task", None)
+
+    # Path 1: Already embedded dict
+    if isinstance(task, dict):
+        return task
+
+    # Path 2: GraphQL type available
+    if task is not None and hasattr(task, "task_uuid"):
+        task_dict = {
+            "task_uuid": task.task_uuid,
+            "task_name": getattr(task, "task_name", None),
+            "task_description": getattr(task, "task_description", None),
+            "agent_actions": getattr(task, "agent_actions", {}),
+            "subtask_queries": getattr(task, "subtask_queries", []),
+        }
+
+        # Handle nested coordination within task
+        coordination = getattr(task, "coordination", None)
+        if isinstance(coordination, dict):
+            task_dict["coordination"] = coordination
+        elif coordination is not None and hasattr(coordination, "coordination_uuid"):
+            task_dict["coordination"] = {
+                "coordination_uuid": coordination.coordination_uuid,
+                "endpoint_id": coordination.endpoint_id,
+                "agents": getattr(coordination, "agents", []),
+            }
+        else:
+            task_dict["coordination"] = {
+                "coordination_uuid": getattr(task, "coordination_uuid", None),
+                "endpoint_id": getattr(task, "endpoint_id", None),
+                "agents": [],
+            }
+
+        return task_dict
+
+    # Path 3: Use batch loader if info available
+    if info is not None:
+        from ..models.batch_loaders import get_loaders
+
+        task_uuid = getattr(session, "task_uuid", None)
+        coordination_uuid = getattr(session, "coordination_uuid", None)
+        if task_uuid and coordination_uuid:
+            loaders = get_loaders(info.context)
+            task_dict = loaders.task_loader.load(
+                (coordination_uuid, task_uuid)
+            ).get()
+            if task_dict:
+                return task_dict
+
+    # Path 4: Fallback to minimal dict with FKs
+    return {
+        "task_uuid": getattr(session, "task_uuid", None),
+        "agent_actions": {},
+        "subtask_queries": [],
+        "coordination": {
+            "coordination_uuid": getattr(session, "coordination_uuid", None),
+            "agents": [],
+        },
+    }
+

@@ -20,7 +20,11 @@ from ...models.session_agent import (
 from ...models.session_run import insert_update_session_run, resolve_session_run_list
 from ...types.session import SessionType
 from ...types.session_agent import SessionAgentType
-from ..ai_coordination_utility import get_async_task, invoke_ask_model
+from ..ai_coordination_utility import (
+    ensure_task_data,
+    get_async_task,
+    invoke_ask_model,
+)
 from ..config import Config
 
 
@@ -40,7 +44,11 @@ def init_session_agents(
     """
     session_agents = []
     subtask_queries = []
-    for agent in session.task["coordination"]["agents"]:
+
+    # Get task data with nested coordination info
+    task_data = ensure_task_data(session, info)
+
+    for agent in task_data["coordination"]["agents"]:
         if agent["agent_type"] != "task":
             continue
 
@@ -55,11 +63,9 @@ def init_session_agents(
                 info,
                 **{
                     "session_uuid": session.session_uuid,
-                    "coordination_uuid": session.task["coordination"][
-                        "coordination_uuid"
-                    ],
+                    "coordination_uuid": session.coordination_uuid,
                     "agent_uuid": agent["agent_uuid"],
-                    "agent_action": session.task["agent_actions"].get(
+                    "agent_action": task_data["agent_actions"].get(
                         agent["agent_uuid"], {}
                     ),
                     "updated_by": "procedure_hub",
@@ -96,7 +102,7 @@ def init_session_agents(
     session = insert_update_session(
         info,
         **{
-            "coordination_uuid": session.coordination["coordination_uuid"],
+            "coordination_uuid": session.coordination_uuid,
             "session_uuid": session.session_uuid,
             "subtask_queries": subtask_queries,
             "updated_by": "procedure_hub",
@@ -106,7 +112,9 @@ def init_session_agents(
     return session_agents
 
 
-def init_in_degree(info: ResolveInfo, session_agents: List[SessionAgentType]) -> None:
+def init_in_degree(
+    info: ResolveInfo, session_agents: List[SessionAgentType]
+) -> None | List[SessionAgentType]:
     """
     Initializes the in-degree for each session_agent in a task session.
     The in-degree represents the number of dependencies each session_agent has.
@@ -150,7 +158,9 @@ def init_in_degree(info: ResolveInfo, session_agents: List[SessionAgentType]) ->
 
         updated_session_agents = []
         for agent_update in updated_agents:
-            updated_session_agent = insert_update_session_agent(info, **agent_update)
+            updated_session_agent: SessionAgentType = insert_update_session_agent(
+                info, **agent_update
+            )
 
             # Add session agent details to list
             updated_session_agents.append(
@@ -381,7 +391,7 @@ def get_thread_uuid(
     info: ResolveInfo,
     session_agent: SessionAgentType,
     predecessors: List[SessionAgentType],
-) -> str:
+) -> str | None:
     """Get thread UUID from predecessor agents."""
     if len(predecessors) == 0:
         return None
