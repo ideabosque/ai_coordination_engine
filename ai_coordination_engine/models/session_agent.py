@@ -68,7 +68,7 @@ def purge_cache():
                 entity_keys = {}
                 if session_agent:
                     entity_keys["session_agent_uuid"] = session_agent.session_agent_uuid
-                    entity_keys["session_uuid"] = session_agent.session["session_uuid"]
+                    entity_keys["session_uuid"] = session_agent.session_uuid
 
                 result = purge_entity_cascading_cache(
                     args[0].context.get("logger"),

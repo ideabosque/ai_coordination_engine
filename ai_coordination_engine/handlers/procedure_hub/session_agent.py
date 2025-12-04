@@ -49,6 +49,15 @@ def init_session_agents(
     # Get task data with nested coordination info
     task_data = ensure_task_data(session, info)
 
+    # Ensure coordination exists in task_data
+    if "coordination" not in task_data or not isinstance(
+        task_data["coordination"], dict
+    ):
+        raise ValueError(
+            f"Task data missing coordination info. Task UUID: {task_data.get('task_uuid')}. "
+            f"Available keys: {list(task_data.keys())}"
+        )
+
     for agent in task_data["coordination"]["agents"]:
         if agent["agent_type"] != "task":
             continue
@@ -367,7 +376,7 @@ def prepare_task_query(
 
     predecessors_outputs = []
     coordination_data = ensure_coordination_data(session, info)
-    agents = coordination_data["agents"]
+    agents = coordination_data.get("agents") or []
     for predecessor in predecessors:
         agent = next(
             (
@@ -462,14 +471,15 @@ def execute_session_agent(info: ResolveInfo, session_agent: SessionAgentType) ->
             "agentUuid": session_agent.agent_uuid,
             "threadUuid": thread_uuid,
             "userQuery": subtask_query + "\n\n" + "\n\n".join(predecessors_outputs),
-            "userId": session.user_id,
+            "userId": session.user_id
+            or "system",  # Default to "system" if user_id is None
             "updatedBy": "operation_hub",
         }
 
         # Check if session has input files and add them to variables if present
         input_files = getattr(session, "input_files", None)
-        if input_files and len(input_files) > 0:
-            variables.update({"inputFiles": input_files})
+        if input_files is not None and len(input_files) > 0:
+            variables.update({"input_files": input_files})
 
         ask_model = invoke_ask_model(
             info.context.get("logger"),

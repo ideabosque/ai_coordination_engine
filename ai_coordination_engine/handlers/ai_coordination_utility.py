@@ -104,17 +104,22 @@ def invoke_ask_model(
     **variables: Dict[str, Any],
 ) -> Dict[str, Any]:
     """Call AI model for assistance via GraphQL query."""
-    ask_model = execute_graphql_query(
-        logger,
-        endpoint_id,
-        "ai_agent_core_graphql",
-        "askModel",
-        "Query",
-        variables,
-        setting=setting,
-        connection_id=connection_id,
-    )["askModel"]
-    return humps.decamelize(ask_model)
+    try:
+        ask_model = execute_graphql_query(
+            logger,
+            endpoint_id,
+            "ai_agent_core_graphql",
+            "askModel",
+            "Query",
+            variables,
+            setting=setting,
+            connection_id=connection_id,
+        )["askModel"]
+        return humps.decamelize(ask_model)
+    except Exception as e:
+        logger.error(f"Error invoking askModel: {e}")
+        logger.error(f"Variables passed: {Utility.json_dumps(variables)}")
+        raise
 
 
 def get_async_task(
@@ -342,9 +347,7 @@ def batch_get_task_data(sessions: List, info: ResolveInfo) -> Dict[str, Dict[str
 # ============================================================================
 
 
-def ensure_coordination_data(
-    session, info: ResolveInfo = None
-) -> Dict[str, Any]:
+def ensure_coordination_data(session, info: ResolveInfo = None) -> Dict[str, Any]:
     """
     Smart function that automatically chooses best method to get coordination data.
 
@@ -433,10 +436,49 @@ def ensure_task_data(session, info: ResolveInfo = None) -> Dict[str, Any]:
         task_data = ensure_task_data(session)
         agent_actions = task_data.get("agent_actions", {})
     """
+    from promise import Promise
+
     task = getattr(session, "task", None)
+
+    # Handle Promise objects (from lazy GraphQL resolvers)
+    if isinstance(task, Promise):
+        task = task.get()  # Synchronously resolve the promise
+        # Promise resolves to TaskType or dict or None
 
     # Path 1: Already embedded dict
     if isinstance(task, dict):
+        # Ensure coordination key exists in embedded dict
+        if "coordination" not in task:
+            # Use coordination_uuid from task dict if available, otherwise from session
+            coord_uuid = task.get("coordination_uuid") or getattr(
+                session, "coordination_uuid", None
+            )
+            endpoint = task.get("endpoint_id") or getattr(session, "endpoint_id", None)
+
+            # Try to load coordination data using batch loader if info available
+            if info is not None and coord_uuid and endpoint:
+                from ..models.batch_loaders import get_loaders
+
+                loaders = get_loaders(info.context)
+                coord_dict = loaders.coordination_loader.load(
+                    (endpoint, coord_uuid)
+                ).get()
+                if coord_dict:
+                    task["coordination"] = coord_dict
+                else:
+                    # Fallback to minimal coordination
+                    task["coordination"] = {
+                        "coordination_uuid": coord_uuid,
+                        "endpoint_id": endpoint,
+                        "agents": [],
+                    }
+            else:
+                # No info available, use minimal coordination
+                task["coordination"] = {
+                    "coordination_uuid": coord_uuid,
+                    "endpoint_id": endpoint,
+                    "agents": [],
+                }
         return task
 
     # Path 2: GraphQL type available
@@ -451,6 +493,10 @@ def ensure_task_data(session, info: ResolveInfo = None) -> Dict[str, Any]:
 
         # Handle nested coordination within task
         coordination = getattr(task, "coordination", None)
+        # Handle Promise for coordination
+        if isinstance(coordination, Promise):
+            coordination = coordination.get()
+
         if isinstance(coordination, dict):
             task_dict["coordination"] = coordination
         elif coordination is not None and hasattr(coordination, "coordination_uuid"):
@@ -460,11 +506,32 @@ def ensure_task_data(session, info: ResolveInfo = None) -> Dict[str, Any]:
                 "agents": getattr(coordination, "agents", []),
             }
         else:
-            task_dict["coordination"] = {
-                "coordination_uuid": getattr(task, "coordination_uuid", None),
-                "endpoint_id": getattr(task, "endpoint_id", None),
-                "agents": [],
-            }
+            # Load coordination using batch loader
+            coord_uuid = getattr(task, "coordination_uuid", None)
+            endpoint = getattr(task, "endpoint_id", None) or getattr(
+                session, "endpoint_id", None
+            )
+            if info is not None and coord_uuid and endpoint:
+                from ..models.batch_loaders import get_loaders
+
+                loaders = get_loaders(info.context)
+                coord_dict = loaders.coordination_loader.load(
+                    (endpoint, coord_uuid)
+                ).get()
+                if coord_dict:
+                    task_dict["coordination"] = coord_dict
+                else:
+                    task_dict["coordination"] = {
+                        "coordination_uuid": coord_uuid,
+                        "endpoint_id": endpoint,
+                        "agents": [],
+                    }
+            else:
+                task_dict["coordination"] = {
+                    "coordination_uuid": getattr(task, "coordination_uuid", None),
+                    "endpoint_id": getattr(task, "endpoint_id", None),
+                    "agents": [],
+                }
 
         return task_dict
 
@@ -474,12 +541,24 @@ def ensure_task_data(session, info: ResolveInfo = None) -> Dict[str, Any]:
 
         task_uuid = getattr(session, "task_uuid", None)
         coordination_uuid = getattr(session, "coordination_uuid", None)
+        endpoint_id = getattr(session, "endpoint_id", None)
         if task_uuid and coordination_uuid:
             loaders = get_loaders(info.context)
-            task_dict = loaders.task_loader.load(
-                (coordination_uuid, task_uuid)
-            ).get()
+            task_dict = loaders.task_loader.load((coordination_uuid, task_uuid)).get()
             if task_dict:
+                # Ensure coordination is nested in the task dict
+                if "coordination" not in task_dict and endpoint_id:
+                    coord_dict = loaders.coordination_loader.load(
+                        (endpoint_id, coordination_uuid)
+                    ).get()
+                    if coord_dict:
+                        task_dict["coordination"] = coord_dict
+                    else:
+                        task_dict["coordination"] = {
+                            "coordination_uuid": coordination_uuid,
+                            "endpoint_id": endpoint_id,
+                            "agents": [],
+                        }
                 return task_dict
 
     # Path 4: Fallback to minimal dict with FKs
@@ -492,4 +571,3 @@ def ensure_task_data(session, info: ResolveInfo = None) -> Dict[str, Any]:
             "agents": [],
         },
     }
-
