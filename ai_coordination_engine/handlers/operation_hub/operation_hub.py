@@ -351,8 +351,8 @@ def _trigger_async_update(
             - receiver_email: Optional email for routing
     """
     params = {
-        "coordination_uuid": session_run.session["coordination"]["coordination_uuid"],
-        "session_uuid": session_run.session["session_uuid"],
+        "coordination_uuid": session_run.coordination_uuid,
+        "session_uuid": session_run.session_uuid,
         "run_uuid": session_run.run_uuid,
     }
     if connection_id:

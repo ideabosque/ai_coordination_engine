@@ -36,7 +36,7 @@ def execute_action_function(info: ResolveInfo, session_agent: SessionAgentType) 
     session_agent = insert_update_session_agent(
         info,
         **{
-            "session_uuid": session_agent.session["session_uuid"],
+            "session_uuid": session_agent.session_uuid,
             "session_agent_uuid": session_agent.session_agent_uuid,
             "agent_output": session_agent.agent_output,
             "state": session_agent.state,

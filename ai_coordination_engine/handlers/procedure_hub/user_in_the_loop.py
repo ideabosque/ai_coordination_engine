@@ -56,7 +56,7 @@ def execute_for_user_input(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
     session_agent = insert_update_session_agent(
         info,
         **{
-            "session_uuid": session_agent.session["session_uuid"],
+            "session_uuid": session_agent.session_uuid,
             "session_agent_uuid": session_agent.session_agent_uuid,
             "user_input": session_agent.user_input,
             "state": session_agent.state,
@@ -75,8 +75,8 @@ def execute_for_user_input(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
     )
     invoke_next_iteration(
         info,
-        session_agent.session["coordination"]["coordination_uuid"],
-        session_agent.session["session_uuid"],
+        session_agent.coordination_uuid,
+        session_agent.session_uuid,
     )
 
     return True

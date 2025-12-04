@@ -101,9 +101,7 @@ def purge_cache():
                 entity_keys = {}
                 if session:
                     entity_keys["session_uuid"] = session.session_uuid
-                    entity_keys["coordination_uuid"] = session.coordination[
-                        "coordination_uuid"
-                    ]
+                    entity_keys["coordination_uuid"] = session.coordination_uuid
 
                 result = purge_entity_cascading_cache(
                     args[0].context.get("logger"),
