@@ -5,11 +5,10 @@ from __future__ import print_function
 __author__ = "bibow"
 
 import traceback
-from typing import Any, Dict
 
 from graphene import ResolveInfo
 
-from ...models.session_agent import insert_update_session_agent, resolve_session_agent
+from ...models.session_agent import insert_update_session_agent
 from ...types.session_agent import SessionAgentType
 from ..ai_coordination_utility import get_action_function
 from .session_agent import get_successors, handle_session_agent_completion
