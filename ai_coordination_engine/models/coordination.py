@@ -18,8 +18,6 @@ from pynamodb.attributes import (
     UnicodeAttribute,
     UTCDateTimeAttribute,
 )
-from tenacity import retry, stop_after_attempt, wait_exponential
-
 from silvaengine_dynamodb_base import (
     BaseModel,
     delete_decorator,
@@ -28,6 +26,7 @@ from silvaengine_dynamodb_base import (
     resolve_list_decorator,
 )
 from silvaengine_utility import Utility, method_cache
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..handlers.config import Config
 from ..types.coordination import CoordinationListType, CoordinationType
@@ -126,7 +125,7 @@ def get_coordination_type(
 
 def resolve_coordination(
     info: ResolveInfo, **kwargs: Dict[str, Any]
-) -> CoordinationType:
+) -> CoordinationType | None:
     count = get_coordination_count(
         info.context["endpoint_id"], kwargs["coordination_uuid"]
     )

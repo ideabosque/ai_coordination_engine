@@ -7,7 +7,9 @@ __author__ = "bibow"
 from typing import Any, Dict
 
 from graphene import ResolveInfo
+from silvaengine_utility import method_cache
 
+from ..handlers.config import Config
 from ..models import session_agent
 from ..types.session_agent import SessionAgentListType, SessionAgentType
 
@@ -18,6 +20,10 @@ def resolve_session_agent(
     return session_agent.resolve_session_agent(info, **kwargs)
 
 
+@method_cache(
+    ttl=Config.get_cache_ttl(),
+    cache_name=Config.get_cache_name("queries", "session_agent"),
+)
 def resolve_session_agent_list(
     info: ResolveInfo, **kwargs: Dict[str, Any]
 ) -> SessionAgentListType:
