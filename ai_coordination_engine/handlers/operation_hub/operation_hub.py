@@ -8,7 +8,6 @@ import traceback
 from typing import Any, Dict, Optional
 
 from graphene import ResolveInfo
-
 from silvaengine_utility import Utility
 
 from ...models.coordination import resolve_coordination
@@ -140,19 +139,27 @@ def ask_operation_hub(
         connection_id = _handle_connection_routing(info, agent, **kwargs)
 
         # Step 5: Execute AI model and record session run
+        variables = {
+            "agentUuid": agent["agent_uuid"],
+            "threadUuid": kwargs.get("thread_uuid"),
+            "userQuery": user_query,
+            "userId": kwargs.get("user_id"),
+            "stream": kwargs.get("stream", False),
+            "updatedBy": "operation_hub",
+        }
+
+        if "thread_life_minutes" in kwargs:
+            variables["threadLifeMinutes"] = kwargs["thread_life_minutes"]
+
+        if "input_files" in kwargs:
+            variables["inputFiles"] = kwargs["input_files"]
+
         ask_model = invoke_ask_model(
             info.context.get("logger"),
             info.context.get("endpoint_id"),
             setting=info.context.get("setting"),
             connection_id=connection_id,
-            **{
-                "agentUuid": agent["agent_uuid"],
-                "threadUuid": kwargs.get("thread_uuid"),
-                "userQuery": user_query,
-                "userId": kwargs.get("user_id"),
-                "stream": kwargs.get("stream", False),
-                "updatedBy": "operation_hub",
-            },
+            **variables,
         )
         session_run = insert_update_session_run(
             info,
@@ -161,7 +168,7 @@ def ask_operation_hub(
                 "run_uuid": ask_model["current_run_uuid"],
                 "thread_uuid": ask_model["thread_uuid"],
                 "agent_uuid": agent["agent_uuid"],
-                "coordination_uuid": session.coordination["coordination_uuid"],
+                "coordination_uuid": session.coordination_uuid,
                 "async_task_uuid": ask_model["async_task_uuid"],
                 "updated_by": "operation_hub",
             },
@@ -174,10 +181,10 @@ def ask_operation_hub(
         return AskOperationHubType(
             **{
                 "session": {
-                    "coordination_uuid": session.coordination["coordination_uuid"],
+                    "coordination_uuid": session.coordination_uuid,
                     "session_uuid": session.session_uuid,
                     "user_id": session.user_id,
-                    "endpoint_id": session.coordination["endpoint_id"],
+                    "endpoint_id": session.endpoint_id,
                     "status": session.status,
                 },
                 "run_uuid": session_run.run_uuid,
@@ -194,7 +201,7 @@ def ask_operation_hub(
         raise e
 
 
-def _handle_session(info: ResolveInfo, **kwargs: Dict[str, Any]) -> SessionType:
+def _handle_session(info: ResolveInfo, **kwargs: Dict[str, Any]) -> SessionType | None:
     """
     Helper function to create or update a session.
 
@@ -228,7 +235,7 @@ def _handle_session(info: ResolveInfo, **kwargs: Dict[str, Any]) -> SessionType:
 
 def _select_agent(
     coordination: CoordinationType, **kwargs: Dict[str, Any]
-) -> Dict[str, Any]:
+) -> Dict[str, Any] | None:
     """
     Helper function to select appropriate agent.
 
@@ -344,8 +351,8 @@ def _trigger_async_update(
             - receiver_email: Optional email for routing
     """
     params = {
-        "coordination_uuid": session_run.session["coordination"]["coordination_uuid"],
-        "session_uuid": session_run.session["session_uuid"],
+        "coordination_uuid": session_run.coordination_uuid,
+        "session_uuid": session_run.session_uuid,
         "run_uuid": session_run.run_uuid,
     }
     if connection_id:
@@ -364,7 +371,7 @@ def _trigger_async_update(
         "async_insert_update_session",
         params=params,
         setting=info.context["setting"],
-        test_mode=info.context["setting"].get("test_mode"),
+        execute_mode=info.context["setting"].get("execute_mode"),
         aws_lambda=Config.aws_lambda,
         invocation_type="Event",
     )

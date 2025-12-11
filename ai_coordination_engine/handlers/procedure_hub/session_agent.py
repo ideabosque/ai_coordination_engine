@@ -9,7 +9,6 @@ import traceback
 from typing import Any, Dict, List, Tuple
 
 from graphene import ResolveInfo
-
 from silvaengine_utility import Utility
 
 from ...models.session import insert_update_session
@@ -21,7 +20,12 @@ from ...models.session_agent import (
 from ...models.session_run import insert_update_session_run, resolve_session_run_list
 from ...types.session import SessionType
 from ...types.session_agent import SessionAgentType
-from ..ai_coordination_utility import get_async_task, invoke_ask_model
+from ..ai_coordination_utility import (
+    ensure_coordination_data,
+    ensure_task_data,
+    get_async_task,
+    invoke_ask_model,
+)
 from ..config import Config
 
 
@@ -41,7 +45,20 @@ def init_session_agents(
     """
     session_agents = []
     subtask_queries = []
-    for agent in session.task["coordination"]["agents"]:
+
+    # Get task data with nested coordination info
+    task_data = ensure_task_data(session, info)
+
+    # Ensure coordination exists in task_data
+    if "coordination" not in task_data or not isinstance(
+        task_data["coordination"], dict
+    ):
+        raise ValueError(
+            f"Task data missing coordination info. Task UUID: {task_data.get('task_uuid')}. "
+            f"Available keys: {list(task_data.keys())}"
+        )
+
+    for agent in task_data["coordination"]["agents"]:
         if agent["agent_type"] != "task":
             continue
 
@@ -56,11 +73,9 @@ def init_session_agents(
                 info,
                 **{
                     "session_uuid": session.session_uuid,
-                    "coordination_uuid": session.task["coordination"][
-                        "coordination_uuid"
-                    ],
+                    "coordination_uuid": session.coordination_uuid,
                     "agent_uuid": agent["agent_uuid"],
-                    "agent_action": session.task["agent_actions"].get(
+                    "agent_action": task_data["agent_actions"].get(
                         agent["agent_uuid"], {}
                     ),
                     "updated_by": "procedure_hub",
@@ -97,7 +112,7 @@ def init_session_agents(
     session = insert_update_session(
         info,
         **{
-            "coordination_uuid": session.coordination["coordination_uuid"],
+            "coordination_uuid": session.coordination_uuid,
             "session_uuid": session.session_uuid,
             "subtask_queries": subtask_queries,
             "updated_by": "procedure_hub",
@@ -107,7 +122,9 @@ def init_session_agents(
     return session_agents
 
 
-def init_in_degree(info: ResolveInfo, session_agents: List[SessionAgentType]) -> None:
+def init_in_degree(
+    info: ResolveInfo, session_agents: List[SessionAgentType]
+) -> None | List[SessionAgentType]:
     """
     Initializes the in-degree for each session_agent in a task session.
     The in-degree represents the number of dependencies each session_agent has.
@@ -140,7 +157,7 @@ def init_in_degree(info: ResolveInfo, session_agents: List[SessionAgentType]) ->
             session_agent.in_degree = in_degree_map.get(session_agent.agent_uuid, 0)
             updated_agents.append(
                 {
-                    "session_uuid": session_agent.session["session_uuid"],
+                    "session_uuid": session_agent.session_uuid,
                     "session_agent_uuid": session_agent.session_agent_uuid,
                     "in_degree": session_agent.in_degree,
                     "updated_by": "procedure_hub",
@@ -151,7 +168,9 @@ def init_in_degree(info: ResolveInfo, session_agents: List[SessionAgentType]) ->
 
         updated_session_agents = []
         for agent_update in updated_agents:
-            updated_session_agent = insert_update_session_agent(info, **agent_update)
+            updated_session_agent: SessionAgentType = insert_update_session_agent(
+                info, **agent_update
+            )
 
             # Add session agent details to list
             updated_session_agents.append(
@@ -183,7 +202,7 @@ def decrement_in_degree(info: ResolveInfo, session_agent: SessionAgentType) -> N
             insert_update_session_agent(
                 info,
                 **{
-                    "session_uuid": session_agent.session["session_uuid"],
+                    "session_uuid": session_agent.session_uuid,
                     "session_agent_uuid": session_agent.session_agent_uuid,
                     "in_degree": int(session_agent.in_degree),
                     "updated_by": "procedure_hub",
@@ -201,7 +220,7 @@ def get_successors(
     session_agent_list = resolve_session_agent_list(
         info,
         **{
-            "session_uuid": session_agent.session["session_uuid"],
+            "session_uuid": session_agent.session_uuid,
             "predecessor": session_agent.agent_uuid,
         },
     )
@@ -219,7 +238,7 @@ def get_predecessors(
     session_agent_list = resolve_session_agent_list(
         info,
         **{
-            "session_uuid": session_agent.session["session_uuid"],
+            "session_uuid": session_agent.session_uuid,
             "predecessors": predecessors,
         },
     )
@@ -244,10 +263,8 @@ def handle_session_agent_completion(
         insert_update_session(
             info,
             **{
-                "coordination_uuid": session_agent.session["coordination"][
-                    "coordination_uuid"
-                ],
-                "session_uuid": session_agent.session["session_uuid"],
+                "coordination_uuid": session_agent.coordination_uuid,
+                "session_uuid": session_agent.session_uuid,
                 "status": "failed",
                 "logs": Utility.json_dumps([{"error": log}]),
                 "updated_by": "procedure_hub",
@@ -327,7 +344,7 @@ def update_session_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     session_agent = insert_update_session_agent(
         info,
         **{
-            "session_uuid": session_agent.session["session_uuid"],
+            "session_uuid": session_agent.session_uuid,
             "session_agent_uuid": session_agent.session_agent_uuid,
             "agent_output": session_agent.agent_output,
             "state": session_agent.state,
@@ -341,10 +358,13 @@ def update_session_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
 
 
 def prepare_task_query(
-    session_agent: SessionAgentType, predecessors: List[SessionAgentType]
+    info: ResolveInfo,
+    session_agent: SessionAgentType,
+    session: SessionType,
+    predecessors: List[SessionAgentType],
 ) -> Tuple[str, List]:
     """Get agent input from either agent input or task session."""
-    subtask_queries = session_agent.session.get("subtask_queries", [])
+    subtask_queries = getattr(session, "subtask_queries", [])
     subtask_query = next(
         (
             subtask_query["subtask_query"]
@@ -355,7 +375,8 @@ def prepare_task_query(
     )
 
     predecessors_outputs = []
-    agents = session_agent.session["coordination"]["agents"]
+    coordination_data = ensure_coordination_data(session, info)
+    agents = coordination_data.get("agents") or []
     for predecessor in predecessors:
         agent = next(
             (
@@ -382,7 +403,7 @@ def get_thread_uuid(
     info: ResolveInfo,
     session_agent: SessionAgentType,
     predecessors: List[SessionAgentType],
-) -> str:
+) -> str | None:
     """Get thread UUID from predecessor agents."""
     if len(predecessors) == 0:
         return None
@@ -392,7 +413,7 @@ def get_thread_uuid(
     session_run_list = resolve_session_run_list(
         info,
         **{
-            "session_uuid": session_agent.session["session_uuid"],
+            "session_uuid": session_agent.session_uuid,
             "session_agent_uuid": predecessors[0].session_agent_uuid,
         },
     )
@@ -408,16 +429,25 @@ def execute_session_agent(info: ResolveInfo, session_agent: SessionAgentType) ->
     It handles initialization, coordination, thread management, and OpenAI API interaction.
     """
     try:
+        # Resolve the session first to access its properties
+        from ...models.session import resolve_session
+
+        session = resolve_session(
+            info,
+            coordination_uuid=session_agent.coordination_uuid,
+            session_uuid=session_agent.session_uuid,
+        )
+
         # Initialize the session agent state to "executing"
         predecessors = get_predecessors(info, session_agent)
         subtask_query, predecessors_outputs = prepare_task_query(
-            session_agent, predecessors
+            info, session_agent, session, predecessors
         )
 
         session_agent = insert_update_session_agent(
             info,
             **{
-                "session_uuid": session_agent.session["session_uuid"],
+                "session_uuid": session_agent.session_uuid,
                 "session_agent_uuid": session_agent.session_agent_uuid,
                 "agent_input": subtask_query,
                 "state": "executing",
@@ -437,30 +467,36 @@ def execute_session_agent(info: ResolveInfo, session_agent: SessionAgentType) ->
             or session_agent.agent_action.get("user_in_the_loop")
             else None
         )
+        variables = {
+            "agentUuid": session_agent.agent_uuid,
+            "threadUuid": thread_uuid,
+            "userQuery": subtask_query + "\n\n" + "\n\n".join(predecessors_outputs),
+            "userId": session.user_id
+            or "system",  # Default to "system" if user_id is None
+            "updatedBy": "operation_hub",
+        }
+
+        # Check if session has input files and add them to variables if present
+        input_files = getattr(session, "input_files", None)
+        if input_files is not None and len(input_files) > 0:
+            variables.update({"input_files": input_files})
+
         ask_model = invoke_ask_model(
             info.context.get("logger"),
             info.context.get("endpoint_id"),
             setting=info.context.get("setting"),
             connection_id=connection_id,
-            **{
-                "agentUuid": session_agent.agent_uuid,
-                "threadUuid": thread_uuid,
-                "userQuery": subtask_query + "\n\n" + "\n\n".join(predecessors_outputs),
-                "userId": session_agent.session.get("user_id"),
-                "updatedBy": "operation_hub",
-            },
+            **variables,
         )
 
         insert_update_session_run(
             info,
             **{
-                "session_uuid": session_agent.session["session_uuid"],
+                "session_uuid": session_agent.session_uuid,
                 "run_uuid": ask_model["current_run_uuid"],
                 "thread_uuid": ask_model["thread_uuid"],
                 "agent_uuid": session_agent.agent_uuid,
-                "coordination_uuid": session_agent.session["coordination"][
-                    "coordination_uuid"
-                ],
+                "coordination_uuid": session_agent.coordination_uuid,
                 "async_task_uuid": ask_model["async_task_uuid"],
                 "session_agent_uuid": session_agent.session_agent_uuid,
                 "updated_by": "operation_hub",
@@ -469,7 +505,7 @@ def execute_session_agent(info: ResolveInfo, session_agent: SessionAgentType) ->
 
         # Prepare parameters for async session agent update
         params = {
-            "session_uuid": session_agent.session["session_uuid"],
+            "session_uuid": session_agent.session_uuid,
             "session_agent_uuid": session_agent.session_agent_uuid,
             "async_task_uuid": ask_model["async_task_uuid"],
         }
@@ -483,7 +519,7 @@ def execute_session_agent(info: ResolveInfo, session_agent: SessionAgentType) ->
             "async_update_session_agent",
             params=params,
             setting=info.context["setting"],
-            test_mode=info.context["setting"].get("test_mode"),
+            execute_mode=info.context["setting"].get("execute_mode"),
             aws_lambda=Config.aws_lambda,
         )
         return
@@ -495,10 +531,8 @@ def execute_session_agent(info: ResolveInfo, session_agent: SessionAgentType) ->
         insert_update_session(
             info,
             **{
-                "coordination_uuid": session_agent.session["coordination"][
-                    "coordination_uuid"
-                ],
-                "session_uuid": session_agent.session["session_uuid"],
+                "coordination_uuid": session_agent.coordination_uuid,
+                "session_uuid": session_agent.session_uuid,
                 "status": "failed",
                 "logs": Utility.json_dumps([{"error": log}]),
                 "updated_by": "procedure_hub",

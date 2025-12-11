@@ -4,6 +4,7 @@ from __future__ import print_function
 
 __author__ = "bibow"
 
+import functools
 import logging
 import traceback
 from typing import Any, Dict
@@ -21,11 +22,11 @@ from silvaengine_dynamodb_base import (
     monitor_decorator,
     resolve_list_decorator,
 )
-from silvaengine_utility import Utility
+from silvaengine_utility import Utility, method_cache
 
 from ..handlers.ai_coordination_utility import get_async_task
+from ..handlers.config import Config
 from ..types.session_run import SessionRunListType, SessionRunType
-from .utils import _get_session, _get_session_agent
 
 
 class ThreadUuidIndex(LocalSecondaryIndex):
@@ -77,6 +78,50 @@ class SessionRunModel(BaseModel):
     thread_uuid_index = ThreadUuidIndex()
 
 
+def purge_cache():
+    def actual_decorator(original_function):
+        @functools.wraps(original_function)
+        def wrapper_function(*args, **kwargs):
+            try:
+                # Use cascading cache purging for session runs
+                from ..models.cache import purge_entity_cascading_cache
+
+                try:
+                    session_run = resolve_session_run(args[0], **kwargs)
+                except Exception as e:
+                    session_run = None
+
+                entity_keys = {}
+                if session_run:
+                    entity_keys["session_run_uuid"] = session_run.run_uuid
+                    entity_keys["session_agent_uuid"] = (
+                        session_run.session_agent["session_agent_uuid"]
+                        if session_run.session_agent
+                        else None
+                    )
+
+                result = purge_entity_cascading_cache(
+                    args[0].context.get("logger"),
+                    entity_type="session_run",
+                    context_keys=None,
+                    entity_keys=entity_keys if entity_keys else None,
+                    cascade_depth=3,
+                )
+
+                ## Original function.
+                result = original_function(*args, **kwargs)
+
+                return result
+            except Exception as e:
+                log = traceback.format_exc()
+                args[0].context.get("logger").error(log)
+                raise e
+
+        return wrapper_function
+
+    return actual_decorator
+
+
 def create_session_run_table(logger: logging.Logger) -> bool:
     """Create the SessionRun table if it doesn't exist."""
     if not SessionRunModel.exists():
@@ -91,6 +136,10 @@ def create_session_run_table(logger: logging.Logger) -> bool:
     wait=wait_exponential(multiplier=1, max=60),
     stop=stop_after_attempt(5),
 )
+@method_cache(
+    ttl=Config.get_cache_ttl(),
+    cache_name=Config.get_cache_name("models", "session_run"),
+)
 def get_session_run(session_uuid: str, run_uuid: str) -> SessionRunModel:
     return SessionRunModel.get(session_uuid, run_uuid)
 
@@ -102,13 +151,22 @@ def get_session_run_count(session_uuid: str, run_uuid: str) -> int:
 def get_session_run_type(
     info: ResolveInfo, session_run: SessionRunModel
 ) -> SessionRunType:
+    """
+    Get SessionRunType from SessionRunModel without embedding nested objects.
+
+    Nested objects (session, session_agent) are now handled by GraphQL nested resolvers
+    with batch loading for optimal performance. The async_task is still embedded as it
+    comes from a different service (not DynamoDB).
+
+    Args:
+        info: GraphQL resolve info
+        session_run: SessionRunModel instance
+
+    Returns:
+        SessionRunType with foreign keys intact for lazy loading via nested resolvers
+    """
     try:
-        session = _get_session(session_run.coordination_uuid, session_run.session_uuid)
-        session_agent = None
-        if session_run.session_agent_uuid:
-            session_agent = _get_session_agent(
-                session_run.session_uuid, session_run.session_agent_uuid
-            )
+        # Still fetch async_task as it comes from external service (not a DynamoDB relation)
         async_task = {
             k: v
             for k, v in get_async_task(
@@ -126,16 +184,11 @@ def get_session_run_type(
         log = traceback.format_exc()
         info.context.get("logger").exception(log)
         raise e
-    session_run = session_run.__dict__["attribute_values"]
-    session_run["session"] = session
-    session_run.pop("coordination_uuid")
-    session_run.pop("session_uuid")
-    if session_agent:
-        session_run["session_agent"] = session_agent
-        session_run.pop("session_agent_uuid")
-    session_run["async_task"] = async_task
-    session_run.pop("async_task_uuid")
-    return SessionRunType(**Utility.json_loads(Utility.json_dumps(session_run)))
+
+    session_run_dict = session_run.__dict__["attribute_values"].copy()
+    # Keep FKs for nested resolvers, but embed async_task from external service
+    session_run_dict["async_task"] = async_task
+    return SessionRunType(**Utility.json_normalize(session_run_dict))
 
 
 def resolve_session_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> SessionRunType:
@@ -187,6 +240,7 @@ def resolve_session_run_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any
     return inquiry_funct, count_funct, args
 
 
+@purge_cache()
 @insert_update_decorator(
     keys={
         "hash_key": "session_uuid",
@@ -245,6 +299,7 @@ def insert_update_session_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> No
     session_run.update(actions=actions)
 
 
+@purge_cache()
 @delete_decorator(
     keys={
         "hash_key": "session_uuid",

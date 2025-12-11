@@ -4,10 +4,11 @@ from __future__ import print_function
 __author__ = "bibow"
 
 import logging
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 
 def _initialize_tables(logger: logging.Logger) -> None:
+    """Initialize all DynamoDB tables for the AI Coordination Engine."""
     from .coordination import create_coordination_table
     from .session import create_session_table
     from .session_agent import create_session_agent_table
@@ -24,6 +25,19 @@ def _initialize_tables(logger: logging.Logger) -> None:
 
 
 def _get_coordination(endpoint_id: str, coordination_uuid: str) -> Dict[str, Any]:
+    """
+    Get coordination as a dictionary for embedding purposes.
+
+    This is used in validation contexts where we need coordination data
+    but don't need the full GraphQL type with nested resolvers.
+
+    Args:
+        endpoint_id: The endpoint identifier
+        coordination_uuid: The coordination UUID
+
+    Returns:
+        Dict containing coordination data
+    """
     from .coordination import get_coordination
 
     coordination = get_coordination(endpoint_id, coordination_uuid)
@@ -36,35 +50,20 @@ def _get_coordination(endpoint_id: str, coordination_uuid: str) -> Dict[str, Any
     }
 
 
-def _get_session(coordination_uuid: str, session_uuid: str) -> Dict[str, Any]:
-    from .session import get_session
-
-    session = get_session(coordination_uuid, session_uuid)
-    return {
-        "coordination": _get_coordination(
-            session.endpoint_id,
-            session.coordination_uuid,
-        ),
-        "session_uuid": session.session_uuid,
-        "task": (
-            {}
-            if session.task_uuid is None
-            else _get_task(
-                session.coordination_uuid,
-                session.task_uuid,
-            )
-        ),
-        "user_id": session.user_id,
-        "endpoint_id": session.endpoint_id,
-        "task_query": session.task_query,
-        "iteration_count": session.iteration_count,
-        "subtask_queries": session.subtask_queries,
-        "status": session.status,
-        "logs": session.logs,
-    }
-
-
 def _get_task(coordination_uuid: str, task_uuid: str) -> Dict[str, Any]:
+    """
+    Get task as a dictionary for embedding purposes.
+
+    This is used in contexts where we need task data embedded as a dict
+    (e.g., task schedules) rather than using GraphQL nested resolvers.
+
+    Args:
+        coordination_uuid: The coordination UUID
+        task_uuid: The task UUID
+
+    Returns:
+        Dict containing task data with embedded coordination
+    """
     from .task import get_task
 
     task = get_task(coordination_uuid, task_uuid)
@@ -79,19 +78,4 @@ def _get_task(coordination_uuid: str, task_uuid: str) -> Dict[str, Any]:
         "initial_task_query": task.initial_task_query,
         "subtask_queries": task.subtask_queries,
         "agent_actions": task.agent_actions,
-    }
-
-
-def _get_session_agent(session_uuid: str, session_agent_uuid: str) -> Dict[str, Any]:
-    from .session_agent import get_session_agent
-
-    session_agent = get_session_agent(session_uuid, session_agent_uuid)
-    return {
-        "agent_action": session_agent.agent_action,
-        "user_input": session_agent.user_input,
-        "agent_input": session_agent.agent_input,
-        "agent_output": session_agent.agent_output,
-        "in_degree": session_agent.in_degree,
-        "state": session_agent.state,
-        "notes": session_agent.notes,
     }

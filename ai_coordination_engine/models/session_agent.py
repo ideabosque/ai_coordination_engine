@@ -4,6 +4,7 @@ from __future__ import print_function
 
 __author__ = "bibow"
 
+import functools
 import logging
 import traceback
 from typing import Any, Dict
@@ -25,10 +26,10 @@ from silvaengine_dynamodb_base import (
     monitor_decorator,
     resolve_list_decorator,
 )
-from silvaengine_utility import Utility
+from silvaengine_utility import Utility, method_cache
 
+from ..handlers.config import Config
 from ..types.session_agent import SessionAgentListType, SessionAgentType
-from .utils import _get_session
 
 
 class SessionAgentModel(BaseModel):
@@ -51,6 +52,46 @@ class SessionAgentModel(BaseModel):
     updated_at = UTCDateTimeAttribute()
 
 
+def purge_cache():
+    def actual_decorator(original_function):
+        @functools.wraps(original_function)
+        def wrapper_function(*args, **kwargs):
+            try:
+                # Use cascading cache purging for session agents
+                from ..models.cache import purge_entity_cascading_cache
+
+                try:
+                    session_agent = resolve_session_agent(args[0], **kwargs)
+                except Exception:
+                    session_agent = None
+
+                entity_keys = {}
+                if session_agent:
+                    entity_keys["session_agent_uuid"] = session_agent.session_agent_uuid
+                    entity_keys["session_uuid"] = session_agent.session_uuid
+
+                result = purge_entity_cascading_cache(
+                    args[0].context.get("logger"),
+                    entity_type="session_agent",
+                    context_keys=None,
+                    entity_keys=entity_keys if entity_keys else None,
+                    cascade_depth=3,
+                )
+
+                ## Original function.
+                result = original_function(*args, **kwargs)
+
+                return result
+            except Exception as e:
+                log = traceback.format_exc()
+                args[0].context.get("logger").error(log)
+                raise e
+
+        return wrapper_function
+
+    return actual_decorator
+
+
 def create_session_agent_table(logger: logging.Logger) -> bool:
     """Create the Session Agent table if it doesn't exist."""
     if not SessionAgentModel.exists():
@@ -64,6 +105,10 @@ def create_session_agent_table(logger: logging.Logger) -> bool:
     reraise=True,
     wait=wait_exponential(multiplier=1, max=60),
     stop=stop_after_attempt(5),
+)
+@method_cache(
+    ttl=Config.get_cache_ttl(),
+    cache_name=Config.get_cache_name("models", "session_agent"),
 )
 def get_session_agent(session_uuid: str, session_agent_uuid: str) -> SessionAgentModel:
     return SessionAgentModel.get(session_uuid, session_agent_uuid)
@@ -79,24 +124,28 @@ def get_session_agent_count(session_uuid: str, session_agent_uuid: str) -> int:
 def get_session_agent_type(
     info: ResolveInfo, session_agent: SessionAgentModel
 ) -> SessionAgentType:
-    try:
-        session = _get_session(
-            session_agent.coordination_uuid, session_agent.session_uuid
-        )
-    except Exception as e:
-        log = traceback.format_exc()
-        info.context.get("logger").exception(log)
-        raise e
-    session_agent = session_agent.__dict__["attribute_values"]
-    session_agent["session"] = session
-    session_agent.pop("coordination_uuid")
-    session_agent.pop("session_uuid")
-    return SessionAgentType(**Utility.json_loads(Utility.json_dumps(session_agent)))
+    """
+    Get SessionAgentType from SessionAgentModel without embedding nested objects.
+
+    Nested objects (session) are now handled by GraphQL nested resolvers
+    with batch loading for optimal performance.
+
+    Args:
+        info: GraphQL resolve info (kept for signature compatibility)
+        session_agent: SessionAgentModel instance
+
+    Returns:
+        SessionAgentType with foreign keys intact for lazy loading via nested resolvers
+    """
+    _ = info  # Keep for signature compatibility with decorators
+    session_agent_dict = session_agent.__dict__["attribute_values"].copy()
+    # Keep all fields including FKs - nested resolvers will handle lazy loading
+    return SessionAgentType(**Utility.json_normalize(session_agent_dict))
 
 
 def resolve_session_agent(
     info: ResolveInfo, **kwargs: Dict[str, Any]
-) -> SessionAgentType:
+) -> SessionAgentType | None:
     count = get_session_agent_count(
         kwargs["session_uuid"], kwargs["session_agent_uuid"]
     )
@@ -117,7 +166,7 @@ def resolve_session_agent(
 )
 def resolve_session_agent_list(
     info: ResolveInfo, **kwargs: Dict[str, Any]
-) -> SessionAgentListType:
+) -> Any:
     session_uuid = kwargs.get("session_uuid")
     coordination_uuid = kwargs.get("coordination_uuid")
     agent_uuid = kwargs.get("agent_uuid")
@@ -162,6 +211,7 @@ def resolve_session_agent_list(
     return inquiry_funct, count_funct, args
 
 
+@purge_cache()
 @insert_update_decorator(
     keys={
         "hash_key": "session_uuid",
@@ -241,6 +291,7 @@ def insert_update_session_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> 
     return
 
 
+@purge_cache()
 @delete_decorator(
     keys={
         "hash_key": "session_uuid",

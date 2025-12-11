@@ -52,9 +52,11 @@ def execute_procedure_task_session(
         "task_query": kwargs.get("task_query", task.initial_task_query),
         "updated_by": "procedure_hub",
     }
+    if "input_files" in kwargs:
+        variables["input_files"] = kwargs["input_files"]
     if task.subtask_queries:
         variables["subtask_queries"] = task.subtask_queries
-    if kwargs.get("user_id"):
+    if "user_id" in kwargs:
         variables["user_id"] = kwargs["user_id"]
     session = insert_update_session(
         info,
@@ -62,7 +64,7 @@ def execute_procedure_task_session(
     )
 
     params = {
-        "coordination_uuid": session.coordination["coordination_uuid"],
+        "coordination_uuid": session.coordination_uuid,
         "session_uuid": session.session_uuid,
     }
     if "connectionId" in info.context:
@@ -84,14 +86,14 @@ def execute_procedure_task_session(
             "async_orchestrate_task_query",
             params=params,
             setting=info.context["setting"],
-            test_mode=info.context["setting"].get("test_mode"),
+            execute_mode=info.context["setting"].get("execute_mode"),
             aws_lambda=Config.aws_lambda,
         )
     else:
         session = insert_update_session(
             info,
             **{
-                "coordination_uuid": session.coordination["coordination_uuid"],
+                "coordination_uuid": session.coordination_uuid,
                 "session_uuid": session.session_uuid,
                 "status": "dispatched",
                 "updated_by": "procedure_hub",
@@ -113,15 +115,15 @@ def execute_procedure_task_session(
         "async_execute_procedure_task_session",
         params=params,
         setting=info.context["setting"],
-        test_mode=info.context["setting"].get("test_mode"),
+        execute_mode=info.context["setting"].get("execute_mode"),
         aws_lambda=Config.aws_lambda,
     )
 
     return ProcedureTaskSessionType(
         **{
-            "coordination_uuid": session.coordination["coordination_uuid"],
+            "coordination_uuid": session.coordination_uuid,
             "session_uuid": session.session_uuid,
-            "task_uuid": session.task["task_uuid"],
+            "task_uuid": session.task_uuid,
             "user_id": session.user_id,
             "task_query": session.task_query,
         }

@@ -1,57 +1,263 @@
 # AI Coordination Engine
 
-## Description
+The **AI Coordination Engine** is a modular system designed to orchestrate complex interactions between multiple AI agents, tasks, and sessions. It provides a robust framework for managing the lifecycle of AI-driven workflows, from defining coordination strategies to executing and tracking individual agent actions.
 
-This project implements an AI Coordination Engine. It appears to be a GraphQL-based service that manages and coordinates AI agents, sessions, tasks, and procedures. It includes features for handling asynchronous operations and potentially interacting with users.
+## Architecture Overview
 
-## Features
+The engine is built around the concept of **Coordinations**, which define the blueprint for how agents interact. **Sessions** are specific instances of these coordinations, where **Tasks** are executed. The system tracks the state of each agent within a session via **SessionAgents** and records every execution step in **SessionRuns**.
 
-- GraphQL API: Provides a GraphQL interface for interacting with the engine.
-- AI Agent Management: Allows for creating, updating, deleting, and viewing AI agents.
-- Session Management: Supports creating, updating, deleting, and viewing coordination sessions.
-- Task Management: Enables defining and managing tasks for AI agents.
-- Procedure Hub: Handles the execution of procedures and tasks within sessions.
-- Operation Hub: Appears to manage operations and user interactions.
-- Asynchronous Operations: Supports asynchronous execution of tasks and session updates.
-- Extensible Type System: Uses a flexible type system for defining data models.
+### High-Level Architecture
 
-## Getting Started
+```mermaid
+graph TD
+    subgraph "Configuration"
+        C[Coordination] -->|Defines| T[Task]
+        T -->|Scheduled via| TS[Task Schedule]
+    end
 
-### Prerequisites
+    subgraph "Execution"
+        C -->|Instantiates| S[Session]
+        S -->|Tracks State| SA[Session Agent]
+        S -->|Records Execution| SR[Session Run]
+        SA -.->|Updates| SR
+    end
 
-- List any software, libraries, or tools that need to be installed before using this project.
+    subgraph "Actors"
+        A[Agent]
+        U[User]
+    end
 
-### Installation
+    C -.->|Configures| A
+    S -.->|Interacts with| U
+```
 
-1. Clone the repository:
-   ```bash
-   git clone <repository-url>
-   ```
-2. Navigate to the project directory:
-   ```bash
-   cd <project-directory>
-   ```
-3. Install dependencies:
-   ```bash
-   # Add instructions for installing dependencies (e.g., pip install -r requirements.txt)
-   ```
+## Data Model Architecture
 
-## Usage
+The core data models are designed to support scalable and traceable AI orchestration. The relationships between these models ensure that every action is linked back to its originating session and coordination context.
 
-Provide examples of how to use the AI Coordination Engine. This could include:
-- How to start the service.
-- Example GraphQL queries and mutations.
-- Code snippets for interacting with the engine programmatically.
+### Entity Relationship Diagram (ERD)
 
-## Contributing
+```mermaid
+erDiagram
+    CoordinationModel ||--o{ TaskModel : "has"
+    CoordinationModel ||--o{ SessionModel : "instantiates"
+    
+    TaskModel ||--o{ TaskScheduleModel : "scheduled by"
+    
+    SessionModel ||--o{ SessionAgentModel : "tracks agent state"
+    SessionModel ||--o{ SessionRunModel : "executes"
+    
+    SessionAgentModel }o--|| CoordinationModel : "references agent in"
+    SessionRunModel }o--|| SessionAgentModel : "associated with"
+    SessionRunModel }o--|| CoordinationModel : "references"
 
-We welcome contributions to the AI Coordination Engine! Please follow these guidelines:
+    CoordinationModel {
+        string endpoint_id PK
+        string coordination_uuid PK
+        string coordination_name
+        string coordination_description
+        list agents
+    }
 
-1. Fork the repository.
-2. Create a new branch for your feature or bug fix.
-3. Make your changes, ensuring to include tests where appropriate.
-4. Submit a pull request with a clear description of your changes.
+    TaskModel {
+        string coordination_uuid PK
+        string task_uuid PK
+        string task_name
+        string task_description
+        string initial_task_query
+        list subtask_queries
+        map agent_actions
+    }
 
-## License
+    TaskScheduleModel {
+        string task_uuid PK
+        string schedule_uuid PK
+        string schedule
+        string status
+    }
 
-This project is licensed under the [Name of License] - see the LICENSE file for details.
+    SessionModel {
+        string coordination_uuid PK
+        string session_uuid PK
+        string task_uuid
+        string user_id
+        string status
+        list input_files
+        list subtask_queries
+    }
+
+    SessionAgentModel {
+        string session_uuid PK
+        string session_agent_uuid PK
+        string agent_uuid
+        map agent_action
+        string state
+        string in_degree
+    }
+
+    SessionRunModel {
+        string session_uuid PK
+        string run_uuid PK
+        string thread_uuid
+# AI Coordination Engine
+
+The **AI Coordination Engine** is a modular system designed to orchestrate complex interactions between multiple AI agents, tasks, and sessions. It provides a robust framework for managing the lifecycle of AI-driven workflows, from defining coordination strategies to executing and tracking individual agent actions.
+
+## Architecture Overview
+
+The engine is built around the concept of **Coordinations**, which define the blueprint for how agents interact. **Sessions** are specific instances of these coordinations, where **Tasks** are executed. The system tracks the state of each agent within a session via **SessionAgents** and records every execution step in **SessionRuns**.
+
+### High-Level Architecture
+
+```mermaid
+graph TD
+    subgraph "Configuration"
+        C[Coordination] -->|Defines| T[Task]
+        T -->|Scheduled via| TS[Task Schedule]
+    end
+
+    subgraph "Execution"
+        C -->|Instantiates| S[Session]
+        S -->|Tracks State| SA[Session Agent]
+        S -->|Records Execution| SR[Session Run]
+        SA -.->|Updates| SR
+    end
+
+    subgraph "Actors"
+        A[Agent]
+        U[User]
+    end
+
+    C -.->|Configures| A
+    S -.->|Interacts with| U
+```
+
+## Data Model Architecture
+
+The core data models are designed to support scalable and traceable AI orchestration. The relationships between these models ensure that every action is linked back to its originating session and coordination context.
+
+### Entity Relationship Diagram (ERD)
+
+```mermaid
+erDiagram
+    CoordinationModel ||--o{ TaskModel : "has"
+    CoordinationModel ||--o{ SessionModel : "instantiates"
+    
+    TaskModel ||--o{ TaskScheduleModel : "scheduled by"
+    
+    SessionModel ||--o{ SessionAgentModel : "tracks agent state"
+    SessionModel ||--o{ SessionRunModel : "executes"
+    
+    SessionAgentModel }o--|| CoordinationModel : "references agent in"
+    SessionRunModel }o--|| SessionAgentModel : "associated with"
+    SessionRunModel }o--|| CoordinationModel : "references"
+
+    CoordinationModel {
+        string endpoint_id PK
+        string coordination_uuid PK
+        string coordination_name
+        string coordination_description
+        list agents
+    }
+
+    TaskModel {
+        string coordination_uuid PK
+        string task_uuid PK
+        string task_name
+        string task_description
+        string initial_task_query
+        list subtask_queries
+        map agent_actions
+    }
+
+    TaskScheduleModel {
+        string task_uuid PK
+        string schedule_uuid PK
+        string schedule
+        string status
+    }
+
+    SessionModel {
+        string coordination_uuid PK
+        string session_uuid PK
+        string task_uuid
+        string user_id
+        string status
+        list input_files
+        list subtask_queries
+    }
+
+    SessionAgentModel {
+        string session_uuid PK
+        string session_agent_uuid PK
+        string agent_uuid
+        map agent_action
+        string state
+        string in_degree
+    }
+
+    SessionRunModel {
+        string session_uuid PK
+        string run_uuid PK
+        string thread_uuid
+        string agent_uuid
+        string async_task_uuid
+        string session_agent_uuid
+    }
+```
+
+### 🔗 **Relationship Patterns**
+
+#### **1. Orchestration Hierarchy** (Primary Workflow)
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                  ORCHESTRATION HIERARCHY                     │
+└─────────────────────────────────────────────────────────────┘
+
+Coordination (Blueprint)
+  │
+  ├──> Task (1:N) ──> TaskSchedule (1:N)
+  │
+  └──> Session (1:N) ──┬──> SessionAgent (1:N) ──> Agent (Logical Reference)
+                       │
+                       └──> SessionRun (1:N) ──> Thread (Logical Reference)
+```
+
+**Cascade Delete Protection:**
+- Cannot delete Coordination if Sessions or Tasks exist
+- Cannot delete Session if SessionAgents or SessionRuns exist
+- Cannot delete Task if TaskSchedules exist
+
+**Key Fields:**
+- Task references Coordination via: `coordination_uuid`
+- Session references Coordination via: `coordination_uuid`
+- SessionAgent references Session via: `session_uuid`
+- SessionRun references Session via: `session_uuid`
+
+---
+
+#### **2. Execution State Tracking**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                  EXECUTION STATE TRACKING                    │
+└─────────────────────────────────────────────────────────────┘
+
+Session (Context Holder)
+  │
+  ├──> SessionAgent (1:N)
+  │       │
+  │       ├──> State (e.g., "initial", "in_progress")
+  │       └──> In-Degree (Dependency Tracking)
+  │
+  └──> SessionRun (1:N)
+          │
+          ├──> Thread UUID (Conversation History)
+          └──> Async Task UUID (Long-running Operations)
+```
+
+**Reference Patterns:**
+- SessionAgent tracks the state of a specific `agent_uuid` within the Session.
+- SessionRun records an immutable execution step, linking `run_uuid` to `thread_uuid`.
+- Async operations are tracked via `async_task_uuid` on the SessionRun.

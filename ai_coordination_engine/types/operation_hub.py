@@ -4,7 +4,7 @@ from __future__ import print_function
 
 __author__ = "bibow"
 
-from graphene import DateTime, List, ObjectType, String
+from graphene import DateTime, Int, ObjectType, String
 
 from silvaengine_utility import JSON
 

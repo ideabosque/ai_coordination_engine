@@ -10,7 +10,6 @@ import traceback
 from typing import Any, Dict, List
 
 from graphene import ResolveInfo
-
 from silvaengine_utility import Utility
 
 from ...handlers.config import Config
@@ -18,8 +17,10 @@ from ...models.session import insert_update_session, resolve_session
 from ...models.session_agent import resolve_session_agent_list
 from ...types.session import SessionType
 from ...types.session_agent import SessionAgentListType, SessionAgentType
+from ...utils.listener import create_listener_info
 from ..ai_coordination_utility import (
-    create_listener_info,
+    ensure_coordination_data,
+    ensure_task_data,
     get_async_task,
     invoke_ask_model,
 )
@@ -313,7 +314,7 @@ def invoke_next_iteration(
         "async_execute_procedure_task_session",
         params=params,
         setting=info.context["setting"],
-        test_mode=info.context["setting"].get("test_mode"),
+        execute_mode=info.context["setting"].get("execute_mode"),
         aws_lambda=Config.aws_lambda,
     )
 
@@ -408,18 +409,22 @@ def async_orchestrate_task_query(
         session_uuid=kwargs["session_uuid"],
     )
 
+    # Get task and coordination data using helper functions
+    task_data = ensure_task_data(session, info)
+    coordination_data = ensure_coordination_data(session, info)
+
     # Get task agents with their actions
     agents = [
         {
             **agent,
-            "predecessors": session.task["agent_actions"]
+            "predecessors": task_data["agent_actions"]
             .get(agent["agent_uuid"], {})
             .get("predecessors"),
-            "primary_path": session.task["agent_actions"]
+            "primary_path": task_data["agent_actions"]
             .get(agent["agent_uuid"], {})
             .get("primary_path"),
         }
-        for agent in session.coordination["agents"]
+        for agent in coordination_data["agents"]
         if agent["agent_type"] == "task"
     ]
 
@@ -427,7 +432,7 @@ def async_orchestrate_task_query(
     orchestrator_agent = next(
         (
             agent
-            for agent in session.coordination["agents"]
+            for agent in coordination_data["agents"]
             if agent["agent_type"] in ["decompose", "planning"]
         ),
         None,
@@ -468,9 +473,11 @@ def async_orchestrate_task_query(
         info.context.get("logger"),
         info.context.get("endpoint_id"),
         setting=info.context.get("setting"),
-        agentUuid=orchestrator_agent["agent_uuid"],
-        userQuery=query,
-        updatedBy="operation_hub",
+        **{
+            "agentUuid": orchestrator_agent["agent_uuid"],
+            "userQuery": query,
+            "updatedBy": "operation_hub",
+        },
     )
 
     # Wait for task completion
@@ -479,7 +486,7 @@ def async_orchestrate_task_query(
         ask_model["async_task_uuid"],
         ask_model["current_run_uuid"],
         **{
-            "coordination_uuid": session.coordination["coordination_uuid"],
+            "coordination_uuid": session.coordination_uuid,
             "session_uuid": session.session_uuid,
             "updated_by": "procedure_hub",
         },
@@ -497,7 +504,7 @@ def async_orchestrate_task_query(
     session = insert_update_session(
         info,
         **{
-            "coordination_uuid": session.coordination["coordination_uuid"],
+            "coordination_uuid": session.coordination_uuid,
             "session_uuid": session.session_uuid,
             "status": "dispatched",
             "updated_by": "procedure_hub",
@@ -506,7 +513,9 @@ def async_orchestrate_task_query(
     return
 
 
-def _check_session_status(info: ResolveInfo, **kwargs: Dict[str, Any]) -> SessionType:
+def _check_session_status(
+    info: ResolveInfo, **kwargs: Dict[str, Any]
+) -> SessionType | None:
     """Check session status and update to in_progress if dispatched
 
     Polls the session status for up to 60 seconds, checking if:
@@ -540,7 +549,7 @@ def _check_session_status(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Sessio
         if session.status == "dispatched":
             session = insert_update_session(
                 info,
-                coordination_uuid=session.task["coordination"]["coordination_uuid"],
+                coordination_uuid=session.coordination_uuid,
                 session_uuid=session.session_uuid,
                 status="in_progress",
                 updated_by="procedure_hub",
@@ -578,7 +587,7 @@ def _handle_no_ready_agents(
         insert_update_session(
             info,
             **{
-                "coordination_uuid": session.task["coordination_uuid"],
+                "coordination_uuid": session.coordination_uuid,
                 "session_uuid": session.session_uuid,
                 "logs": [
                     {
@@ -611,7 +620,7 @@ def _handle_no_ready_agents(
         insert_update_session(
             info,
             **{
-                "coordination_uuid": session.task["coordination"]["coordination_uuid"],
+                "coordination_uuid": session.coordination_uuid,
                 "session_uuid": session.session_uuid,
                 "status": "completed",
                 "updated_by": "procedure_hub",
@@ -644,7 +653,7 @@ def _handle_pending_agents(info: ResolveInfo, session: SessionType) -> None:
         insert_update_session(
             info,
             **{
-                "coordination_uuid": session.task["coordination"]["coordination_uuid"],
+                "coordination_uuid": session.coordination_uuid,
                 "session_uuid": session.session_uuid,
                 "status": "failed",
                 "logs": Utility.json_dumps(
@@ -662,7 +671,7 @@ def _handle_pending_agents(info: ResolveInfo, session: SessionType) -> None:
     insert_update_session(
         info,
         **{
-            "coordination_uuid": session.task["coordination"]["coordination_uuid"],
+            "coordination_uuid": session.coordination_uuid,
             "session_uuid": session.session_uuid,
             "iteration_count": int(session.iteration_count),
             "updated_by": "procedure_hub",
@@ -672,7 +681,7 @@ def _handle_pending_agents(info: ResolveInfo, session: SessionType) -> None:
     time.sleep(10)
     invoke_next_iteration(
         info,
-        session.task["coordination"]["coordination_uuid"],
+        session.coordination_uuid,
         session.session_uuid,
         iteration_count=session.iteration_count,
     )
@@ -751,7 +760,7 @@ def async_execute_procedure_task_session(
         )
         invoke_next_iteration(
             info,
-            session.task["coordination"]["coordination_uuid"],
+            session.coordination_uuid,
             session.session_uuid,
             iteration_count=session.iteration_count,
         )

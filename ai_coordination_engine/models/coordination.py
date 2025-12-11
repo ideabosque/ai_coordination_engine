@@ -5,7 +5,9 @@ from __future__ import print_function
 __author__ = "bibow"
 
 
+import functools
 import logging
+import traceback
 from typing import Any, Dict
 
 import pendulum
@@ -16,8 +18,6 @@ from pynamodb.attributes import (
     UnicodeAttribute,
     UTCDateTimeAttribute,
 )
-from tenacity import retry, stop_after_attempt, wait_exponential
-
 from silvaengine_dynamodb_base import (
     BaseModel,
     delete_decorator,
@@ -25,8 +25,10 @@ from silvaengine_dynamodb_base import (
     monitor_decorator,
     resolve_list_decorator,
 )
-from silvaengine_utility import Utility
+from silvaengine_utility import Utility, method_cache
+from tenacity import retry, stop_after_attempt, wait_exponential
 
+from ..handlers.config import Config
 from ..types.coordination import CoordinationListType, CoordinationType
 
 
@@ -44,6 +46,48 @@ class CoordinationModel(BaseModel):
     updated_at = UTCDateTimeAttribute()
 
 
+def purge_cache():
+    def actual_decorator(original_function):
+        @functools.wraps(original_function)
+        def wrapper_function(*args, **kwargs):
+            try:
+                # Use cascading cache purging for coordinations
+                from ..models.cache import purge_entity_cascading_cache
+
+                try:
+                    coordination = resolve_coordination(args[0], **kwargs)
+                except Exception:
+                    coordination = None
+
+                endpoint_id = args[0].context.get("endpoint_id") or kwargs.get(
+                    "endpoint_id"
+                )
+                entity_keys = {}
+                if coordination:
+                    entity_keys["coordination_uuid"] = coordination.coordination_uuid
+
+                result = purge_entity_cascading_cache(
+                    args[0].context.get("logger"),
+                    entity_type="coordination",
+                    context_keys={"endpoint_id": endpoint_id} if endpoint_id else None,
+                    entity_keys=entity_keys if entity_keys else None,
+                    cascade_depth=3,
+                )
+
+                ## Original function.
+                result = original_function(*args, **kwargs)
+
+                return result
+            except Exception as e:
+                log = traceback.format_exc()
+                args[0].context.get("logger").error(log)
+                raise e
+
+        return wrapper_function
+
+    return actual_decorator
+
+
 def create_coordination_table(logger: logging.Logger) -> bool:
     """Create the Coordination table if it doesn't exist."""
     if not CoordinationModel.exists():
@@ -57,6 +101,10 @@ def create_coordination_table(logger: logging.Logger) -> bool:
     reraise=True,
     wait=wait_exponential(multiplier=1, max=60),
     stop=stop_after_attempt(5),
+)
+@method_cache(
+    ttl=Config.get_cache_ttl(),
+    cache_name=Config.get_cache_name("models", "coordination"),
 )
 def get_coordination(endpoint_id: str, coordination_uuid: str) -> CoordinationModel:
     return CoordinationModel.get(endpoint_id, coordination_uuid)
@@ -72,10 +120,12 @@ def get_coordination_type(
     info: ResolveInfo, coordination: CoordinationModel
 ) -> CoordinationType:
     coordination = coordination.__dict__["attribute_values"]
-    return CoordinationType(**Utility.json_loads(Utility.json_dumps(coordination)))
+    return CoordinationType(**Utility.json_normalize(coordination))
 
 
-def resolve_coordination(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
+def resolve_coordination(
+    info: ResolveInfo, **kwargs: Dict[str, Any]
+) -> CoordinationType | None:
     count = get_coordination_count(
         info.context["endpoint_id"], kwargs["coordination_uuid"]
     )
@@ -118,6 +168,7 @@ def resolve_coordination_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> An
     return inquiry_funct, count_funct, args
 
 
+@purge_cache()
 @insert_update_decorator(
     keys={
         "hash_key": "endpoint_id",
@@ -176,6 +227,7 @@ def insert_update_coordination(info: ResolveInfo, **kwargs: Dict[str, Any]) -> N
     return
 
 
+@purge_cache()
 @delete_decorator(
     keys={
         "hash_key": "endpoint_id",

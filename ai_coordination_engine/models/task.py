@@ -4,6 +4,7 @@ from __future__ import print_function
 
 __author__ = "bibow"
 
+import functools
 import logging
 import traceback
 from typing import Any, Dict
@@ -16,7 +17,6 @@ from pynamodb.attributes import (
     UnicodeAttribute,
     UTCDateTimeAttribute,
 )
-from pynamodb.indexes import AllProjection, LocalSecondaryIndex
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from silvaengine_dynamodb_base import (
@@ -26,8 +26,9 @@ from silvaengine_dynamodb_base import (
     monitor_decorator,
     resolve_list_decorator,
 )
-from silvaengine_utility import Utility
+from silvaengine_utility import Utility, method_cache
 
+from ..handlers.config import Config
 from ..types.task import TaskListType, TaskType
 from .utils import _get_coordination
 
@@ -49,6 +50,48 @@ class TaskModel(BaseModel):
     updated_at = UTCDateTimeAttribute()
 
 
+def purge_cache():
+    def actual_decorator(original_function):
+        @functools.wraps(original_function)
+        def wrapper_function(*args, **kwargs):
+            try:
+                # Use cascading cache purging for tasks
+                from ..models.cache import purge_entity_cascading_cache
+
+                try:
+                    task = resolve_task(args[0], **kwargs)
+                except Exception:
+                    task = None
+
+                entity_keys = {}
+                if task:
+                    entity_keys["task_uuid"] = task.task_uuid
+                    entity_keys["coordination_uuid"] = task.coordination[
+                        "coordination_uuid"
+                    ]
+
+                result = purge_entity_cascading_cache(
+                    args[0].context.get("logger"),
+                    entity_type="task",
+                    context_keys=None,
+                    entity_keys=entity_keys if entity_keys else None,
+                    cascade_depth=3,
+                )
+
+                ## Original function.
+                result = original_function(*args, **kwargs)
+
+                return result
+            except Exception as e:
+                log = traceback.format_exc()
+                args[0].context.get("logger").error(log)
+                raise e
+
+        return wrapper_function
+
+    return actual_decorator
+
+
 def create_task_table(logger: logging.Logger) -> bool:
     """Create the Task table if it doesn't exist."""
     if not TaskModel.exists():
@@ -63,6 +106,9 @@ def create_task_table(logger: logging.Logger) -> bool:
     wait=wait_exponential(multiplier=1, max=60),
     stop=stop_after_attempt(5),
 )
+@method_cache(
+    ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name("models", "task")
+)
 def get_task(coordination_uuid: str, task_uuid: str) -> TaskModel:
     return TaskModel.get(coordination_uuid, task_uuid)
 
@@ -72,20 +118,26 @@ def get_task_count(coordination_uuid: str, task_uuid: str) -> int:
 
 
 def get_task_type(info: ResolveInfo, task: TaskModel) -> TaskType:
-    try:
-        coordination = _get_coordination(task.endpoint_id, task.coordination_uuid)
-    except Exception as e:
-        log = traceback.format_exc()
-        info.context.get("logger").exception(log)
-        raise e
-    task = task.__dict__["attribute_values"]
-    task["coordination"] = coordination
-    task.pop("endpoint_id")
-    task.pop("coordination_uuid")
-    return TaskType(**Utility.json_loads(Utility.json_dumps(task)))
+    """
+    Get TaskType from TaskModel without embedding nested objects.
+
+    Nested objects (coordination) are now handled by GraphQL nested resolvers
+    with batch loading for optimal performance.
+
+    Args:
+        info: GraphQL resolve info (kept for signature compatibility)
+        task: TaskModel instance
+
+    Returns:
+        TaskType with foreign keys intact for lazy loading via nested resolvers
+    """
+    _ = info  # Keep for signature compatibility with decorators
+    task_dict = task.__dict__["attribute_values"].copy()
+    # Keep all fields including FKs - nested resolvers will handle lazy loading
+    return TaskType(**Utility.json_normalize(task_dict))
 
 
-def resolve_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> TaskType:
+def resolve_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> TaskType | None:
     count = get_task_count(kwargs["coordination_uuid"], kwargs["task_uuid"])
     if count == 0:
         return None
@@ -129,6 +181,7 @@ def resolve_task_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     return inquiry_funct, count_funct, args
 
 
+@purge_cache()
 @insert_update_decorator(
     keys={
         "hash_key": "coordination_uuid",
@@ -212,6 +265,7 @@ def insert_update_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     return
 
 
+@purge_cache()
 @delete_decorator(
     keys={
         "hash_key": "coordination_uuid",

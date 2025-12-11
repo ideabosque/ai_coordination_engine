@@ -4,6 +4,7 @@ from __future__ import print_function
 
 __author__ = "bibow"
 
+import functools
 import logging
 import traceback
 from typing import Any, Dict
@@ -18,8 +19,6 @@ from pynamodb.attributes import (
     UTCDateTimeAttribute,
 )
 from pynamodb.indexes import AllProjection, LocalSecondaryIndex
-from tenacity import retry, stop_after_attempt, wait_exponential
-
 from silvaengine_dynamodb_base import (
     BaseModel,
     delete_decorator,
@@ -27,10 +26,11 @@ from silvaengine_dynamodb_base import (
     monitor_decorator,
     resolve_list_decorator,
 )
-from silvaengine_utility import Utility
+from silvaengine_utility import Utility, method_cache
+from tenacity import retry, stop_after_attempt, wait_exponential
 
+from ..handlers.config import Config
 from ..types.session import SessionListType, SessionType
-from .utils import _get_coordination, _get_task
 
 
 class UserIdIndex(LocalSecondaryIndex):
@@ -73,6 +73,7 @@ class SessionModel(BaseModel):
     user_id = UnicodeAttribute(null=True)
     endpoint_id = UnicodeAttribute()
     task_query = UnicodeAttribute(null=True)
+    input_files = ListAttribute(of=MapAttribute)
     iteration_count = NumberAttribute(default=0)
     subtask_queries = ListAttribute(of=MapAttribute)
     status = UnicodeAttribute(default="initial")
@@ -82,6 +83,46 @@ class SessionModel(BaseModel):
     updated_at = UTCDateTimeAttribute()
     task_uuid_index = TaskUuidIndex()
     user_id_index = UserIdIndex()
+
+
+def purge_cache():
+    def actual_decorator(original_function):
+        @functools.wraps(original_function)
+        def wrapper_function(*args, **kwargs):
+            try:
+                # Use cascading cache purging for sessions
+                from ..models.cache import purge_entity_cascading_cache
+
+                try:
+                    session = resolve_session(args[0], **kwargs)
+                except Exception:
+                    session = None
+
+                entity_keys = {}
+                if session:
+                    entity_keys["session_uuid"] = session.session_uuid
+                    entity_keys["coordination_uuid"] = session.coordination_uuid
+
+                result = purge_entity_cascading_cache(
+                    args[0].context.get("logger"),
+                    entity_type="session",
+                    context_keys=None,
+                    entity_keys=entity_keys if entity_keys else None,
+                    cascade_depth=3,
+                )
+
+                ## Original function.
+                result = original_function(*args, **kwargs)
+
+                return result
+            except Exception as e:
+                log = traceback.format_exc()
+                args[0].context.get("logger").error(log)
+                raise e
+
+        return wrapper_function
+
+    return actual_decorator
 
 
 def create_session_table(logger: logging.Logger) -> bool:
@@ -98,6 +139,9 @@ def create_session_table(logger: logging.Logger) -> bool:
     wait=wait_exponential(multiplier=1, max=60),
     stop=stop_after_attempt(5),
 )
+@method_cache(
+    ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name("models", "session")
+)
 def get_session(coordination_uuid: str, session_uuid: str) -> SessionModel:
     return SessionModel.get(coordination_uuid, session_uuid)
 
@@ -109,32 +153,26 @@ def get_session_count(coordination_uuid: str, session_uuid: str) -> int:
 
 
 def get_session_type(info: ResolveInfo, session: SessionModel) -> SessionType:
-    try:
-        coordination = _get_coordination(
-            session.endpoint_id,
-            session.coordination_uuid,
-        )
-        task = None
-        if session.task_uuid:
-            task = _get_task(
-                session.coordination_uuid,
-                session.task_uuid,
-            )
-    except Exception as e:
-        log = traceback.format_exc()
-        info.context.get("logger").exception(log)
-        raise e
-    session = session.__dict__["attribute_values"]
-    session["coordination"] = coordination
-    session.pop("endpoint_id")
-    session.pop("coordination_uuid")
-    if task:
-        session["task"] = task
-        session.pop("task_uuid")
-    return SessionType(**Utility.json_loads(Utility.json_dumps(session)))
+    """
+    Get SessionType from SessionModel without embedding nested objects.
+
+    Nested objects (coordination, task, session_agents, session_runs) are now
+    handled by GraphQL nested resolvers with batch loading for optimal performance.
+
+    Args:
+        info: GraphQL resolve info (kept for signature compatibility)
+        session: SessionModel instance
+
+    Returns:
+        SessionType with foreign keys intact for lazy loading via nested resolvers
+    """
+    _ = info  # Keep for signature compatibility with decorators
+    session_dict = session.__dict__["attribute_values"].copy()
+    # Keep all fields including FKs - nested resolvers will handle lazy loading
+    return SessionType(**Utility.json_normalize(session_dict))
 
 
-def resolve_session(info: ResolveInfo, **kwargs: Dict[str, Any]) -> SessionType:
+def resolve_session(info: ResolveInfo, **kwargs: Dict[str, Any]) -> SessionType | None:
     count = get_session_count(kwargs["coordination_uuid"], kwargs["session_uuid"])
     if count == 0:
         return None
@@ -183,6 +221,7 @@ def resolve_session_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     return inquiry_funct, count_funct, args
 
 
+@purge_cache()
 @insert_update_decorator(
     keys={
         "hash_key": "coordination_uuid",
@@ -198,6 +237,7 @@ def insert_update_session(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     if kwargs.get("entity") is None:
         cols = {
             "endpoint_id": info.context["endpoint_id"],
+            "input_files": [],
             "subtask_queries": [],
             "updated_by": kwargs["updated_by"],
             "created_at": pendulum.now("UTC"),
@@ -209,6 +249,7 @@ def insert_update_session(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
             "task_uuid",
             "user_id",
             "task_query",
+            "input_files",
             "iteration_count",
             "subtask_queries",
         ]:
@@ -232,6 +273,7 @@ def insert_update_session(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
         "status": SessionModel.status,
         "logs": SessionModel.logs,
         "task_query": SessionModel.task_query,
+        "input_files": SessionModel.input_files,
         "iteration_count": SessionModel.iteration_count,
         "subtask_queries": SessionModel.subtask_queries,
     }
@@ -246,6 +288,7 @@ def insert_update_session(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     return
 
 
+@purge_cache()
 @delete_decorator(
     keys={
         "hash_key": "coordination_uuid",

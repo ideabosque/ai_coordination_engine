@@ -1,0 +1,60 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "AI-Coordination-Engine"
+version = "0.0.1"
+description = "AI Coordination Engine"
+authors = [
+    {name = "Idea Bosque", email = "ideabosque@gmail.com"}
+]
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Environment :: Web Environment",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Topic :: Internet :: WWW/HTTP :: Dynamic Content",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+dependencies = [
+    "graphene",
+    "boto3",
+    "pyhumps",
+    "promise",
+    "silvaengine-dynamodb-base",
+    "silvaengine-utility",
+]
+
+[project.urls]
+Homepage = "https://github.com/ideabosque/ai_coordination_engine"
+Repository = "https://github.com/ideabosque/ai_coordination_engine"
+
+[tool.setuptools]
+zip-safe = false
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["ai_coordination_engine*"]
+exclude = ["tests*", "*.tests*"]
+
+[tool.pyright]
+typeCheckingMode = "basic"
+reportCallIssue = "none"
+reportArgumentType = "none"
+reportIndexIssue = "none"
+reportAttributeAccessIssue = "none"
+reportOptionalMemberAccess = "none"
+reportGeneralTypeIssues = "none"
+reportOptionalSubscript = "none"
+reportAssignmentType = "none"
+reportOptionalCall = "none"
