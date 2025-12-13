@@ -4,15 +4,71 @@ from __future__ import print_function
 
 __author__ = "bibow"
 
-from graphene import DateTime, Int, ObjectType, String
+from graphene import DateTime, Field, ObjectType, String
+from silvaengine_utility import JSON, Utility
 
-from silvaengine_utility import JSON
 
+class AskOperationHubTypeBase(ObjectType):
+    """Base AskOperationHub type with flat fields only (no nested resolvers)."""
 
-class AskOperationHubType(ObjectType):
-    session = JSON()
     run_uuid = String()
     thread_uuid = String()
     agent_uuid = String()
     async_task_uuid = String()
+    session_uuid = String()  # FK to Session
+    coordination_uuid = String()  # FK to Coordination
+    endpoint_id = String()
     updated_at = DateTime()
+
+
+class AskOperationHubType(AskOperationHubTypeBase):
+    """
+    AskOperationHub type with nested resolvers for related entities.
+
+    This type extends AskOperationHubTypeBase to add lazy-loaded nested fields
+    for session, using DataLoader for efficient batching.
+    """
+
+    # Nested fields (lazy-loaded via resolvers)
+    session = Field(lambda: SessionType)
+
+    # ------- Nested resolvers -------
+
+    @staticmethod
+    def resolve_session(parent, info):
+        """
+        Resolve nested Session for this operation hub response using DataLoader.
+
+        Args:
+            parent: Parent AskOperationHubType object
+            info: GraphQL resolve info containing context
+
+        Returns:
+            SessionType object or Promise resolving to SessionType or None
+        """
+        from ..models.batch_loaders import get_loaders
+
+        # Case 1: Already embedded as dict
+        existing = getattr(parent, "session", None)
+        if isinstance(existing, dict):
+            return SessionType(**Utility.json_normalize(existing))
+        if isinstance(existing, SessionType):
+            return existing
+
+        # Case 2: Need to fetch using DataLoader
+        coordination_uuid = getattr(parent, "coordination_uuid", None)
+        session_uuid = getattr(parent, "session_uuid", None)
+        if not coordination_uuid or not session_uuid:
+            return None
+
+        loaders = get_loaders(info.context)
+        return loaders.session_loader.load((coordination_uuid, session_uuid)).then(
+            lambda session_dict: (
+                SessionType(**Utility.json_normalize(session_dict))
+                if session_dict
+                else None
+            )
+        )
+
+
+from .session import SessionType
