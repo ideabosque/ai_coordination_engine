@@ -71,7 +71,7 @@ class SessionModel(BaseModel):
     session_uuid = UnicodeAttribute(range_key=True)
     task_uuid = UnicodeAttribute(null=True)
     user_id = UnicodeAttribute(null=True)
-    endpoint_id = UnicodeAttribute()
+    partition_key = UnicodeAttribute()
     task_query = UnicodeAttribute(null=True)
     input_files = ListAttribute(of=MapAttribute)
     iteration_count = NumberAttribute(default=0)
@@ -193,7 +193,7 @@ def resolve_session_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     coordination_uuid = kwargs.get("coordination_uuid")
     task_uuid = kwargs.get("task_uuid")
     user_id = kwargs.get("user_id")
-    endpoint_id = info.context["endpoint_id"]
+    partition_key = info.context["partition_key"]
     statuses = kwargs.get("statuses")
     args = []
     inquiry_funct = SessionModel.scan
@@ -211,8 +211,8 @@ def resolve_session_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
             inquiry_funct = SessionModel.user_id_index.query
 
     the_filters = None  # We can add filters for the query.
-    if endpoint_id is not None:
-        the_filters &= SessionModel.endpoint_id == endpoint_id
+    if partition_key is not None:
+        the_filters &= SessionModel.partition_key == partition_key
     if statuses is not None:
         the_filters &= SessionModel.status.is_in(*statuses)
     if the_filters is not None:
@@ -237,6 +237,7 @@ def insert_update_session(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     if kwargs.get("entity") is None:
         cols = {
             "endpoint_id": info.context["endpoint_id"],
+            "partition_key": info.context.get("partition_key"),
             "input_files": [],
             "subtask_queries": [],
             "updated_by": kwargs["updated_by"],

@@ -17,7 +17,7 @@ class AskOperationHubTypeBase(ObjectType):
     async_task_uuid = String()
     session_uuid = String()  # FK to Session
     coordination_uuid = String()  # FK to Coordination
-    endpoint_id = String()
+    partition_key = String()
     updated_at = DateTime()
 
 

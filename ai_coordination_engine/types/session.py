@@ -20,6 +20,7 @@ class SessionTypeBase(ObjectType):
     task_uuid = String()  # FK to Task
     user_id = String()
     endpoint_id = String()
+    partition_key = String()
     task_query = String()
     input_files = List(JSON)
     iteration_count = Int()
@@ -69,13 +70,17 @@ class SessionType(SessionTypeBase):
             return existing
 
         # Case 2: Need to fetch using DataLoader
-        endpoint_id = getattr(parent, "endpoint_id", None)
+        partition_key = getattr(parent, "partition_key", None) or getattr(
+            parent, "endpoint_id", None
+        )
         coordination_uuid = getattr(parent, "coordination_uuid", None)
-        if not endpoint_id or not coordination_uuid:
+        if not partition_key or not coordination_uuid:
             return None
 
         loaders = get_loaders(info.context)
-        return loaders.coordination_loader.load((endpoint_id, coordination_uuid)).then(
+        return loaders.coordination_loader.load(
+            (partition_key, coordination_uuid)
+        ).then(
             lambda coord_dict: (
                 CoordinationType(**Utility.json_normalize(coord_dict))
                 if coord_dict

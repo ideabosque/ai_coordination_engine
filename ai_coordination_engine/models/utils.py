@@ -24,7 +24,7 @@ def _initialize_tables(logger: logging.Logger) -> None:
     create_task_schedule_table(logger)
 
 
-def _get_coordination(endpoint_id: str, coordination_uuid: str) -> Dict[str, Any]:
+def _get_coordination(partition_key: str, coordination_uuid: str) -> Dict[str, Any]:
     """
     Get coordination as a dictionary for embedding purposes.
 
@@ -32,7 +32,7 @@ def _get_coordination(endpoint_id: str, coordination_uuid: str) -> Dict[str, Any
     but don't need the full GraphQL type with nested resolvers.
 
     Args:
-        endpoint_id: The endpoint identifier
+        partition_key: The partition key
         coordination_uuid: The coordination UUID
 
     Returns:
@@ -40,42 +40,12 @@ def _get_coordination(endpoint_id: str, coordination_uuid: str) -> Dict[str, Any
     """
     from .coordination import get_coordination
 
-    coordination = get_coordination(endpoint_id, coordination_uuid)
+    coordination = get_coordination(partition_key, coordination_uuid)
     return {
+        "partition_key": coordination.partition_key,
         "endpoint_id": coordination.endpoint_id,
         "coordination_uuid": coordination.coordination_uuid,
         "coordination_name": coordination.coordination_name,
         "coordination_description": coordination.coordination_description,
         "agents": coordination.agents,
-    }
-
-
-def _get_task(coordination_uuid: str, task_uuid: str) -> Dict[str, Any]:
-    """
-    Get task as a dictionary for embedding purposes.
-
-    This is used in contexts where we need task data embedded as a dict
-    (e.g., task schedules) rather than using GraphQL nested resolvers.
-
-    Args:
-        coordination_uuid: The coordination UUID
-        task_uuid: The task UUID
-
-    Returns:
-        Dict containing task data with embedded coordination
-    """
-    from .task import get_task
-
-    task = get_task(coordination_uuid, task_uuid)
-    return {
-        "coordination": _get_coordination(
-            task.endpoint_id,
-            task.coordination_uuid,
-        ),
-        "task_uuid": task.task_uuid,
-        "task_name": task.task_name,
-        "task_description": task.task_description,
-        "initial_task_query": task.initial_task_query,
-        "subtask_queries": task.subtask_queries,
-        "agent_actions": task.agent_actions,
     }

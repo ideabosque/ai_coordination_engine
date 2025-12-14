@@ -8,7 +8,6 @@ import logging
 from typing import Any, Dict, List
 
 from graphene import Schema
-
 from silvaengine_dynamodb_base import BaseModel
 from silvaengine_utility import Graphql
 
@@ -168,12 +167,56 @@ class AICoordinationEngine(Graphql):
         self.logger = logger
         self.setting = setting
 
-    def async_insert_update_session(self, **params: Dict[str, Any]) -> Any:
+    def _resolve_partition_key(self, params: Dict[str, Any]) -> None:
+        if params.get("partition_key"):
+            return
+
+        context = params.get("context")
+        if context is None:
+            context = self.setting.get("context")
+
+        if isinstance(context, dict) and context.get("partition_key"):
+            params["partition_key"] = context.get("partition_key")
+            return
+
+        if (
+            hasattr(context, "client_context")
+            and context.client_context
+            and context.client_context.custom
+            and context.client_context.custom.get("partition_key")
+        ):
+            params["partition_key"] = context.client_context.custom.get("partition_key")
+            return
+
+        function_name = None
+        function_version = None
+        if hasattr(context, "function_name"):
+            function_name = context.function_name
+            function_version = context.function_version
+        elif isinstance(context, dict):
+            function_name = context.get("function_name")
+            function_version = context.get("function_version")
+
         ## Test the waters 🧪 before diving in!
         ##<--Testing Data-->##
-        if params.get("endpoint_id") is None:
-            params["endpoint_id"] = self.setting.get("endpoint_id")
+        endpoint_id = params.get("endpoint_id")
+        if endpoint_id is None:
+            endpoint_id = self.setting.get("endpoint_id") or function_name
+            params["endpoint_id"] = endpoint_id
         ##<--Testing Data-->##
+
+        if (
+            endpoint_id
+            and endpoint_id == function_name
+            and function_version
+            and function_version != "$LATEST"
+        ):
+            params["partition_key"] = f"{function_name}_{function_version}"
+        else:
+            params["partition_key"] = endpoint_id
+
+    def async_insert_update_session(self, **params: Dict[str, Any]) -> Any:
+        self._resolve_partition_key(params)
 
         operation_hub_listener.async_insert_update_session(
             self.logger, self.setting, **params
@@ -181,11 +224,7 @@ class AICoordinationEngine(Graphql):
         return
 
     def async_execute_procedure_task_session(self, **params: Dict[str, Any]) -> Any:
-        ## Test the waters 🧪 before diving in!
-        ##<--Testing Data-->##
-        if params.get("endpoint_id") is None:
-            params["endpoint_id"] = self.setting.get("endpoint_id")
-        ##<--Testing Data-->##
+        self._resolve_partition_key(params)
 
         procedure_hub_listener.async_execute_procedure_task_session(
             self.logger, self.setting, **params
@@ -193,11 +232,7 @@ class AICoordinationEngine(Graphql):
         return
 
     def async_update_session_agent(self, **params: Dict[str, Any]) -> Any:
-        ## Test the waters 🧪 before diving in!
-        ##<--Testing Data-->##
-        if params.get("endpoint_id") is None:
-            params["endpoint_id"] = self.setting.get("endpoint_id")
-        ##<--Testing Data-->##
+        self._resolve_partition_key(params)
 
         procedure_hub_listener.async_update_session_agent(
             self.logger, self.setting, **params
@@ -205,11 +240,7 @@ class AICoordinationEngine(Graphql):
         return
 
     def async_orchestrate_task_query(self, **params: Dict[str, Any]) -> Any:
-        ## Test the waters 🧪 before diving in!
-        ##<--Testing Data-->##
-        if params.get("endpoint_id") is None:
-            params["endpoint_id"] = self.setting.get("endpoint_id")
-        ##<--Testing Data-->##
+        self._resolve_partition_key(params)
 
         procedure_hub_listener.async_orchestrate_task_query(
             self.logger, self.setting, **params
@@ -221,9 +252,10 @@ class AICoordinationEngine(Graphql):
         ##<--Testing Data-->##
         if params.get("connection_id") is None:
             params["connection_id"] = self.setting.pop("connection_id", None)
-        if params.get("endpoint_id") is None:
-            params["endpoint_id"] = self.setting.get("endpoint_id")
         ##<--Testing Data-->##
+
+        self._resolve_partition_key(params)
+
         schema = Schema(
             query=Query,
             mutation=Mutations,

@@ -81,12 +81,9 @@ def execute_procedure_task_session(
     # Invoke async update function on AWS Lambda
     if not session.subtask_queries:
         Utility.invoke_funct_on_aws_lambda(
-            info.context["logger"],
-            info.context["endpoint_id"],
+            info.context,
             "async_orchestrate_task_query",
             params=params,
-            setting=info.context["setting"],
-            execute_mode=info.context["setting"].get("execute_mode"),
             aws_lambda=Config.aws_lambda,
         )
     else:
@@ -110,12 +107,9 @@ def execute_procedure_task_session(
 
     # Invoke async update function on AWS Lambda
     Utility.invoke_funct_on_aws_lambda(
-        info.context["logger"],
-        info.context["endpoint_id"],
+        info.context,
         "async_execute_procedure_task_session",
         params=params,
-        setting=info.context["setting"],
-        execute_mode=info.context["setting"].get("execute_mode"),
         aws_lambda=Config.aws_lambda,
     )
 

@@ -12,8 +12,6 @@ from typing import Any, Dict
 import pendulum
 from graphene import ResolveInfo
 from pynamodb.attributes import UnicodeAttribute, UTCDateTimeAttribute
-from tenacity import retry, stop_after_attempt, wait_exponential
-
 from silvaengine_dynamodb_base import (
     BaseModel,
     delete_decorator,
@@ -22,10 +20,10 @@ from silvaengine_dynamodb_base import (
     resolve_list_decorator,
 )
 from silvaengine_utility import Utility, method_cache
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..handlers.config import Config
 from ..types.task_schedule import TaskScheduleListType, TaskScheduleType
-from .utils import _get_coordination, _get_task
 
 
 class TaskScheduleModel(BaseModel):
@@ -35,7 +33,7 @@ class TaskScheduleModel(BaseModel):
     task_uuid = UnicodeAttribute(hash_key=True)
     schedule_uuid = UnicodeAttribute(range_key=True)
     coordination_uuid = UnicodeAttribute()
-    endpoint_id = UnicodeAttribute()
+    partition_key = UnicodeAttribute()
     schedule = UnicodeAttribute()
     status = UnicodeAttribute(default="initial")
     updated_by = UnicodeAttribute()
@@ -103,11 +101,8 @@ def create_task_schedule_table(logger: logging.Logger) -> bool:
     ttl=Config.get_cache_ttl(),
     cache_name=Config.get_cache_name("models", "task_schedule"),
 )
-def get_task_schedule(task_uuid: str, schedule_uuid: str) -> TaskScheduleType:
-    return TaskScheduleModel.get(
-        hash_key=task_uuid,
-        range_key=schedule_uuid,
-    )
+def get_task_schedule(task_uuid: str, schedule_uuid: str) -> TaskScheduleModel:
+    return TaskScheduleModel.get(task_uuid, schedule_uuid)
 
 
 def get_task_schedule_count(task_uuid: str, schedule_uuid: str) -> int:
@@ -120,27 +115,28 @@ def get_task_schedule_count(task_uuid: str, schedule_uuid: str) -> int:
 def get_task_schedule_type(
     info: ResolveInfo, task_schedule: TaskScheduleModel
 ) -> TaskScheduleType:
-    try:
-        task = _get_task(task_schedule.coordination_uuid, task_schedule.task_uuid)
-        coordination = _get_coordination(
-            info.context["endpoint_id"], task_schedule.coordination_uuid
-        )
-    except Exception as e:
-        log = traceback.format_exc()
-        info.context.get("logger").exception(log)
-        raise e
-    task_schedule = task_schedule.__dict__["attribute_values"]
-    task_schedule["task"] = task
-    task_schedule["coordination"] = coordination
-    task_schedule.pop("coordination_uuid")
-    task_schedule.pop("endpoint_id")
-    task_schedule.pop("task_uuid")
-    return TaskScheduleType(**Utility.json_normalize(task_schedule))
+    """
+    Get TaskScheduleType from TaskScheduleModel without embedding nested objects.
+
+    Nested objects (task, coordination) are now handled by GraphQL nested resolvers
+    with batch loading for optimal performance.
+
+    Args:
+        info: GraphQL resolve info (kept for signature compatibility)
+        task_schedule: TaskScheduleModel instance
+
+    Returns:
+        TaskScheduleType with foreign keys intact for lazy loading via nested resolvers
+    """
+    _ = info  # Keep for signature compatibility with decorators
+    task_schedule_dict = task_schedule.__dict__["attribute_values"].copy()
+    # Keep all fields including FKs - nested resolvers will handle lazy loading
+    return TaskScheduleType(**Utility.json_normalize(task_schedule_dict))
 
 
 def resolve_task_schedule(
     info: ResolveInfo, **kwargs: Dict[str, Any]
-) -> TaskScheduleType:
+) -> TaskScheduleType | None:
     count = get_task_schedule_count(kwargs["task_uuid"], kwargs["schedule_uuid"])
     if count == 0:
         return None
@@ -156,12 +152,10 @@ def resolve_task_schedule(
     list_type_class=TaskScheduleListType,
     type_funct=get_task_schedule_type,
 )
-def resolve_task_schedule_list(
-    info: ResolveInfo, **kwargs: Dict[str, Any]
-) -> TaskScheduleListType:
+def resolve_task_schedule_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     task_uuid = kwargs.get("task_uuid")
     coordination_uuid = kwargs.get("coordination_uuid")
-    endpoint_id = info.context.get("endpoint_id")
+    partition_key = info.context.get("partition_key")
     statuses = kwargs.get("statuses")
 
     args = []
@@ -174,8 +168,8 @@ def resolve_task_schedule_list(
     the_filters = None  # We can add filters for the query.
     if coordination_uuid is not None:
         the_filters &= TaskScheduleModel.coordination_uuid == coordination_uuid
-    if endpoint_id is not None:
-        the_filters &= TaskScheduleModel.endpoint_id == endpoint_id
+    if partition_key is not None:
+        the_filters &= TaskScheduleModel.partition_key == partition_key
     if statuses is not None:
         the_filters &= TaskScheduleModel.status.is_in(*statuses)
     if the_filters is not None:
@@ -196,15 +190,14 @@ def resolve_task_schedule_list(
     # data_attributes_except_for_data_diff=data_attributes_except_for_data_diff,
     # activity_history_funct=None,
 )
-def insert_update_task_schedule(
-    info: ResolveInfo, **kwargs: Dict[str, Any]
-) -> TaskScheduleType:
+def insert_update_task_schedule(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     task_uuid = kwargs.get("task_uuid")
     schedule_uuid = kwargs.get("schedule_uuid")
     if kwargs.get("entity") is None:
         cols = {
             "coordination_uuid": kwargs["coordination_uuid"],
             "endpoint_id": info.context["endpoint_id"],
+            "partition_key": info.context.get("partition_key"),
             "updated_by": kwargs["updated_by"],
             "created_at": pendulum.now("UTC"),
             "updated_at": pendulum.now("UTC"),

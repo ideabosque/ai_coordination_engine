@@ -36,8 +36,10 @@ class CoordinationModel(BaseModel):
     class Meta(BaseModel.Meta):
         table_name = "ace-coordinations"
 
-    endpoint_id = UnicodeAttribute(hash_key=True)
+    partition_key = UnicodeAttribute(hash_key=True)
     coordination_uuid = UnicodeAttribute(range_key=True)
+    endpoint_id = UnicodeAttribute()
+    part_id = UnicodeAttribute()
     coordination_name = UnicodeAttribute()
     coordination_description = UnicodeAttribute()
     agents = ListAttribute(of=MapAttribute)
@@ -59,9 +61,7 @@ def purge_cache():
                 except Exception:
                     coordination = None
 
-                endpoint_id = args[0].context.get("endpoint_id") or kwargs.get(
-                    "endpoint_id"
-                )
+                partition_key = args[0].context.get("partition_key")
                 entity_keys = {}
                 if coordination:
                     entity_keys["coordination_uuid"] = coordination.coordination_uuid
@@ -69,7 +69,9 @@ def purge_cache():
                 result = purge_entity_cascading_cache(
                     args[0].context.get("logger"),
                     entity_type="coordination",
-                    context_keys={"endpoint_id": endpoint_id} if endpoint_id else None,
+                    context_keys={"partition_key": partition_key}
+                    if partition_key
+                    else None,
                     entity_keys=entity_keys if entity_keys else None,
                     cascade_depth=3,
                 )
@@ -106,35 +108,36 @@ def create_coordination_table(logger: logging.Logger) -> bool:
     ttl=Config.get_cache_ttl(),
     cache_name=Config.get_cache_name("models", "coordination"),
 )
-def get_coordination(endpoint_id: str, coordination_uuid: str) -> CoordinationModel:
-    return CoordinationModel.get(endpoint_id, coordination_uuid)
+def get_coordination(partition_key: str, coordination_uuid: str) -> CoordinationModel:
+    return CoordinationModel.get(partition_key, coordination_uuid)
 
 
-def get_coordination_count(endpoint_id: str, coordination_uuid: str) -> int:
+def get_coordination_count(partition_key: str, coordination_uuid: str) -> int:
     return CoordinationModel.count(
-        endpoint_id, CoordinationModel.coordination_uuid == coordination_uuid
+        partition_key, CoordinationModel.coordination_uuid == coordination_uuid
     )
 
 
 def get_coordination_type(
     info: ResolveInfo, coordination: CoordinationModel
 ) -> CoordinationType:
-    coordination = coordination.__dict__["attribute_values"]
-    return CoordinationType(**Utility.json_normalize(coordination))
+    _ = info  # Keep for signature compatibility with decorators
+    coordination_dict = coordination.__dict__["attribute_values"].copy()
+    # Keep all fields including FKs - nested resolvers will handle lazy loading
+    return CoordinationType(**Utility.json_normalize(coordination_dict))
 
 
 def resolve_coordination(
     info: ResolveInfo, **kwargs: Dict[str, Any]
 ) -> CoordinationType | None:
-    count = get_coordination_count(
-        info.context["endpoint_id"], kwargs["coordination_uuid"]
-    )
+    partition_key = info.context.get("partition_key") or info.context.get("endpoint_id")
+    count = get_coordination_count(partition_key, kwargs["coordination_uuid"])
     if count == 0:
         return None
 
     return get_coordination_type(
         info,
-        get_coordination(info.context["endpoint_id"], kwargs["coordination_uuid"]),
+        get_coordination(partition_key, kwargs["coordination_uuid"]),
     )
 
 
@@ -145,14 +148,14 @@ def resolve_coordination(
     type_funct=get_coordination_type,
 )
 def resolve_coordination_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
-    endpoint_id = info.context["endpoint_id"]
+    partition_key = info.context.get("partition_key")
     coordination_name = kwargs.get("coordination_name")
     coordination_description = kwargs.get("coordination_description")
     args = []
     inquiry_funct = CoordinationModel.scan
     count_funct = CoordinationModel.count
-    if endpoint_id:
-        args = [endpoint_id, None]
+    if partition_key:
+        args = [partition_key, None]
         inquiry_funct = CoordinationModel.query
 
     the_filters = None  # We can add filters for the query.
@@ -171,7 +174,7 @@ def resolve_coordination_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> An
 @purge_cache()
 @insert_update_decorator(
     keys={
-        "hash_key": "endpoint_id",
+        "hash_key": "partition_key",
         "range_key": "coordination_uuid",
     },
     model_funct=get_coordination,
@@ -181,10 +184,12 @@ def resolve_coordination_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> An
     # activity_history_funct=None,
 )
 def insert_update_coordination(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
-    endpoint_id = kwargs.get("endpoint_id")
+    partition_key = kwargs.get("partition_key")
     coordination_uuid = kwargs.get("coordination_uuid")
     if kwargs.get("entity") is None:
         cols = {
+            "endpoint_id": info.context.get("endpoint_id"),
+            "part_id": info.context.get("part_id"),
             "agents": [],
             "updated_by": kwargs["updated_by"],
             "created_at": pendulum.now("UTC"),
@@ -199,7 +204,7 @@ def insert_update_coordination(info: ResolveInfo, **kwargs: Dict[str, Any]) -> N
                 cols[key] = kwargs[key]
 
         CoordinationModel(
-            endpoint_id,
+            partition_key,
             coordination_uuid,
             **cols,
         ).save()
@@ -230,7 +235,7 @@ def insert_update_coordination(info: ResolveInfo, **kwargs: Dict[str, Any]) -> N
 @purge_cache()
 @delete_decorator(
     keys={
-        "hash_key": "endpoint_id",
+        "hash_key": "partition_key",
         "range_key": "coordination_uuid",
     },
     model_funct=get_coordination,

@@ -13,8 +13,6 @@ import pendulum
 from graphene import ResolveInfo
 from pynamodb.attributes import UnicodeAttribute, UTCDateTimeAttribute
 from pynamodb.indexes import AllProjection, LocalSecondaryIndex
-from tenacity import retry, stop_after_attempt, wait_exponential
-
 from silvaengine_dynamodb_base import (
     BaseModel,
     delete_decorator,
@@ -23,6 +21,7 @@ from silvaengine_dynamodb_base import (
     resolve_list_decorator,
 )
 from silvaengine_utility import Utility, method_cache
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..handlers.ai_coordination_utility import get_async_task
 from ..handlers.config import Config
@@ -69,6 +68,7 @@ class SessionRunModel(BaseModel):
     agent_uuid = UnicodeAttribute()
     coordination_uuid = UnicodeAttribute()
     endpoint_id = UnicodeAttribute()
+    partition_key = UnicodeAttribute(null=True)
     async_task_uuid = UnicodeAttribute()
     session_agent_uuid = UnicodeAttribute(null=True)
     updated_by = UnicodeAttribute()
@@ -191,7 +191,9 @@ def get_session_run_type(
     return SessionRunType(**Utility.json_normalize(session_run_dict))
 
 
-def resolve_session_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> SessionRunType:
+def resolve_session_run(
+    info: ResolveInfo, **kwargs: Dict[str, Any]
+) -> SessionRunType | None:
     count = get_session_run_count(kwargs["session_uuid"], kwargs["run_uuid"])
     if count == 0:
         return None
@@ -210,7 +212,7 @@ def resolve_session_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> SessionR
 )
 def resolve_session_run_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     session_uuid = kwargs.get("session_uuid")
-    endpoint_id = info.context["endpoint_id"]
+    partition_key = info.context["partition_key"]
     agent_uuid = kwargs.get("agent_uuid")
     thread_uuid = kwargs.get("thread_uuid")
     coordination_uuid = kwargs.get("coordination_uuid")
@@ -230,8 +232,8 @@ def resolve_session_run_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any
             count_funct = SessionRunModel.thread_uuid_index.count
 
     the_filters = None  # We can add filters for the query.
-    if endpoint_id is not None:
-        the_filters &= SessionRunModel.endpoint_id == endpoint_id
+    if partition_key is not None:
+        the_filters &= SessionRunModel.partition_key == partition_key
     if coordination_uuid is not None:
         the_filters &= SessionRunModel.coordination_uuid == coordination_uuid
     if the_filters is not None:
@@ -259,7 +261,7 @@ def insert_update_session_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> No
             "thread_uuid": kwargs["thread_uuid"],
             "agent_uuid": kwargs["agent_uuid"],
             "coordination_uuid": kwargs["coordination_uuid"],
-            "endpoint_id": info.context["endpoint_id"],
+            "partition_key": info.context.get("partition_key"),
             "async_task_uuid": kwargs["async_task_uuid"],
             "updated_by": kwargs["updated_by"],
             "created_at": pendulum.now("UTC"),

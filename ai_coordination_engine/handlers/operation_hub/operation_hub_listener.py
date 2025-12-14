@@ -46,9 +46,7 @@ def async_insert_update_session(
     start_time = time.time()
     while True:
         async_task = get_async_task(
-            info.context.get("logger"),
-            info.context.get("endpoint_id"),
-            info.context.get("setting"),
+            info.context,
             **{
                 "functionName": "async_execute_ask_model",
                 "asyncTaskUuid": session_run.async_task["async_task_uuid"],

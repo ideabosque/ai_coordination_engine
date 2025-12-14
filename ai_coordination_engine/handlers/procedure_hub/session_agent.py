@@ -310,9 +310,7 @@ def update_session_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
 
         while time.time() - start_time < TIMEOUT:
             async_task = get_async_task(
-                info.context.get("logger"),
-                info.context.get("endpoint_id"),
-                info.context.get("setting"),
+                info.context,
                 **{
                     "functionName": "async_execute_ask_model",
                     "asyncTaskUuid": kwargs["async_task_uuid"],
@@ -482,10 +480,7 @@ def execute_session_agent(info: ResolveInfo, session_agent: SessionAgentType) ->
             variables.update({"input_files": input_files})
 
         ask_model = invoke_ask_model(
-            info.context.get("logger"),
-            info.context.get("endpoint_id"),
-            setting=info.context.get("setting"),
-            connection_id=connection_id,
+            info.context,
             **variables,
         )
 
@@ -514,12 +509,9 @@ def execute_session_agent(info: ResolveInfo, session_agent: SessionAgentType) ->
 
         # Invoke async update function on AWS Lambda
         Utility.invoke_funct_on_aws_lambda(
-            info.context["logger"],
-            info.context["endpoint_id"],
+            info.context,
             "async_update_session_agent",
             params=params,
-            setting=info.context["setting"],
-            execute_mode=info.context["setting"].get("execute_mode"),
             aws_lambda=Config.aws_lambda,
         )
         return

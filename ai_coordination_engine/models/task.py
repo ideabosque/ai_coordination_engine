@@ -17,8 +17,6 @@ from pynamodb.attributes import (
     UnicodeAttribute,
     UTCDateTimeAttribute,
 )
-from tenacity import retry, stop_after_attempt, wait_exponential
-
 from silvaengine_dynamodb_base import (
     BaseModel,
     delete_decorator,
@@ -27,6 +25,7 @@ from silvaengine_dynamodb_base import (
     resolve_list_decorator,
 )
 from silvaengine_utility import Utility, method_cache
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..handlers.config import Config
 from ..types.task import TaskListType, TaskType
@@ -39,10 +38,10 @@ class TaskModel(BaseModel):
 
     coordination_uuid = UnicodeAttribute(hash_key=True)
     task_uuid = UnicodeAttribute(range_key=True)
+    partition_key = UnicodeAttribute(null=True)
     task_name = UnicodeAttribute()
     task_description = UnicodeAttribute(null=True)
     initial_task_query = UnicodeAttribute()
-    endpoint_id = UnicodeAttribute()
     subtask_queries = ListAttribute(of=MapAttribute)
     agent_actions = MapAttribute()
     updated_by = UnicodeAttribute()
@@ -158,7 +157,7 @@ def resolve_task_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     task_name = kwargs.get("task_name")
     task_description = kwargs.get("task_description")
     initial_task_query = kwargs.get("initial_task_query")
-    endpoint_id = info.context["endpoint_id"]
+    partition_key = info.context["partition_key"]
     args = []
     inquiry_funct = TaskModel.scan
     count_funct = TaskModel.count
@@ -173,8 +172,8 @@ def resolve_task_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
         the_filters &= TaskModel.task_description.contains(task_description)
     if initial_task_query is not None:
         the_filters &= TaskModel.initial_task_query.contains(initial_task_query)
-    if endpoint_id is not None:
-        the_filters &= TaskModel.endpoint_id == endpoint_id
+    if partition_key is not None:
+        the_filters &= TaskModel.partition_key == partition_key
     if the_filters is not None:
         args.append(the_filters)
 
@@ -198,7 +197,8 @@ def insert_update_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     task_uuid = kwargs.get("task_uuid")
 
     if "subtask_queries" in kwargs or "agent_actions" in kwargs:
-        coordination = _get_coordination(info.context["endpoint_id"], coordination_uuid)
+        partition_key = info.context.get("partition_key")
+        coordination = _get_coordination(partition_key, coordination_uuid)
         valid_agent_uuids = [agent["agent_uuid"] for agent in coordination["agents"]]
 
         # Filter subtask queries
@@ -220,7 +220,7 @@ def insert_update_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     if kwargs.get("entity") is None:
         cols = {
             "task_name": kwargs["task_name"],
-            "endpoint_id": info.context["endpoint_id"],
+            "partition_key": info.context.get("partition_key"),
             "subtask_queries": [],
             "updated_by": kwargs["updated_by"],
             "created_at": pendulum.now("UTC"),

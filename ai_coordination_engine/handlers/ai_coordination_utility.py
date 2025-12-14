@@ -20,28 +20,19 @@ from .config import Config
 
 
 def execute_graphql_query(
-    logger: logging.Logger,
-    endpoint_id: str,
+    context: Dict[str, Any],
     function_name: str,
     operation_name: str,
     operation_type: str,
     variables: Dict[str, Any],
-    setting: Dict[str, Any] = {},
-    connection_id: str = None,
 ) -> Dict[str, Any]:
-    schema = Config.fetch_graphql_schema(
-        logger, endpoint_id, function_name, setting=setting
-    )
+    schema = Config.fetch_graphql_schema(context, function_name)
     result = Utility.execute_graphql_query(
-        logger,
-        endpoint_id,
+        context,
         function_name,
         Utility.generate_graphql_operation(operation_name, operation_type, schema),
         variables,
-        setting=setting,
         aws_lambda=Config.aws_lambda,
-        connection_id=connection_id,
-        execute_mode=setting.get("execute_mode"),
     )
     return result
 
@@ -97,46 +88,36 @@ def get_action_function(
 
 
 def invoke_ask_model(
-    logger: logging.Logger,
-    endpoint_id: str,
-    setting: Dict[str, Any] = None,
-    connection_id: str = None,
+    context: Dict[str, Any],
     **variables: Dict[str, Any],
 ) -> Dict[str, Any]:
     """Call AI model for assistance via GraphQL query."""
     try:
         ask_model = execute_graphql_query(
-            logger,
-            endpoint_id,
+            context,
             "ai_agent_core_graphql",
             "askModel",
             "Query",
             variables,
-            setting=setting,
-            connection_id=connection_id,
         )["askModel"]
         return humps.decamelize(ask_model)
     except Exception as e:
-        logger.error(f"Error invoking askModel: {e}")
-        logger.error(f"Variables passed: {Utility.json_dumps(variables)}")
+        context["logger"].error(f"Error invoking askModel: {e}")
+        context["logger"].error(f"Variables passed: {Utility.json_dumps(variables)}")
         raise
 
 
 def get_async_task(
-    logger: logging.Logger,
-    endpoint_id: str,
-    setting: Dict[str, Any] = None,
+    context: Dict[str, Any],
     **variables: Dict[str, Any],
 ) -> Dict[str, Any]:
     """Call AI model for assistance via GraphQL query."""
     async_task = execute_graphql_query(
-        logger,
-        endpoint_id,
+        context,
         "ai_agent_core_graphql",
         "asyncTask",
         "Query",
         variables,
-        setting=setting,
     )["asyncTask"]
     return humps.decamelize(async_task)
 

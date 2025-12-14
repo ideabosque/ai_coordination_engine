@@ -4,6 +4,7 @@ from __future__ import print_function
 
 __author__ = "bibow"
 
+from botocore.session import PartialCredentialsError
 from graphene import Field, ObjectType, String
 from silvaengine_utility import Utility
 
@@ -16,7 +17,7 @@ class ProcedureTaskSessionTypeBase(ObjectType):
     task_uuid = String()
     user_id = String()
     task_query = String()
-    endpoint_id = String()
+    partition_key = String()
 
 
 class ProcedureTaskSessionType(ProcedureTaskSessionTypeBase):
@@ -47,13 +48,13 @@ class ProcedureTaskSessionType(ProcedureTaskSessionTypeBase):
         if isinstance(existing, CoordinationType):
             return existing
 
-        endpoint_id = getattr(parent, "endpoint_id", None)
+        partition_key = getattr(parent, "partition_key", None)
         coordination_uuid = getattr(parent, "coordination_uuid", None)
-        if not endpoint_id or not coordination_uuid:
+        if not partition_key or not coordination_uuid:
             return None
 
         loaders = get_loaders(info.context)
-        return loaders.coordination_loader.load((endpoint_id, coordination_uuid)).then(
+        return loaders.coordination_loader.load((partition_key, coordination_uuid)).then(
             lambda coord_dict: (
                 CoordinationType(**Utility.json_normalize(coord_dict))
                 if coord_dict

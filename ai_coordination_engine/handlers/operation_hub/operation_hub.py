@@ -155,10 +155,7 @@ def ask_operation_hub(
             variables["inputFiles"] = kwargs["input_files"]
 
         ask_model = invoke_ask_model(
-            info.context.get("logger"),
-            info.context.get("endpoint_id"),
-            setting=info.context.get("setting"),
-            connection_id=connection_id,
+            info.context,
             **variables,
         )
         session_run = insert_update_session_run(
@@ -180,13 +177,9 @@ def ask_operation_hub(
         # Step 7: Return response
         return AskOperationHubType(
             **{
-                "session": {
-                    "coordination_uuid": session.coordination_uuid,
-                    "session_uuid": session.session_uuid,
-                    "user_id": session.user_id,
-                    "endpoint_id": session.endpoint_id,
-                    "status": session.status,
-                },
+                "coordination_uuid": session.coordination_uuid,
+                "session_uuid": session.session_uuid,
+                "partition_key": session.partition_key,
                 "run_uuid": session_run.run_uuid,
                 "thread_uuid": session_run.thread_uuid,
                 "agent_uuid": session_run.agent_uuid,
@@ -366,12 +359,9 @@ def _trigger_async_update(
         params["receiver_email"] = kwargs["receiver_email"]
 
     Utility.invoke_funct_on_aws_lambda(
-        info.context["logger"],
-        info.context["endpoint_id"],
+        info.context,
         "async_insert_update_session",
         params=params,
-        setting=info.context["setting"],
-        execute_mode=info.context["setting"].get("execute_mode"),
         aws_lambda=Config.aws_lambda,
         invocation_type="Event",
     )

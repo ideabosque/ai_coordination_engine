@@ -309,12 +309,9 @@ def invoke_next_iteration(
         params.update({"connection_id": info.context["connectionId"]})
 
     Utility.invoke_funct_on_aws_lambda(
-        info.context["logger"],
-        info.context["endpoint_id"],
+        info.context,
         "async_execute_procedure_task_session",
         params=params,
-        setting=info.context["setting"],
-        execute_mode=info.context["setting"].get("execute_mode"),
         aws_lambda=Config.aws_lambda,
     )
 
@@ -330,9 +327,7 @@ def _process_task_completion(
 
     while time.time() - start <= timeout:
         task = get_async_task(
-            info.context.get("logger"),
-            info.context.get("endpoint_id"),
-            info.context.get("setting"),
+            info.context,
             functionName="async_execute_ask_model",
             asyncTaskUuid=async_task_uuid,
         )
@@ -470,9 +465,7 @@ def async_orchestrate_task_query(
 
     # Ask model to decompose task
     ask_model = invoke_ask_model(
-        info.context.get("logger"),
-        info.context.get("endpoint_id"),
-        setting=info.context.get("setting"),
+        info.context,
         **{
             "agentUuid": orchestrator_agent["agent_uuid"],
             "userQuery": query,

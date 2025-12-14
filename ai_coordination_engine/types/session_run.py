@@ -18,7 +18,7 @@ class SessionRunTypeBase(ObjectType):
     session_agent_uuid = String()  # FK to SessionAgent
     thread_uuid = String()
     agent_uuid = String()
-    endpoint_id = String()
+    partition_key = String()
     async_task_uuid = String()
     async_task = JSON()  # Async task details
     updated_by = String()
