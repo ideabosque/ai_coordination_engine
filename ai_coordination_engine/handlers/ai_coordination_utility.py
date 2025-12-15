@@ -458,20 +458,22 @@ def _resolve_coordination(session, task_dict, info) -> Dict[str, Any]:
     coord_uuid = task_dict.get("coordination_uuid") or getattr(
         session, "coordination_uuid", None
     )
-    endpoint_id = task_dict.get("endpoint_id") or getattr(session, "endpoint_id", None)
+    partition_key = task_dict.get("partition_key") or getattr(
+        session, "partition_key", None
+    )
 
-    if info is not None and coord_uuid and endpoint_id:
+    if info is not None and coord_uuid and partition_key:
         from ..models.batch_loaders import get_loaders
 
         loaders = get_loaders(info.context)
-        coord_dict = loaders.coordination_loader.load((endpoint_id, coord_uuid)).get()
+        coord_dict = loaders.coordination_loader.load((partition_key, coord_uuid)).get()
         if coord_dict:
             return coord_dict
 
     return {
         "coordination_uuid": coord_uuid,
-        "endpoint_id": endpoint_id
-        or (info.context.get("endpoint_id") if info else None),
+        "partition_key": partition_key
+        or (info.context.get("partition_key") if info else None),
         "agents": [],
     }
 
