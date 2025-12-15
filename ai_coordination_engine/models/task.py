@@ -17,8 +17,6 @@ from pynamodb.attributes import (
     UnicodeAttribute,
     UTCDateTimeAttribute,
 )
-from tenacity import retry, stop_after_attempt, wait_exponential
-
 from silvaengine_dynamodb_base import (
     BaseModel,
     delete_decorator,
@@ -26,7 +24,9 @@ from silvaengine_dynamodb_base import (
     monitor_decorator,
     resolve_list_decorator,
 )
-from silvaengine_utility import Utility, method_cache
+from silvaengine_utility import method_cache
+from silvaengine_utility.serializer import Serializer
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..handlers.config import Config
 from ..types.task import TaskListType, TaskType
@@ -39,10 +39,10 @@ class TaskModel(BaseModel):
 
     coordination_uuid = UnicodeAttribute(hash_key=True)
     task_uuid = UnicodeAttribute(range_key=True)
+    partition_key = UnicodeAttribute()
     task_name = UnicodeAttribute()
     task_description = UnicodeAttribute(null=True)
     initial_task_query = UnicodeAttribute()
-    endpoint_id = UnicodeAttribute()
     subtask_queries = ListAttribute(of=MapAttribute)
     agent_actions = MapAttribute()
     updated_by = UnicodeAttribute()
@@ -55,30 +55,39 @@ def purge_cache():
         @functools.wraps(original_function)
         def wrapper_function(*args, **kwargs):
             try:
-                # Use cascading cache purging for tasks
+
+                # Then purge cache after successful operation
                 from ..models.cache import purge_entity_cascading_cache
 
-                try:
-                    task = resolve_task(args[0], **kwargs)
-                except Exception:
-                    task = None
-
+                # Get entity keys from kwargs or entity parameter
                 entity_keys = {}
-                if task:
-                    entity_keys["task_uuid"] = task.task_uuid
-                    entity_keys["coordination_uuid"] = task.coordination[
-                        "coordination_uuid"
-                    ]
 
-                result = purge_entity_cascading_cache(
-                    args[0].context.get("logger"),
-                    entity_type="task",
-                    context_keys=None,
-                    entity_keys=entity_keys if entity_keys else None,
-                    cascade_depth=3,
-                )
+                # Try to get from entity parameter first (for updates)
+                entity = kwargs.get("entity")
+                if entity:
+                    entity_keys["task_uuid"] = getattr(
+                        entity, "task_uuid", None
+                    )
+                    entity_keys["coordination_uuid"] = getattr(entity, "coordination_uuid", None)
 
-                ## Original function.
+                # Fallback to kwargs (for creates/deletes)
+                if not entity_keys.get("task_uuid"):
+                    entity_keys["task_uuid"] = kwargs.get("task_uuid")
+                    entity_keys["coordination_uuid"] = kwargs.get("coordination_uuid")
+
+                # Only purge if we have the required keys
+                if entity_keys.get("task_uuid") and entity_keys.get(
+                    "coordination_uuid"
+                ):
+                    purge_entity_cascading_cache(
+                        args[0].context.get("logger"),
+                        entity_type="task",
+                        context_keys=None,
+                        entity_keys=entity_keys,
+                        cascade_depth=3,
+                    )
+
+                # Execute original function first
                 result = original_function(*args, **kwargs)
 
                 return result
@@ -134,7 +143,7 @@ def get_task_type(info: ResolveInfo, task: TaskModel) -> TaskType:
     _ = info  # Keep for signature compatibility with decorators
     task_dict = task.__dict__["attribute_values"].copy()
     # Keep all fields including FKs - nested resolvers will handle lazy loading
-    return TaskType(**Utility.json_normalize(task_dict))
+    return TaskType(**Serializer.json_normalize(task_dict))
 
 
 def resolve_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> TaskType | None:
@@ -158,7 +167,7 @@ def resolve_task_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     task_name = kwargs.get("task_name")
     task_description = kwargs.get("task_description")
     initial_task_query = kwargs.get("initial_task_query")
-    endpoint_id = info.context["endpoint_id"]
+    partition_key = info.context["partition_key"]
     args = []
     inquiry_funct = TaskModel.scan
     count_funct = TaskModel.count
@@ -173,15 +182,14 @@ def resolve_task_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
         the_filters &= TaskModel.task_description.contains(task_description)
     if initial_task_query is not None:
         the_filters &= TaskModel.initial_task_query.contains(initial_task_query)
-    if endpoint_id is not None:
-        the_filters &= TaskModel.endpoint_id == endpoint_id
+    if partition_key is not None:
+        the_filters &= TaskModel.partition_key == partition_key
     if the_filters is not None:
         args.append(the_filters)
 
     return inquiry_funct, count_funct, args
 
 
-@purge_cache()
 @insert_update_decorator(
     keys={
         "hash_key": "coordination_uuid",
@@ -193,12 +201,14 @@ def resolve_task_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     # data_attributes_except_for_data_diff=data_attributes_except_for_data_diff,
     # activity_history_funct=None,
 )
+@purge_cache()
 def insert_update_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     coordination_uuid = kwargs.get("coordination_uuid")
     task_uuid = kwargs.get("task_uuid")
 
     if "subtask_queries" in kwargs or "agent_actions" in kwargs:
-        coordination = _get_coordination(info.context["endpoint_id"], coordination_uuid)
+        partition_key = info.context.get("partition_key")
+        coordination = _get_coordination(partition_key, coordination_uuid)
         valid_agent_uuids = [agent["agent_uuid"] for agent in coordination["agents"]]
 
         # Filter subtask queries
@@ -220,7 +230,7 @@ def insert_update_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     if kwargs.get("entity") is None:
         cols = {
             "task_name": kwargs["task_name"],
-            "endpoint_id": info.context["endpoint_id"],
+            "partition_key": info.context.get("partition_key"),
             "subtask_queries": [],
             "updated_by": kwargs["updated_by"],
             "created_at": pendulum.now("UTC"),
@@ -265,7 +275,6 @@ def insert_update_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     return
 
 
-@purge_cache()
 @delete_decorator(
     keys={
         "hash_key": "coordination_uuid",
@@ -273,6 +282,7 @@ def insert_update_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     },
     model_funct=get_task,
 )
+@purge_cache()
 def delete_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
     kwargs.get("entity").delete()
     return True

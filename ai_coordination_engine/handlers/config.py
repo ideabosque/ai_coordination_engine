@@ -8,8 +8,7 @@ import os
 from typing import Any, Dict, List
 
 import boto3
-
-from silvaengine_utility import Utility
+from silvaengine_utility.graphql import Graphql
 
 from ..models import utils
 
@@ -47,7 +46,7 @@ class Config:
             "model_class": "CoordinationModel",
             "getter": "get_coordination",
             "list_resolver": "ai_coordination_engine.queries.coordination.resolve_coordination_list",
-            "cache_keys": ["context:endpoint_id", "key:coordination_uuid"],
+            "cache_keys": ["context:partition_key", "key:coordination_uuid"],
         },
         "session": {
             "module": "ai_coordination_engine.models.session",
@@ -248,10 +247,8 @@ class Config:
     @classmethod
     def fetch_graphql_schema(
         cls,
-        logger: logging.Logger,
-        endpoint_id: str,
+        context: Dict[str, Any],
         function_name: str,
-        setting: Dict[str, Any] = {},
     ) -> Dict[str, Any]:
         """
         Fetches and caches a GraphQL schema for a given function.
@@ -267,12 +264,9 @@ class Config:
         """
         # Check if schema exists in cache, if not fetch and store it
         if Config.schemas.get(function_name) is None:
-            Config.schemas[function_name] = Utility.fetch_graphql_schema(
-                logger,
-                endpoint_id,
+            Config.schemas[function_name] = Graphql.fetch_graphql_schema(
+                context,
                 function_name,
-                setting=setting,
                 aws_lambda=Config.aws_lambda,
-                execute_mode=setting.get("execute_mode"),
             )
         return Config.schemas[function_name]

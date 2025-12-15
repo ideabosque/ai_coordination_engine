@@ -5,10 +5,10 @@ from __future__ import print_function
 __author__ = "bibow"
 
 from graphene import DateTime, Field, ObjectType, String
-from silvaengine_utility import JSON, Utility
+from silvaengine_utility.serializer import Serializer
 
 
-class AskOperationHubTypeBase(ObjectType):
+class AskOperationHubBaseType(ObjectType):
     """Base AskOperationHub type with flat fields only (no nested resolvers)."""
 
     run_uuid = String()
@@ -17,15 +17,15 @@ class AskOperationHubTypeBase(ObjectType):
     async_task_uuid = String()
     session_uuid = String()  # FK to Session
     coordination_uuid = String()  # FK to Coordination
-    endpoint_id = String()
+    partition_key = String()
     updated_at = DateTime()
 
 
-class AskOperationHubType(AskOperationHubTypeBase):
+class AskOperationHubType(AskOperationHubBaseType):
     """
     AskOperationHub type with nested resolvers for related entities.
 
-    This type extends AskOperationHubTypeBase to add lazy-loaded nested fields
+    This type extends AskOperationHubBaseType to add lazy-loaded nested fields
     for session, using DataLoader for efficient batching.
     """
 
@@ -51,7 +51,7 @@ class AskOperationHubType(AskOperationHubTypeBase):
         # Case 1: Already embedded as dict
         existing = getattr(parent, "session", None)
         if isinstance(existing, dict):
-            return SessionType(**Utility.json_normalize(existing))
+            return SessionType(**Serializer.json_normalize(existing))
         if isinstance(existing, SessionType):
             return existing
 
@@ -64,7 +64,7 @@ class AskOperationHubType(AskOperationHubTypeBase):
         loaders = get_loaders(info.context)
         return loaders.session_loader.load((coordination_uuid, session_uuid)).then(
             lambda session_dict: (
-                SessionType(**Utility.json_normalize(session_dict))
+                SessionType(**Serializer.json_normalize(session_dict))
                 if session_dict
                 else None
             )

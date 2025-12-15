@@ -5,10 +5,10 @@ from __future__ import print_function
 __author__ = "bibow"
 
 from graphene import Field, ObjectType, String
-from silvaengine_utility import Utility
+from silvaengine_utility.serializer import Serializer
 
 
-class ProcedureTaskSessionTypeBase(ObjectType):
+class ProcedureTaskSessionBaseType(ObjectType):
     """Base ProcedureTaskSession type with flat fields only (no nested resolvers)."""
 
     coordination_uuid = String()
@@ -16,14 +16,14 @@ class ProcedureTaskSessionTypeBase(ObjectType):
     task_uuid = String()
     user_id = String()
     task_query = String()
-    endpoint_id = String()
+    partition_key = String()
 
 
-class ProcedureTaskSessionType(ProcedureTaskSessionTypeBase):
+class ProcedureTaskSessionType(ProcedureTaskSessionBaseType):
     """
     ProcedureTaskSession type with nested resolvers for related entities.
 
-    This type extends ProcedureTaskSessionTypeBase to add lazy-loaded nested fields
+    This type extends ProcedureTaskSessionBaseType to add lazy-loaded nested fields
     for coordination, session, and task, using DataLoader for efficient batching.
     """
 
@@ -43,19 +43,21 @@ class ProcedureTaskSessionType(ProcedureTaskSessionTypeBase):
 
         existing = getattr(parent, "coordination", None)
         if isinstance(existing, dict):
-            return CoordinationType(**Utility.json_normalize(existing))
+            return CoordinationType(**Serializer.json_normalize(existing))
         if isinstance(existing, CoordinationType):
             return existing
 
-        endpoint_id = getattr(parent, "endpoint_id", None)
+        partition_key = getattr(parent, "partition_key", None)
         coordination_uuid = getattr(parent, "coordination_uuid", None)
-        if not endpoint_id or not coordination_uuid:
+        if not partition_key or not coordination_uuid:
             return None
 
         loaders = get_loaders(info.context)
-        return loaders.coordination_loader.load((endpoint_id, coordination_uuid)).then(
+        return loaders.coordination_loader.load(
+            (partition_key, coordination_uuid)
+        ).then(
             lambda coord_dict: (
-                CoordinationType(**Utility.json_normalize(coord_dict))
+                CoordinationType(**Serializer.json_normalize(coord_dict))
                 if coord_dict
                 else None
             )
@@ -70,7 +72,7 @@ class ProcedureTaskSessionType(ProcedureTaskSessionTypeBase):
 
         existing = getattr(parent, "session", None)
         if isinstance(existing, dict):
-            return SessionType(**Utility.json_normalize(existing))
+            return SessionType(**Serializer.json_normalize(existing))
         if isinstance(existing, SessionType):
             return existing
 
@@ -82,7 +84,7 @@ class ProcedureTaskSessionType(ProcedureTaskSessionTypeBase):
         loaders = get_loaders(info.context)
         return loaders.session_loader.load((coordination_uuid, session_uuid)).then(
             lambda session_dict: (
-                SessionType(**Utility.json_normalize(session_dict))
+                SessionType(**Serializer.json_normalize(session_dict))
                 if session_dict
                 else None
             )
@@ -97,7 +99,7 @@ class ProcedureTaskSessionType(ProcedureTaskSessionTypeBase):
 
         existing = getattr(parent, "task", None)
         if isinstance(existing, dict):
-            return TaskType(**Utility.json_normalize(existing))
+            return TaskType(**Serializer.json_normalize(existing))
         if isinstance(existing, TaskType):
             return existing
 
@@ -109,7 +111,7 @@ class ProcedureTaskSessionType(ProcedureTaskSessionTypeBase):
         loaders = get_loaders(info.context)
         return loaders.task_loader.load((coordination_uuid, task_uuid)).then(
             lambda task_dict: (
-                TaskType(**Utility.json_normalize(task_dict)) if task_dict else None
+                TaskType(**Serializer.json_normalize(task_dict)) if task_dict else None
             )
         )
 

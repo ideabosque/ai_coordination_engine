@@ -13,8 +13,6 @@ import pendulum
 from graphene import ResolveInfo
 from pynamodb.attributes import UnicodeAttribute, UTCDateTimeAttribute
 from pynamodb.indexes import AllProjection, LocalSecondaryIndex
-from tenacity import retry, stop_after_attempt, wait_exponential
-
 from silvaengine_dynamodb_base import (
     BaseModel,
     delete_decorator,
@@ -22,9 +20,10 @@ from silvaengine_dynamodb_base import (
     monitor_decorator,
     resolve_list_decorator,
 )
-from silvaengine_utility import Utility, method_cache
+from silvaengine_utility import method_cache
+from silvaengine_utility.serializer import Serializer
+from tenacity import retry, stop_after_attempt, wait_exponential
 
-from ..handlers.ai_coordination_utility import get_async_task
 from ..handlers.config import Config
 from ..types.session_run import SessionRunListType, SessionRunType
 
@@ -68,7 +67,7 @@ class SessionRunModel(BaseModel):
     thread_uuid = UnicodeAttribute()
     agent_uuid = UnicodeAttribute()
     coordination_uuid = UnicodeAttribute()
-    endpoint_id = UnicodeAttribute()
+    partition_key = UnicodeAttribute(null=True)
     async_task_uuid = UnicodeAttribute()
     session_agent_uuid = UnicodeAttribute(null=True)
     updated_by = UnicodeAttribute()
@@ -83,32 +82,39 @@ def purge_cache():
         @functools.wraps(original_function)
         def wrapper_function(*args, **kwargs):
             try:
-                # Use cascading cache purging for session runs
+
+                # Then purge cache after successful operation
                 from ..models.cache import purge_entity_cascading_cache
 
-                try:
-                    session_run = resolve_session_run(args[0], **kwargs)
-                except Exception as e:
-                    session_run = None
-
+                # Get entity keys from kwargs or entity parameter
                 entity_keys = {}
-                if session_run:
-                    entity_keys["session_run_uuid"] = session_run.run_uuid
-                    entity_keys["session_agent_uuid"] = (
-                        session_run.session_agent["session_agent_uuid"]
-                        if session_run.session_agent
-                        else None
+
+                # Try to get from entity parameter first (for updates)
+                entity = kwargs.get("entity")
+                if entity:
+                    entity_keys["run_uuid"] = getattr(
+                        entity, "run_uuid", None
+                    )
+                    entity_keys["session_uuid"] = getattr(entity, "session_uuid", None)
+
+                # Fallback to kwargs (for creates/deletes)
+                if not entity_keys.get("run_uuid"):
+                    entity_keys["run_uuid"] = kwargs.get("run_uuid")
+                    entity_keys["session_uuid"] = kwargs.get("session_uuid")
+
+                # Only purge if we have the required keys
+                if entity_keys.get("run_uuid") and entity_keys.get(
+                    "session_uuid"
+                ):
+                    purge_entity_cascading_cache(
+                        args[0].context.get("logger"),
+                        entity_type="session_run",
+                        context_keys=None,
+                        entity_keys=entity_keys,
+                        cascade_depth=3,
                     )
 
-                result = purge_entity_cascading_cache(
-                    args[0].context.get("logger"),
-                    entity_type="session_run",
-                    context_keys=None,
-                    entity_keys=entity_keys if entity_keys else None,
-                    cascade_depth=3,
-                )
-
-                ## Original function.
+                # Execute original function first
                 result = original_function(*args, **kwargs)
 
                 return result
@@ -155,8 +161,7 @@ def get_session_run_type(
     Get SessionRunType from SessionRunModel without embedding nested objects.
 
     Nested objects (session, session_agent) are now handled by GraphQL nested resolvers
-    with batch loading for optimal performance. The async_task is still embedded as it
-    comes from a different service (not DynamoDB).
+    with batch loading for optimal performance.
 
     Args:
         info: GraphQL resolve info
@@ -165,33 +170,14 @@ def get_session_run_type(
     Returns:
         SessionRunType with foreign keys intact for lazy loading via nested resolvers
     """
-    try:
-        # Still fetch async_task as it comes from external service (not a DynamoDB relation)
-        async_task = {
-            k: v
-            for k, v in get_async_task(
-                info.context.get("logger"),
-                info.context.get("endpoint_id"),
-                info.context.get("setting"),
-                **{
-                    "functionName": "async_execute_ask_model",
-                    "asyncTaskUuid": session_run.async_task_uuid,
-                },
-            ).items()
-            if k not in ["updated_by", "created_at", "updated_at"]
-        }
-    except Exception as e:
-        log = traceback.format_exc()
-        info.context.get("logger").exception(log)
-        raise e
-
+    _ = info  # Keep for signature compatibility with decorators
     session_run_dict = session_run.__dict__["attribute_values"].copy()
-    # Keep FKs for nested resolvers, but embed async_task from external service
-    session_run_dict["async_task"] = async_task
-    return SessionRunType(**Utility.json_normalize(session_run_dict))
+    return SessionRunType(**Serializer.json_normalize(session_run_dict))
 
 
-def resolve_session_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> SessionRunType:
+def resolve_session_run(
+    info: ResolveInfo, **kwargs: Dict[str, Any]
+) -> SessionRunType | None:
     count = get_session_run_count(kwargs["session_uuid"], kwargs["run_uuid"])
     if count == 0:
         return None
@@ -210,7 +196,7 @@ def resolve_session_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> SessionR
 )
 def resolve_session_run_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     session_uuid = kwargs.get("session_uuid")
-    endpoint_id = info.context["endpoint_id"]
+    partition_key = info.context["partition_key"]
     agent_uuid = kwargs.get("agent_uuid")
     thread_uuid = kwargs.get("thread_uuid")
     coordination_uuid = kwargs.get("coordination_uuid")
@@ -230,8 +216,8 @@ def resolve_session_run_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any
             count_funct = SessionRunModel.thread_uuid_index.count
 
     the_filters = None  # We can add filters for the query.
-    if endpoint_id is not None:
-        the_filters &= SessionRunModel.endpoint_id == endpoint_id
+    if partition_key is not None:
+        the_filters &= SessionRunModel.partition_key == partition_key
     if coordination_uuid is not None:
         the_filters &= SessionRunModel.coordination_uuid == coordination_uuid
     if the_filters is not None:
@@ -240,7 +226,6 @@ def resolve_session_run_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any
     return inquiry_funct, count_funct, args
 
 
-@purge_cache()
 @insert_update_decorator(
     keys={
         "hash_key": "session_uuid",
@@ -251,6 +236,7 @@ def resolve_session_run_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any
     count_funct=get_session_run_count,
     type_funct=get_session_run_type,
 )
+@purge_cache()
 def insert_update_session_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     session_uuid = kwargs.get("session_uuid")
     run_uuid = kwargs.get("run_uuid")
@@ -259,7 +245,7 @@ def insert_update_session_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> No
             "thread_uuid": kwargs["thread_uuid"],
             "agent_uuid": kwargs["agent_uuid"],
             "coordination_uuid": kwargs["coordination_uuid"],
-            "endpoint_id": info.context["endpoint_id"],
+            "partition_key": info.context.get("partition_key"),
             "async_task_uuid": kwargs["async_task_uuid"],
             "updated_by": kwargs["updated_by"],
             "created_at": pendulum.now("UTC"),
@@ -299,7 +285,6 @@ def insert_update_session_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> No
     session_run.update(actions=actions)
 
 
-@purge_cache()
 @delete_decorator(
     keys={
         "hash_key": "session_uuid",
@@ -307,6 +292,7 @@ def insert_update_session_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> No
     },
     model_funct=get_session_run,
 )
+@purge_cache()
 def delete_session_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
     kwargs.get("entity").delete()
     return True

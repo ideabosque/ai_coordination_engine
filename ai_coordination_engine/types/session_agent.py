@@ -6,10 +6,11 @@ __author__ = "bibow"
 
 from graphene import DateTime, Field, Int, List, ObjectType, String
 from silvaengine_dynamodb_base import ListObjectType
-from silvaengine_utility import JSON, Utility
+from silvaengine_utility import JSON
+from silvaengine_utility.serializer import Serializer
 
 
-class SessionAgentTypeBase(ObjectType):
+class SessionAgentBaseType(ObjectType):
     """Base SessionAgent type with flat fields only (no nested resolvers)."""
 
     session_agent_uuid = String()
@@ -28,11 +29,11 @@ class SessionAgentTypeBase(ObjectType):
     updated_at = DateTime()
 
 
-class SessionAgentType(SessionAgentTypeBase):
+class SessionAgentType(SessionAgentBaseType):
     """
     SessionAgent type with nested resolvers for related entities.
 
-    This type extends SessionAgentTypeBase to add lazy-loaded nested fields
+    This type extends SessionAgentBaseType to add lazy-loaded nested fields
     for session, using DataLoader for efficient batching.
     """
 
@@ -58,7 +59,7 @@ class SessionAgentType(SessionAgentTypeBase):
         # Case 1: Already embedded as dict
         existing = getattr(parent, "session", None)
         if isinstance(existing, dict):
-            return SessionType(**Utility.json_normalize(existing))
+            return SessionType(**Serializer.json_normalize(existing))
         if isinstance(existing, SessionType):
             return existing
 
@@ -71,7 +72,7 @@ class SessionAgentType(SessionAgentTypeBase):
         loaders = get_loaders(info.context)
         return loaders.session_loader.load((coordination_uuid, session_uuid)).then(
             lambda session_dict: (
-                SessionType(**Utility.json_normalize(session_dict))
+                SessionType(**Serializer.json_normalize(session_dict))
                 if session_dict
                 else None
             )

@@ -9,7 +9,9 @@ import traceback
 from typing import Any, Dict, List, Tuple
 
 from graphene import ResolveInfo
-from silvaengine_utility import Utility
+
+from silvaengine_utility.invoker import Invoker
+from silvaengine_utility.serializer import Serializer
 
 from ...models.session import insert_update_session
 from ...models.session_agent import (
@@ -86,7 +88,7 @@ def init_session_agents(
                 # Check if task_query is valid JSON and can be parsed
                 variables = {
                     k: ",".join(v) if isinstance(v, list) else v
-                    for k, v in Utility.json_loads(session.task_query).items()
+                    for k, v in Serializer.json_loads(session.task_query).items()
                 }
                 subtask_query.update(
                     {
@@ -266,7 +268,7 @@ def handle_session_agent_completion(
                 "coordination_uuid": session_agent.coordination_uuid,
                 "session_uuid": session_agent.session_uuid,
                 "status": "failed",
-                "logs": Utility.json_dumps([{"error": log}]),
+                "logs": Serializer.json_dumps([{"error": log}]),
                 "updated_by": "procedure_hub",
             },
         )
@@ -310,9 +312,7 @@ def update_session_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
 
         while time.time() - start_time < TIMEOUT:
             async_task = get_async_task(
-                info.context.get("logger"),
-                info.context.get("endpoint_id"),
-                info.context.get("setting"),
+                info.context,
                 **{
                     "functionName": "async_execute_ask_model",
                     "asyncTaskUuid": kwargs["async_task_uuid"],
@@ -462,7 +462,7 @@ def execute_session_agent(info: ResolveInfo, session_agent: SessionAgentType) ->
 
         successors = get_successors(info, session_agent)
         connection_id = (
-            info.context.get("connectionId")
+            info.context.get("connection_id")
             if len(successors) == 0
             or session_agent.agent_action.get("user_in_the_loop")
             else None
@@ -482,10 +482,7 @@ def execute_session_agent(info: ResolveInfo, session_agent: SessionAgentType) ->
             variables.update({"input_files": input_files})
 
         ask_model = invoke_ask_model(
-            info.context.get("logger"),
-            info.context.get("endpoint_id"),
-            setting=info.context.get("setting"),
-            connection_id=connection_id,
+            info.context,
             **variables,
         )
 
@@ -509,17 +506,14 @@ def execute_session_agent(info: ResolveInfo, session_agent: SessionAgentType) ->
             "session_agent_uuid": session_agent.session_agent_uuid,
             "async_task_uuid": ask_model["async_task_uuid"],
         }
-        if "connectionId" in info.context:
-            params.update({"connection_id": info.context["connectionId"]})
+        if "connection_id" in info.context:
+            params.update({"connection_id": info.context["connection_id"]})
 
         # Invoke async update function on AWS Lambda
-        Utility.invoke_funct_on_aws_lambda(
-            info.context["logger"],
-            info.context["endpoint_id"],
+        Invoker.invoke_funct_on_aws_lambda(
+            info.context,
             "async_update_session_agent",
             params=params,
-            setting=info.context["setting"],
-            execute_mode=info.context["setting"].get("execute_mode"),
             aws_lambda=Config.aws_lambda,
         )
         return
@@ -534,7 +528,7 @@ def execute_session_agent(info: ResolveInfo, session_agent: SessionAgentType) ->
                 "coordination_uuid": session_agent.coordination_uuid,
                 "session_uuid": session_agent.session_uuid,
                 "status": "failed",
-                "logs": Utility.json_dumps([{"error": log}]),
+                "logs": Serializer.json_dumps([{"error": log}]),
                 "updated_by": "procedure_hub",
             },
         )

@@ -26,7 +26,8 @@ from silvaengine_dynamodb_base import (
     monitor_decorator,
     resolve_list_decorator,
 )
-from silvaengine_utility import Utility, method_cache
+from silvaengine_utility import method_cache
+from silvaengine_utility.serializer import Serializer
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..handlers.config import Config
@@ -71,7 +72,7 @@ class SessionModel(BaseModel):
     session_uuid = UnicodeAttribute(range_key=True)
     task_uuid = UnicodeAttribute(null=True)
     user_id = UnicodeAttribute(null=True)
-    endpoint_id = UnicodeAttribute()
+    partition_key = UnicodeAttribute()
     task_query = UnicodeAttribute(null=True)
     input_files = ListAttribute(of=MapAttribute)
     iteration_count = NumberAttribute(default=0)
@@ -90,28 +91,39 @@ def purge_cache():
         @functools.wraps(original_function)
         def wrapper_function(*args, **kwargs):
             try:
-                # Use cascading cache purging for sessions
+
+                # Then purge cache after successful operation
                 from ..models.cache import purge_entity_cascading_cache
 
-                try:
-                    session = resolve_session(args[0], **kwargs)
-                except Exception:
-                    session = None
-
+                # Get entity keys from kwargs or entity parameter
                 entity_keys = {}
-                if session:
-                    entity_keys["session_uuid"] = session.session_uuid
-                    entity_keys["coordination_uuid"] = session.coordination_uuid
 
-                result = purge_entity_cascading_cache(
-                    args[0].context.get("logger"),
-                    entity_type="session",
-                    context_keys=None,
-                    entity_keys=entity_keys if entity_keys else None,
-                    cascade_depth=3,
-                )
+                # Try to get from entity parameter first (for updates)
+                entity = kwargs.get("entity")
+                if entity:
+                    entity_keys["session_uuid"] = getattr(
+                        entity, "session_uuid", None
+                    )
+                    entity_keys["coordination_uuid"] = getattr(entity, "coordination_uuid", None)
 
-                ## Original function.
+                # Fallback to kwargs (for creates/deletes)
+                if not entity_keys.get("session_uuid"):
+                    entity_keys["session_uuid"] = kwargs.get("session_uuid")
+                    entity_keys["coordination_uuid"] = kwargs.get("coordination_uuid")
+
+                # Only purge if we have the required keys
+                if entity_keys.get("session_uuid") and entity_keys.get(
+                    "coordination_uuid"
+                ):
+                    purge_entity_cascading_cache(
+                        args[0].context.get("logger"),
+                        entity_type="session",
+                        context_keys=None,
+                        entity_keys=entity_keys,
+                        cascade_depth=3,
+                    )
+
+                # Execute original function first
                 result = original_function(*args, **kwargs)
 
                 return result
@@ -169,7 +181,7 @@ def get_session_type(info: ResolveInfo, session: SessionModel) -> SessionType:
     _ = info  # Keep for signature compatibility with decorators
     session_dict = session.__dict__["attribute_values"].copy()
     # Keep all fields including FKs - nested resolvers will handle lazy loading
-    return SessionType(**Utility.json_normalize(session_dict))
+    return SessionType(**Serializer.json_normalize(session_dict))
 
 
 def resolve_session(info: ResolveInfo, **kwargs: Dict[str, Any]) -> SessionType | None:
@@ -193,7 +205,7 @@ def resolve_session_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     coordination_uuid = kwargs.get("coordination_uuid")
     task_uuid = kwargs.get("task_uuid")
     user_id = kwargs.get("user_id")
-    endpoint_id = info.context["endpoint_id"]
+    partition_key = info.context["partition_key"]
     statuses = kwargs.get("statuses")
     args = []
     inquiry_funct = SessionModel.scan
@@ -211,8 +223,8 @@ def resolve_session_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
             inquiry_funct = SessionModel.user_id_index.query
 
     the_filters = None  # We can add filters for the query.
-    if endpoint_id is not None:
-        the_filters &= SessionModel.endpoint_id == endpoint_id
+    if partition_key is not None:
+        the_filters &= SessionModel.partition_key == partition_key
     if statuses is not None:
         the_filters &= SessionModel.status.is_in(*statuses)
     if the_filters is not None:
@@ -221,7 +233,6 @@ def resolve_session_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     return inquiry_funct, count_funct, args
 
 
-@purge_cache()
 @insert_update_decorator(
     keys={
         "hash_key": "coordination_uuid",
@@ -231,12 +242,13 @@ def resolve_session_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     count_funct=get_session_count,
     type_funct=get_session_type,
 )
+@purge_cache()
 def insert_update_session(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     coordination_uuid = kwargs.get("coordination_uuid")
     session_uuid = kwargs.get("session_uuid")
     if kwargs.get("entity") is None:
         cols = {
-            "endpoint_id": info.context["endpoint_id"],
+            "partition_key": info.context.get("partition_key"),
             "input_files": [],
             "subtask_queries": [],
             "updated_by": kwargs["updated_by"],
@@ -288,7 +300,6 @@ def insert_update_session(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     return
 
 
-@purge_cache()
 @delete_decorator(
     keys={
         "hash_key": "coordination_uuid",
@@ -296,6 +307,7 @@ def insert_update_session(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     },
     model_funct=get_session,
 )
+@purge_cache()
 def delete_session(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
     kwargs.get("entity").delete()
     return True
