@@ -10,6 +10,7 @@ from typing import Any, Dict
 from graphene import ResolveInfo
 
 from ...models.session_agent import insert_update_session_agent, resolve_session_agent
+from ...types.session_agent import SessionAgentType
 from .procedure_hub_listener import invoke_next_iteration
 from .session_agent import handle_session_agent_completion
 
@@ -53,7 +54,7 @@ def execute_for_user_input(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
         session_agent.notes = log
 
     # Persist session agent updates
-    session_agent = insert_update_session_agent(
+    session_agent: SessionAgentType = insert_update_session_agent(
         info,
         **{
             "session_uuid": session_agent.session_uuid,

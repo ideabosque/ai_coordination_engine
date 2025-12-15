@@ -315,7 +315,7 @@ def _handle_connection_routing(
     Returns:
         Optional[str]: Connection ID for routing messages
     """
-    connection_id = info.context.get("connectionId")
+    connection_id = info.context.get("connection_id")
     if "receiver_email" in kwargs and agent["agent_type"] != "triage":
         receiver_connection = get_connection_by_email(
             info.context.get("logger"),
