@@ -8,7 +8,8 @@ import traceback
 from typing import Any, Dict, Optional
 
 from graphene import ResolveInfo
-from silvaengine_utility import Utility
+from silvaengine_utility.invoker import Invoker
+from silvaengine_utility.serializer import Serializer
 
 from ...models.coordination import resolve_coordination
 from ...models.session import insert_update_session
@@ -289,7 +290,7 @@ def _process_query(
         user_query = (
             f"Based on the following user query, please analyze and select the most appropriate agent:\n"
             f"User Query: {user_query}\n"
-            f"Available Agents: {Utility.json_dumps(available_task_agents)}\n"
+            f"Available Agents: {Serializer.json_dumps(available_task_agents)}\n"
             f"Please assess the intent behind the query and align it with the agent's most appropriate capabilities, then export the results in JSON format."
         )
         info.context.get("logger").info(f"Enhanced triage request: {user_query}")
@@ -358,7 +359,7 @@ def _trigger_async_update(
     ):
         params["receiver_email"] = kwargs["receiver_email"]
 
-    Utility.invoke_funct_on_aws_lambda(
+    Invoker.invoke_funct_on_aws_lambda(
         info.context,
         "async_insert_update_session",
         params=params,

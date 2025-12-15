@@ -24,7 +24,8 @@ from silvaengine_dynamodb_base import (
     monitor_decorator,
     resolve_list_decorator,
 )
-from silvaengine_utility import Utility, method_cache
+from silvaengine_utility import method_cache
+from silvaengine_utility.serializer import Serializer
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..handlers.config import Config
@@ -38,7 +39,7 @@ class TaskModel(BaseModel):
 
     coordination_uuid = UnicodeAttribute(hash_key=True)
     task_uuid = UnicodeAttribute(range_key=True)
-    partition_key = UnicodeAttribute(null=True)
+    partition_key = UnicodeAttribute()
     task_name = UnicodeAttribute()
     task_description = UnicodeAttribute(null=True)
     initial_task_query = UnicodeAttribute()
@@ -133,7 +134,7 @@ def get_task_type(info: ResolveInfo, task: TaskModel) -> TaskType:
     _ = info  # Keep for signature compatibility with decorators
     task_dict = task.__dict__["attribute_values"].copy()
     # Keep all fields including FKs - nested resolvers will handle lazy loading
-    return TaskType(**Utility.json_normalize(task_dict))
+    return TaskType(**Serializer.json_normalize(task_dict))
 
 
 def resolve_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> TaskType | None:

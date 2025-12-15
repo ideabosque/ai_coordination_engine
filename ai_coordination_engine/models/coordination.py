@@ -25,7 +25,8 @@ from silvaengine_dynamodb_base import (
     monitor_decorator,
     resolve_list_decorator,
 )
-from silvaengine_utility import Utility, method_cache
+from silvaengine_utility import method_cache
+from silvaengine_utility.serializer import Serializer
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..handlers.config import Config
@@ -69,9 +70,9 @@ def purge_cache():
                 result = purge_entity_cascading_cache(
                     args[0].context.get("logger"),
                     entity_type="coordination",
-                    context_keys={"partition_key": partition_key}
-                    if partition_key
-                    else None,
+                    context_keys=(
+                        {"partition_key": partition_key} if partition_key else None
+                    ),
                     entity_keys=entity_keys if entity_keys else None,
                     cascade_depth=3,
                 )
@@ -124,7 +125,7 @@ def get_coordination_type(
     _ = info  # Keep for signature compatibility with decorators
     coordination_dict = coordination.__dict__["attribute_values"].copy()
     # Keep all fields including FKs - nested resolvers will handle lazy loading
-    return CoordinationType(**Utility.json_normalize(coordination_dict))
+    return CoordinationType(**Serializer.json_normalize(coordination_dict))
 
 
 def resolve_coordination(

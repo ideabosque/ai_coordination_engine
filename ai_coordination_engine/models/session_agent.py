@@ -17,8 +17,6 @@ from pynamodb.attributes import (
     UnicodeAttribute,
     UTCDateTimeAttribute,
 )
-from tenacity import retry, stop_after_attempt, wait_exponential
-
 from silvaengine_dynamodb_base import (
     BaseModel,
     delete_decorator,
@@ -26,7 +24,9 @@ from silvaengine_dynamodb_base import (
     monitor_decorator,
     resolve_list_decorator,
 )
-from silvaengine_utility import Utility, method_cache
+from silvaengine_utility import method_cache
+from silvaengine_utility.serializer import Serializer
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..handlers.config import Config
 from ..types.session_agent import SessionAgentListType, SessionAgentType
@@ -140,7 +140,7 @@ def get_session_agent_type(
     _ = info  # Keep for signature compatibility with decorators
     session_agent_dict = session_agent.__dict__["attribute_values"].copy()
     # Keep all fields including FKs - nested resolvers will handle lazy loading
-    return SessionAgentType(**Utility.json_normalize(session_agent_dict))
+    return SessionAgentType(**Serializer.json_normalize(session_agent_dict))
 
 
 def resolve_session_agent(
@@ -164,9 +164,7 @@ def resolve_session_agent(
     list_type_class=SessionAgentListType,
     type_funct=get_session_agent_type,
 )
-def resolve_session_agent_list(
-    info: ResolveInfo, **kwargs: Dict[str, Any]
-) -> Any:
+def resolve_session_agent_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     session_uuid = kwargs.get("session_uuid")
     coordination_uuid = kwargs.get("coordination_uuid")
     agent_uuid = kwargs.get("agent_uuid")

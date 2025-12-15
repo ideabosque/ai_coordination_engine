@@ -349,7 +349,7 @@ def _process_task_completion(
             variables.update(
                 {
                     "status": "failed",
-                    "logs": Utility.json_dumps(
+                    "logs": serializer.json_dumps(
                         [{"run_uuid": current_run_uuid, "log": error_msg}]
                     ),
                 }
@@ -360,7 +360,7 @@ def _process_task_completion(
             variables.update(
                 {
                     "status": "failed",
-                    "logs": Utility.json_dumps(
+                    "logs": serializer.json_dumps(
                         [
                             {
                                 "run_uuid": current_run_uuid,
@@ -377,7 +377,7 @@ def _process_task_completion(
         variables.update(
             {
                 "status": "failed",
-                "logs": Utility.json_dumps(
+                "logs": serializer.json_dumps(
                     [
                         {
                             "run_uuid": current_run_uuid,
@@ -439,7 +439,7 @@ def async_orchestrate_task_query(
     if orchestrator_agent["agent_type"] == "decompose":
         # Create query for task decomposition
         query = (
-            f"Analyze agents: {Utility.json_dumps(agents)}\n\n"
+            f"Analyze agents: {serializer.json_dumps(agents)}\n\n"
             f"Decompose task: '{session.task_query}' into subtasks for available agents.\n\n"
             "Consider:\n"
             "- Match agent capabilities\n"
@@ -451,7 +451,7 @@ def async_orchestrate_task_query(
     elif orchestrator_agent["agent_type"] == "planning":
         # Create query for task decomposition
         query = (
-            f"Analyzing the following agents: {Utility.json_dumps(agents)}\n\n"
+            f"Analyzing the following agents: {serializer.json_dumps(agents)}\n\n"
             f"Planning the main task: '{session.task_query}' into subtasks suitable for the available agents.\n\n"
             "Guidelines:\n"
             "- Generate 5 distinct subqueries, each a rephrased version of the original query\n"
@@ -492,7 +492,7 @@ def async_orchestrate_task_query(
     # Initialize in-degree values for session agents
     updated_session_agents = init_in_degree(info, session_agents)
     info.context["logger"].info(
-        f"Updated session agents: {Utility.json_dumps(updated_session_agents)}"
+        f"Updated session agents: {serializer.json_dumps(updated_session_agents)}"
     )
     session = insert_update_session(
         info,
@@ -649,7 +649,7 @@ def _handle_pending_agents(info: ResolveInfo, session: SessionType) -> None:
                 "coordination_uuid": session.coordination_uuid,
                 "session_uuid": session.session_uuid,
                 "status": "failed",
-                "logs": Utility.json_dumps(
+                "logs": serializer.json_dumps(
                     [
                         {
                             "error": f"Maximum iterations ({MAX_ITERATIONS}) reached - possible infinite loop"

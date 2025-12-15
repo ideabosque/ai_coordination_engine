@@ -6,10 +6,11 @@ __author__ = "bibow"
 
 from graphene import DateTime, Field, List, ObjectType, String
 from silvaengine_dynamodb_base import ListObjectType
-from silvaengine_utility import JSON, Utility
+from silvaengine_utility import JSON
+from silvaengine_utility.serializer import Serializer
 
 
-class TaskTypeBase(ObjectType):
+class TaskBaseType(ObjectType):
     """Base Task type with flat fields only (no nested resolvers)."""
 
     task_uuid = String()
@@ -26,11 +27,11 @@ class TaskTypeBase(ObjectType):
     updated_at = DateTime()
 
 
-class TaskType(TaskTypeBase):
+class TaskType(TaskBaseType):
     """
     Task type with nested resolvers for related entities.
 
-    This type extends TaskTypeBase to add lazy-loaded nested fields
+    This type extends TaskBaseType to add lazy-loaded nested fields
     for coordination, using DataLoader for efficient batching.
     """
 
@@ -56,7 +57,7 @@ class TaskType(TaskTypeBase):
         # Case 1: Already embedded as dict
         existing = getattr(parent, "coordination", None)
         if isinstance(existing, dict):
-            return CoordinationType(**Utility.json_normalize(existing))
+            return CoordinationType(**Serializer.json_normalize(existing))
         if isinstance(existing, CoordinationType):
             return existing
 
@@ -73,7 +74,7 @@ class TaskType(TaskTypeBase):
             (partition_key, coordination_uuid)
         ).then(
             lambda coord_dict: (
-                CoordinationType(**Utility.json_normalize(coord_dict))
+                CoordinationType(**Serializer.json_normalize(coord_dict))
                 if coord_dict
                 else None
             )

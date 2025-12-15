@@ -6,10 +6,10 @@ __author__ = "bibow"
 
 from graphene import DateTime, Field, List, ObjectType, String
 from silvaengine_dynamodb_base import ListObjectType
-from silvaengine_utility import JSON, Utility
+from silvaengine_utility.serializer import Serializer
 
 
-class TaskScheduleTypeBase(ObjectType):
+class TaskScheduleBaseType(ObjectType):
     """Base TaskSchedule type with flat fields only (no nested resolvers)."""
 
     schedule_uuid = String()
@@ -24,11 +24,11 @@ class TaskScheduleTypeBase(ObjectType):
     updated_at = DateTime()
 
 
-class TaskScheduleType(TaskScheduleTypeBase):
+class TaskScheduleType(TaskScheduleBaseType):
     """
     TaskSchedule type with nested resolvers for related entities.
 
-    This type extends TaskScheduleTypeBase to add lazy-loaded nested fields
+    This type extends TaskScheduleBaseType to add lazy-loaded nested fields
     for task and coordination, using DataLoader for efficient batching.
     """
 
@@ -55,7 +55,7 @@ class TaskScheduleType(TaskScheduleTypeBase):
         # Case 1: Already embedded as dict
         existing = getattr(parent, "task", None)
         if isinstance(existing, dict):
-            return TaskType(**Utility.json_normalize(existing))
+            return TaskType(**Serializer.json_normalize(existing))
         if isinstance(existing, TaskType):
             return existing
 
@@ -68,7 +68,7 @@ class TaskScheduleType(TaskScheduleTypeBase):
         loaders = get_loaders(info.context)
         return loaders.task_loader.load((coordination_uuid, task_uuid)).then(
             lambda task_dict: (
-                TaskType(**Utility.json_normalize(task_dict)) if task_dict else None
+                TaskType(**Serializer.json_normalize(task_dict)) if task_dict else None
             )
         )
 
@@ -89,7 +89,7 @@ class TaskScheduleType(TaskScheduleTypeBase):
         # Case 1: Already embedded as dict
         existing = getattr(parent, "coordination", None)
         if isinstance(existing, dict):
-            return CoordinationType(**Utility.json_normalize(existing))
+            return CoordinationType(**Serializer.json_normalize(existing))
         if isinstance(existing, CoordinationType):
             return existing
 
@@ -106,7 +106,7 @@ class TaskScheduleType(TaskScheduleTypeBase):
             (partition_key, coordination_uuid)
         ).then(
             lambda coord_dict: (
-                CoordinationType(**Utility.json_normalize(coord_dict))
+                CoordinationType(**Serializer.json_normalize(coord_dict))
                 if coord_dict
                 else None
             )

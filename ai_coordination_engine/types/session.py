@@ -5,14 +5,14 @@ from __future__ import print_function
 __author__ = "bibow"
 
 from graphene import DateTime, Field, Int, List, ObjectType, String
-from promise import Promise
 from silvaengine_dynamodb_base import ListObjectType
-from silvaengine_utility import JSON, Utility
+from silvaengine_utility import JSON
+from silvaengine_utility.serializer import Serializer
 
 from ..utils.normalization import normalize_to_json
 
 
-class SessionTypeBase(ObjectType):
+class SessionBaseType(ObjectType):
     """Base Session type with flat fields only (no nested resolvers)."""
 
     session_uuid = String()
@@ -32,11 +32,11 @@ class SessionTypeBase(ObjectType):
     updated_at = DateTime()
 
 
-class SessionType(SessionTypeBase):
+class SessionType(SessionBaseType):
     """
     Session type with nested resolvers for related entities.
 
-    This type extends SessionTypeBase to add lazy-loaded nested fields
+    This type extends SessionBaseType to add lazy-loaded nested fields
     for coordination and task, using DataLoader for efficient batching.
     """
 
@@ -65,7 +65,7 @@ class SessionType(SessionTypeBase):
         # Case 1: Already embedded as dict
         existing = getattr(parent, "coordination", None)
         if isinstance(existing, dict):
-            return CoordinationType(**Utility.json_normalize(existing))
+            return CoordinationType(**Serializer.json_normalize(existing))
         if isinstance(existing, CoordinationType):
             return existing
 
@@ -82,7 +82,7 @@ class SessionType(SessionTypeBase):
             (partition_key, coordination_uuid)
         ).then(
             lambda coord_dict: (
-                CoordinationType(**Utility.json_normalize(coord_dict))
+                CoordinationType(**Serializer.json_normalize(coord_dict))
                 if coord_dict
                 else None
             )
@@ -105,7 +105,7 @@ class SessionType(SessionTypeBase):
         # Case 1: Already embedded as dict
         existing = getattr(parent, "task", None)
         if isinstance(existing, dict):
-            return TaskType(**Utility.json_normalize(existing))
+            return TaskType(**Serializer.json_normalize(existing))
         if isinstance(existing, TaskType):
             return existing
 
@@ -118,7 +118,7 @@ class SessionType(SessionTypeBase):
         loaders = get_loaders(info.context)
         return loaders.task_loader.load((coordination_uuid, task_uuid)).then(
             lambda task_dict: (
-                TaskType(**Utility.json_normalize(task_dict)) if task_dict else None
+                TaskType(**Serializer.json_normalize(task_dict)) if task_dict else None
             )
         )
 

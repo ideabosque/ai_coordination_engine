@@ -9,7 +9,8 @@ import traceback
 from typing import Any, Dict, List, Tuple
 
 from graphene import ResolveInfo
-from silvaengine_utility import Utility
+from silvaengine_utility.invoker import Invoker
+from silvaengine_utility.serializer import Serializer
 
 from ...models.session import insert_update_session
 from ...models.session_agent import (
@@ -86,7 +87,7 @@ def init_session_agents(
                 # Check if task_query is valid JSON and can be parsed
                 variables = {
                     k: ",".join(v) if isinstance(v, list) else v
-                    for k, v in Utility.json_loads(session.task_query).items()
+                    for k, v in Serializer.json_loads(session.task_query).items()
                 }
                 subtask_query.update(
                     {
@@ -266,7 +267,7 @@ def handle_session_agent_completion(
                 "coordination_uuid": session_agent.coordination_uuid,
                 "session_uuid": session_agent.session_uuid,
                 "status": "failed",
-                "logs": Utility.json_dumps([{"error": log}]),
+                "logs": Serializer.json_dumps([{"error": log}]),
                 "updated_by": "procedure_hub",
             },
         )
@@ -508,7 +509,7 @@ def execute_session_agent(info: ResolveInfo, session_agent: SessionAgentType) ->
             params.update({"connection_id": info.context["connectionId"]})
 
         # Invoke async update function on AWS Lambda
-        Utility.invoke_funct_on_aws_lambda(
+        Invoker.invoke_funct_on_aws_lambda(
             info.context,
             "async_update_session_agent",
             params=params,
@@ -526,7 +527,7 @@ def execute_session_agent(info: ResolveInfo, session_agent: SessionAgentType) ->
                 "coordination_uuid": session_agent.coordination_uuid,
                 "session_uuid": session_agent.session_uuid,
                 "status": "failed",
-                "logs": Utility.json_dumps([{"error": log}]),
+                "logs": Serializer.json_dumps([{"error": log}]),
                 "updated_by": "procedure_hub",
             },
         )

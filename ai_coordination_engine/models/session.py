@@ -26,7 +26,8 @@ from silvaengine_dynamodb_base import (
     monitor_decorator,
     resolve_list_decorator,
 )
-from silvaengine_utility import Utility, method_cache
+from silvaengine_utility import method_cache
+from silvaengine_utility.serializer import Serializer
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..handlers.config import Config
@@ -169,7 +170,7 @@ def get_session_type(info: ResolveInfo, session: SessionModel) -> SessionType:
     _ = info  # Keep for signature compatibility with decorators
     session_dict = session.__dict__["attribute_values"].copy()
     # Keep all fields including FKs - nested resolvers will handle lazy loading
-    return SessionType(**Utility.json_normalize(session_dict))
+    return SessionType(**Serializer.json_normalize(session_dict))
 
 
 def resolve_session(info: ResolveInfo, **kwargs: Dict[str, Any]) -> SessionType | None:
@@ -236,7 +237,6 @@ def insert_update_session(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     session_uuid = kwargs.get("session_uuid")
     if kwargs.get("entity") is None:
         cols = {
-            "endpoint_id": info.context["endpoint_id"],
             "partition_key": info.context.get("partition_key"),
             "input_files": [],
             "subtask_queries": [],

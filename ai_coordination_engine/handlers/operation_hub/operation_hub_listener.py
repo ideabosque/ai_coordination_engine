@@ -7,7 +7,7 @@ import logging
 import time
 from typing import Any, Dict
 
-from silvaengine_utility import Utility
+from silvaengine_utility.serializer import Serializer
 
 from ...models.session import insert_update_session, resolve_session
 from ...models.session_run import resolve_session_run
@@ -60,7 +60,7 @@ def async_insert_update_session(
                 "session_uuid": kwargs["session_uuid"],
             },
         )
-        logs = Utility.json_loads(session.logs if session.logs else "[]")
+        logs = Serializer.json_loads(session.logs if session.logs else "[]")
         if async_task["status"] == "failed" or time.time() - start_time > 60:
             # If async task failed, update session with failure details
             status = "failed" if async_task["status"] == "failed" else "timeout"
@@ -80,7 +80,7 @@ def async_insert_update_session(
                     "coordination_uuid": kwargs["coordination_uuid"],
                     "session_uuid": kwargs["session_uuid"],
                     "status": status,
-                    "logs": Utility.json_dumps(logs),
+                    "logs": Serializer.json_dumps(logs),
                     "updated_by": "operation_hub",
                 },
             )
@@ -98,7 +98,7 @@ def async_insert_update_session(
                 **{
                     "coordination_uuid": kwargs["coordination_uuid"],
                     "session_uuid": kwargs["session_uuid"],
-                    "logs": Utility.json_dumps(logs),
+                    "logs": Serializer.json_dumps(logs),
                     "updated_by": "operation_hub",
                 },
             )

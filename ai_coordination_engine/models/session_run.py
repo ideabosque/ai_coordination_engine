@@ -20,10 +20,10 @@ from silvaengine_dynamodb_base import (
     monitor_decorator,
     resolve_list_decorator,
 )
-from silvaengine_utility import Utility, method_cache
+from silvaengine_utility import method_cache
+from silvaengine_utility.serializer import Serializer
 from tenacity import retry, stop_after_attempt, wait_exponential
 
-from ..handlers.ai_coordination_utility import get_async_task
 from ..handlers.config import Config
 from ..types.session_run import SessionRunListType, SessionRunType
 
@@ -67,7 +67,6 @@ class SessionRunModel(BaseModel):
     thread_uuid = UnicodeAttribute()
     agent_uuid = UnicodeAttribute()
     coordination_uuid = UnicodeAttribute()
-    endpoint_id = UnicodeAttribute()
     partition_key = UnicodeAttribute(null=True)
     async_task_uuid = UnicodeAttribute()
     session_agent_uuid = UnicodeAttribute(null=True)
@@ -155,8 +154,7 @@ def get_session_run_type(
     Get SessionRunType from SessionRunModel without embedding nested objects.
 
     Nested objects (session, session_agent) are now handled by GraphQL nested resolvers
-    with batch loading for optimal performance. The async_task is still embedded as it
-    comes from a different service (not DynamoDB).
+    with batch loading for optimal performance.
 
     Args:
         info: GraphQL resolve info
@@ -165,30 +163,9 @@ def get_session_run_type(
     Returns:
         SessionRunType with foreign keys intact for lazy loading via nested resolvers
     """
-    try:
-        # Still fetch async_task as it comes from external service (not a DynamoDB relation)
-        async_task = {
-            k: v
-            for k, v in get_async_task(
-                info.context.get("logger"),
-                info.context.get("endpoint_id"),
-                info.context.get("setting"),
-                **{
-                    "functionName": "async_execute_ask_model",
-                    "asyncTaskUuid": session_run.async_task_uuid,
-                },
-            ).items()
-            if k not in ["updated_by", "created_at", "updated_at"]
-        }
-    except Exception as e:
-        log = traceback.format_exc()
-        info.context.get("logger").exception(log)
-        raise e
-
+    _ = info  # Keep for signature compatibility with decorators
     session_run_dict = session_run.__dict__["attribute_values"].copy()
-    # Keep FKs for nested resolvers, but embed async_task from external service
-    session_run_dict["async_task"] = async_task
-    return SessionRunType(**Utility.json_normalize(session_run_dict))
+    return SessionRunType(**Serializer.json_normalize(session_run_dict))
 
 
 def resolve_session_run(
