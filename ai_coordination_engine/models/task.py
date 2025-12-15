@@ -55,6 +55,8 @@ def purge_cache():
         @functools.wraps(original_function)
         def wrapper_function(*args, **kwargs):
             try:
+                # Execute original function first
+                result = original_function(*args, **kwargs)
 
                 # Then purge cache after successful operation
                 from ..models.cache import purge_entity_cascading_cache
@@ -65,10 +67,10 @@ def purge_cache():
                 # Try to get from entity parameter first (for updates)
                 entity = kwargs.get("entity")
                 if entity:
-                    entity_keys["task_uuid"] = getattr(
-                        entity, "task_uuid", None
+                    entity_keys["task_uuid"] = getattr(entity, "task_uuid", None)
+                    entity_keys["coordination_uuid"] = getattr(
+                        entity, "coordination_uuid", None
                     )
-                    entity_keys["coordination_uuid"] = getattr(entity, "coordination_uuid", None)
 
                 # Fallback to kwargs (for creates/deletes)
                 if not entity_keys.get("task_uuid"):
@@ -86,9 +88,6 @@ def purge_cache():
                         entity_keys=entity_keys,
                         cascade_depth=3,
                     )
-
-                # Execute original function first
-                result = original_function(*args, **kwargs)
 
                 return result
             except Exception as e:
