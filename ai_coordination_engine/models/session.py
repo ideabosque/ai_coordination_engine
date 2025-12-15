@@ -91,28 +91,39 @@ def purge_cache():
         @functools.wraps(original_function)
         def wrapper_function(*args, **kwargs):
             try:
-                # Use cascading cache purging for sessions
+
+                # Then purge cache after successful operation
                 from ..models.cache import purge_entity_cascading_cache
 
-                try:
-                    session = resolve_session(args[0], **kwargs)
-                except Exception:
-                    session = None
-
+                # Get entity keys from kwargs or entity parameter
                 entity_keys = {}
-                if session:
-                    entity_keys["session_uuid"] = session.session_uuid
-                    entity_keys["coordination_uuid"] = session.coordination_uuid
 
-                result = purge_entity_cascading_cache(
-                    args[0].context.get("logger"),
-                    entity_type="session",
-                    context_keys=None,
-                    entity_keys=entity_keys if entity_keys else None,
-                    cascade_depth=3,
-                )
+                # Try to get from entity parameter first (for updates)
+                entity = kwargs.get("entity")
+                if entity:
+                    entity_keys["session_uuid"] = getattr(
+                        entity, "session_uuid", None
+                    )
+                    entity_keys["coordination_uuid"] = getattr(entity, "coordination_uuid", None)
 
-                ## Original function.
+                # Fallback to kwargs (for creates/deletes)
+                if not entity_keys.get("session_uuid"):
+                    entity_keys["session_uuid"] = kwargs.get("session_uuid")
+                    entity_keys["coordination_uuid"] = kwargs.get("coordination_uuid")
+
+                # Only purge if we have the required keys
+                if entity_keys.get("session_uuid") and entity_keys.get(
+                    "coordination_uuid"
+                ):
+                    purge_entity_cascading_cache(
+                        args[0].context.get("logger"),
+                        entity_type="session",
+                        context_keys=None,
+                        entity_keys=entity_keys,
+                        cascade_depth=3,
+                    )
+
+                # Execute original function first
                 result = original_function(*args, **kwargs)
 
                 return result
@@ -222,7 +233,6 @@ def resolve_session_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     return inquiry_funct, count_funct, args
 
 
-@purge_cache()
 @insert_update_decorator(
     keys={
         "hash_key": "coordination_uuid",
@@ -232,6 +242,7 @@ def resolve_session_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     count_funct=get_session_count,
     type_funct=get_session_type,
 )
+@purge_cache()
 def insert_update_session(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     coordination_uuid = kwargs.get("coordination_uuid")
     session_uuid = kwargs.get("session_uuid")
@@ -289,7 +300,6 @@ def insert_update_session(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     return
 
 
-@purge_cache()
 @delete_decorator(
     keys={
         "hash_key": "coordination_uuid",
@@ -297,6 +307,7 @@ def insert_update_session(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     },
     model_funct=get_session,
 )
+@purge_cache()
 def delete_session(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
     kwargs.get("entity").delete()
     return True
