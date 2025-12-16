@@ -10,7 +10,9 @@ import traceback
 from typing import Any, Dict, List
 
 from graphene import ResolveInfo
-from silvaengine_utility import Invoker, Serializer
+
+from silvaengine_utility.invoker import Invoker
+from silvaengine_utility.serializer import Serializer
 
 from ...handlers.config import Config
 from ...models.session import insert_update_session, resolve_session
@@ -305,8 +307,8 @@ def invoke_next_iteration(
         },
     )
     params = {"coordination_uuid": coordination_uuid, "session_uuid": session_uuid}
-    if "connectionId" in info.context:
-        params.update({"connection_id": info.context["connectionId"]})
+    if "" in info.context:
+        params.update({"connection_id": info.context[""]})
 
     Invoker.invoke_funct_on_aws_lambda(
         info.context,

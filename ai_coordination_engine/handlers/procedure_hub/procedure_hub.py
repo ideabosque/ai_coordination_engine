@@ -7,11 +7,14 @@ __author__ = "bibow"
 from typing import Any, Dict
 
 from graphene import ResolveInfo
-from silvaengine_utility import Utility
+
+from silvaengine_utility.invoker import Invoker
+from silvaengine_utility.serializer import Serializer
 
 from ...models.session import insert_update_session
 from ...models.task import resolve_task
 from ...types.procedure_hub import ProcedureTaskSessionType
+from ...types.session import SessionType
 from ..config import Config
 from .session_agent import init_in_degree, init_session_agents
 
@@ -58,7 +61,7 @@ def execute_procedure_task_session(
         variables["subtask_queries"] = task.subtask_queries
     if "user_id" in kwargs:
         variables["user_id"] = kwargs["user_id"]
-    session = insert_update_session(
+    session: SessionType = insert_update_session(
         info,
         **variables,
     )
@@ -67,8 +70,8 @@ def execute_procedure_task_session(
         "coordination_uuid": session.coordination_uuid,
         "session_uuid": session.session_uuid,
     }
-    if "connectionId" in info.context:
-        params.update({"connection_id": info.context["connectionId"]})
+    if "" in info.context:
+        params.update({"connection_id": info.context["connection_id"]})
     # * Process the task query and generate subtasks for each agent based on their capabilities and dependencies.
     # This involves:
     # 1. Analyzing and decomposing the task query into atomic subtasks
@@ -80,14 +83,14 @@ def execute_procedure_task_session(
 
     # Invoke async update function on AWS Lambda
     if not session.subtask_queries:
-        Utility.invoke_funct_on_aws_lambda(
+        Invoker.invoke_funct_on_aws_lambda(
             info.context,
             "async_orchestrate_task_query",
             params=params,
             aws_lambda=Config.aws_lambda,
         )
     else:
-        session = insert_update_session(
+        session: SessionType = insert_update_session(
             info,
             **{
                 "coordination_uuid": session.coordination_uuid,
@@ -102,11 +105,11 @@ def execute_procedure_task_session(
         # Initialize in-degree values for session agents
         updated_session_agents = init_in_degree(info, session_agents)
         info.context["logger"].info(
-            f"Updated session agents: {serializer.json_dumps(updated_session_agents)}"
+            f"Updated session agents: {Serializer.json_dumps(updated_session_agents)}"
         )
 
     # Invoke async update function on AWS Lambda
-    Utility.invoke_funct_on_aws_lambda(
+    Invoker.invoke_funct_on_aws_lambda(
         info.context,
         "async_execute_procedure_task_session",
         params=params,

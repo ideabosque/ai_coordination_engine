@@ -49,7 +49,7 @@ def async_insert_update_session(
             info.context,
             **{
                 "functionName": "async_execute_ask_model",
-                "asyncTaskUuid": session_run.async_task["async_task_uuid"],
+                "asyncTaskUuid": session_run.async_task_uuid,
             },
         )
 

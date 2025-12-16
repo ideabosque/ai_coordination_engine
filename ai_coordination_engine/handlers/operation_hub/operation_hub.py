@@ -8,6 +8,7 @@ import traceback
 from typing import Any, Dict, Optional
 
 from graphene import ResolveInfo
+
 from silvaengine_utility.invoker import Invoker
 from silvaengine_utility.serializer import Serializer
 
@@ -159,7 +160,7 @@ def ask_operation_hub(
             info.context,
             **variables,
         )
-        session_run = insert_update_session_run(
+        session_run: SessionRunType = insert_update_session_run(
             info,
             **{
                 "session_uuid": session.session_uuid,
@@ -184,7 +185,7 @@ def ask_operation_hub(
                 "run_uuid": session_run.run_uuid,
                 "thread_uuid": session_run.thread_uuid,
                 "agent_uuid": session_run.agent_uuid,
-                "async_task_uuid": session_run.async_task["async_task_uuid"],
+                "async_task_uuid": session_run.async_task_uuid,
                 "updated_at": session_run.updated_at,
             }
         )
@@ -314,7 +315,7 @@ def _handle_connection_routing(
     Returns:
         Optional[str]: Connection ID for routing messages
     """
-    connection_id = info.context.get("connectionId")
+    connection_id = info.context.get("connection_id")
     if "receiver_email" in kwargs and agent["agent_type"] != "triage":
         receiver_connection = get_connection_by_email(
             info.context.get("logger"),

@@ -9,6 +9,7 @@ import traceback
 from typing import Any, Dict, List, Tuple
 
 from graphene import ResolveInfo
+
 from silvaengine_utility.invoker import Invoker
 from silvaengine_utility.serializer import Serializer
 
@@ -461,7 +462,7 @@ def execute_session_agent(info: ResolveInfo, session_agent: SessionAgentType) ->
 
         successors = get_successors(info, session_agent)
         connection_id = (
-            info.context.get("connectionId")
+            info.context.get("connection_id")
             if len(successors) == 0
             or session_agent.agent_action.get("user_in_the_loop")
             else None
@@ -505,8 +506,8 @@ def execute_session_agent(info: ResolveInfo, session_agent: SessionAgentType) ->
             "session_agent_uuid": session_agent.session_agent_uuid,
             "async_task_uuid": ask_model["async_task_uuid"],
         }
-        if "connectionId" in info.context:
-            params.update({"connection_id": info.context["connectionId"]})
+        if "connection_id" in info.context:
+            params.update({"connection_id": info.context["connection_id"]})
 
         # Invoke async update function on AWS Lambda
         Invoker.invoke_funct_on_aws_lambda(

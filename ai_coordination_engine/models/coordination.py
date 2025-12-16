@@ -54,30 +54,39 @@ def purge_cache():
         @functools.wraps(original_function)
         def wrapper_function(*args, **kwargs):
             try:
-                # Use cascading cache purging for coordinations
+
+                # Then purge cache after successful operation
                 from ..models.cache import purge_entity_cascading_cache
 
-                try:
-                    coordination = resolve_coordination(args[0], **kwargs)
-                except Exception:
-                    coordination = None
-
-                partition_key = args[0].context.get("partition_key")
+                # Get entity keys from kwargs or entity parameter
                 entity_keys = {}
-                if coordination:
-                    entity_keys["coordination_uuid"] = coordination.coordination_uuid
 
-                result = purge_entity_cascading_cache(
-                    args[0].context.get("logger"),
-                    entity_type="coordination",
-                    context_keys=(
-                        {"partition_key": partition_key} if partition_key else None
-                    ),
-                    entity_keys=entity_keys if entity_keys else None,
-                    cascade_depth=3,
-                )
+                # Try to get from entity parameter first (for updates)
+                entity = kwargs.get("entity")
+                if entity:
+                    entity_keys["coordination_uuid"] = getattr(
+                        entity, "coordination_uuid", None
+                    )
+                    entity_keys["partition_key"] = getattr(entity, "partition_key", None)
 
-                ## Original function.
+                # Fallback to kwargs (for creates/deletes)
+                if not entity_keys.get("coordination_uuid"):
+                    entity_keys["coordination_uuid"] = kwargs.get("coordination_uuid")
+                    entity_keys["partition_key"] = kwargs.get("partition_key")
+
+                # Only purge if we have the required keys
+                if entity_keys.get("coordination_uuid") and entity_keys.get(
+                    "partition_key"
+                ):
+                    purge_entity_cascading_cache(
+                        args[0].context.get("logger"),
+                        entity_type="coordination",
+                        context_keys=None,
+                        entity_keys=entity_keys,
+                        cascade_depth=3,
+                    )
+
+                # Execute original function first
                 result = original_function(*args, **kwargs)
 
                 return result
@@ -172,7 +181,6 @@ def resolve_coordination_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> An
     return inquiry_funct, count_funct, args
 
 
-@purge_cache()
 @insert_update_decorator(
     keys={
         "hash_key": "partition_key",
@@ -184,6 +192,7 @@ def resolve_coordination_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> An
     # data_attributes_except_for_data_diff=data_attributes_except_for_data_diff,
     # activity_history_funct=None,
 )
+@purge_cache()
 def insert_update_coordination(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     partition_key = kwargs.get("partition_key")
     coordination_uuid = kwargs.get("coordination_uuid")
@@ -233,7 +242,6 @@ def insert_update_coordination(info: ResolveInfo, **kwargs: Dict[str, Any]) -> N
     return
 
 
-@purge_cache()
 @delete_decorator(
     keys={
         "hash_key": "partition_key",
@@ -241,6 +249,7 @@ def insert_update_coordination(info: ResolveInfo, **kwargs: Dict[str, Any]) -> N
     },
     model_funct=get_coordination,
 )
+@purge_cache()
 def delete_coordination(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
     kwargs.get("entity").delete()
     return True
