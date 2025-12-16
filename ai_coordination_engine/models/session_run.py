@@ -289,3 +289,21 @@ def insert_update_session_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> No
 def delete_session_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
     kwargs.get("entity").delete()
     return True
+
+@retry(
+    reraise=True,
+    wait=wait_exponential(multiplier=1, max=60),
+    stop=stop_after_attempt(5),
+)
+@method_cache(
+    ttl=Config.get_cache_ttl(),
+    cache_name=Config.get_cache_name("models", "session_run"),
+)
+def get_session_runs_by_session(session_uuid: str) -> Any:
+    session_runs = []
+    for session_run in SessionRunModel.query(
+        session_uuid,
+        # Could add filters here if needed
+    ):
+        session_runs.append(session_run)
+    return session_runs

@@ -10,8 +10,7 @@ from promise import Promise
 from silvaengine_utility.cache import HybridCacheEngine
 
 from ...handlers.config import Config
-from ..session_agent import SessionAgentModel
-from .base import SafeDataLoader, normalize_model
+from .base import SafeDataLoader, normalize_model, Key
 
 
 class SessionAgentsBySessionLoader(SafeDataLoader):
@@ -28,10 +27,39 @@ class SessionAgentsBySessionLoader(SafeDataLoader):
         )
         if self.cache_enabled:
             self.cache = HybridCacheEngine(
-                Config.get_cache_name("models", "session_agents_by_session")
+                Config.get_cache_name("models", "session_agent")
             )
+            cache_meta = Config.get_cache_entity_config().get("session_agent")
+            self.cache_func_prefix = ""
+            if cache_meta:
+                self.cache_func_prefix = ".".join([cache_meta.get("module"), "get_session_agents_by_session"])
+
+    def generate_cache_key(self, key: Key) -> str:
+        if not isinstance(key, tuple):
+            key = (key,)
+        key_data = ":".join([str(key), str({})])
+        return self.cache._generate_key(
+            self.cache_func_prefix,
+            key_data
+        )
+    
+    def get_cache_data(self, key: Key) -> Dict[str, Any] | None | List[Dict[str, Any]]:
+        cache_key = self.generate_cache_key(key)
+        cached_item = self.cache.get(cache_key)
+        if cached_item is None:  # pragma: no cover - defensive
+            return None
+        if isinstance(cached_item, dict):  # pragma: no cover - defensive
+            return cached_item
+        if isinstance(cached_item, list):  # pragma: no cover - defensive
+            return [normalize_model(item) for item in cached_item]
+        return normalize_model(cached_item)
+
+    def set_cache_data(self, key: Key, data: Any) -> None:
+        cache_key = self.generate_cache_key(key)
+        self.cache.set(cache_key, data, ttl=Config.get_cache_ttl())
 
     def batch_load_fn(self, keys: List[str]) -> Promise:
+        from ..session_agent import get_session_agents_by_session
         """
         Load all session agents for multiple session_uuids.
 
@@ -48,8 +76,7 @@ class SessionAgentsBySessionLoader(SafeDataLoader):
         # Check cache first if enabled
         if self.cache_enabled:
             for key in unique_keys:
-                cache_key = key  # session_uuid
-                cached_item = self.cache.get(cache_key)
+                cached_item = self.cache.get(key)
                 if cached_item:
                     key_map[key] = cached_item
                 else:
@@ -62,12 +89,7 @@ class SessionAgentsBySessionLoader(SafeDataLoader):
             try:
                 for session_uuid in uncached_keys:
                     # Query all session agents for this session
-                    session_agents = list(
-                        SessionAgentModel.query(
-                            session_uuid,
-                            # Could add filters here if needed
-                        )
-                    )
+                    session_agents = get_session_agents_by_session(session_uuid)
 
                     # Normalize all session agents
                     normalized_agents = [
@@ -75,14 +97,6 @@ class SessionAgentsBySessionLoader(SafeDataLoader):
                     ]
 
                     key_map[session_uuid] = normalized_agents
-
-                    # Cache the result if enabled
-                    if self.cache_enabled:
-                        self.cache.set(
-                            session_uuid,
-                            normalized_agents,
-                            ttl=Config.get_cache_ttl(),
-                        )
 
             except Exception as exc:
                 if self.logger:

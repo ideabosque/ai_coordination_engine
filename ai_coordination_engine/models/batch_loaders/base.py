@@ -4,13 +4,14 @@ from __future__ import print_function
 
 __author__ = "bibow"
 
-from typing import Any, Dict
+from typing import Any, Dict, Tuple
 
 from promise.dataloader import DataLoader
 from silvaengine_utility.serializer import Serializer
 
 from ...handlers.config import Config
 
+Key = Tuple[str, str]
 
 def normalize_model(model: Any) -> Dict[str, Any]:
     """

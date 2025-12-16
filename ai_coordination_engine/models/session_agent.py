@@ -300,3 +300,22 @@ def insert_update_session_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> 
 def delete_session_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
     kwargs.get("entity").delete()
     return True
+
+@retry(
+    reraise=True,
+    wait=wait_exponential(multiplier=1, max=60),
+    stop=stop_after_attempt(5),
+)
+@method_cache(
+    ttl=Config.get_cache_ttl(),
+    cache_name=Config.get_cache_name("models", "session_agent"),
+)
+def get_session_agents_by_session(session_uuid: str) -> Any:
+    session_agents = []
+    
+    for session_agent in SessionAgentModel.query(
+        session_uuid,
+        # Could add filters here if needed
+    ):
+        session_agents.append(session_agent)
+    return session_agents
