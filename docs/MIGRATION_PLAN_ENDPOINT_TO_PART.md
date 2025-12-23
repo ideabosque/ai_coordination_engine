@@ -45,10 +45,6 @@ partition_key = "aws-prod-us-east-1#acme-corp"  (composite, assembled in main.py
 - `/types`: Extract `partition_key` from context instead of `endpoint_id`
 - No new utility modules needed
 
-**Backward Compatibility:**
-- If `part_id` not provided, defaults to `endpoint_id`
-- Fallback logic during transition period
-
 ---
 
 ## 1. Main Entry Point Changes
@@ -66,15 +62,13 @@ class AICoordinationEngine(Graphql):
             params["connection_id"] = self.setting.get("connection_id")
         if params.get("endpoint_id") is None:
             params["endpoint_id"] = self.setting.get("endpoint_id")
+        if params.get("part_id") is None:
+            params["part_id"] = self.setting.get("part_id")
         ##<--Testing Data-->##
 
         # NEW: Extract part_id and assemble partition_key
         endpoint_id = params.get("endpoint_id")
         part_id = params.get("part_id")  # From JWT, header, or request body
-
-        # Backward compatibility: if part_id not provided, use endpoint_id
-        if not part_id:
-            part_id = endpoint_id
 
         # Assemble composite partition_key ONCE here
         partition_key = f"{endpoint_id}#{part_id}"
@@ -95,6 +89,34 @@ class AICoordinationEngine(Graphql):
 - Assemble `partition_key = f"{endpoint_id}#{part_id}"`
 - Add `partition_key`, `endpoint_id`, and `part_id` to params
 - Pass to `self.execute()`
+
+### 1.2 main.py - Async Entry Points
+
+**Async methods also require partition_key assembly:**
+
+```python
+    def async_insert_update_session(self, **params: Dict[str, Any]) -> Any:
+        if params.get("endpoint_id") is None:
+            params["endpoint_id"] = self.setting.get("endpoint_id")
+
+        # NEW: Assemble partition_key for async events
+        endpoint_id = params.get("endpoint_id")
+        part_id = params.get("part_id")
+        
+        params["partition_key"] = f"{endpoint_id}#{part_id}"
+        params["part_id"] = part_id
+
+        operation_hub_listener.async_insert_update_session(
+            self.logger, self.setting, **params
+        )
+        return
+```
+
+**Methods to Update:**
+- `async_insert_update_session`
+- `async_execute_procedure_task_session`
+- `async_update_session_agent`
+- `async_orchestrate_task_query`
 
 ---
 
@@ -130,25 +152,6 @@ class CoordinationModel(BaseModel):
 
 **After:**
 ```python
-class EndpointIdIndex(LocalSecondaryIndex):
-    """LSI for querying by endpoint_id within same partition."""
-    class Meta:
-        index_name = "endpoint_id-index"
-        projection = AllProjection()
-
-    partition_key = UnicodeAttribute(hash_key=True)
-    endpoint_id = UnicodeAttribute(range_key=True)
-
-
-class PartIdIndex(LocalSecondaryIndex):
-    """LSI for querying by part_id within same partition."""
-    class Meta:
-        index_name = "part_id-index"
-        projection = AllProjection()
-
-    partition_key = UnicodeAttribute(hash_key=True)
-    part_id = UnicodeAttribute(range_key=True)
-
 
 class CoordinationModel(BaseModel):
     class Meta:
@@ -168,9 +171,6 @@ class CoordinationModel(BaseModel):
     agents = ListAttribute(default=list)
     # ... other fields
 
-    # Indexes (NEW)
-    endpoint_id_index = EndpointIdIndex()
-    part_id_index = PartIdIndex()
 ```
 
 **Impact:** This is a **BREAKING CHANGE** requiring table recreation or migration script.
@@ -535,6 +535,29 @@ part_id = info.context.get("part_id")          # New field
 
 **Search for:** All occurrences of `endpoint_id` extraction and usage
 
+### 7.2 Utility and Listener Updates
+
+**File:** `ai_coordination_engine/handlers/ai_coordination_utility.py`
+
+- Update `batch_get_coordination_data` to Key format `(endpoint_id, coordination_uuid)` -> `(partition_key, coordination_uuid)`
+- Update `batch_get_task_data` to Key format `(endpoint_id, task_uuid)` -> `(partition_key, task_uuid)`
+- Update `ensure_coordination_data` and `ensure_task_data` to support `partition_key` fallback
+- Update `execute_graphql_query` and `invoke_ask_model` if they need to pass `partition_key` in variables
+
+**File:** `ai_coordination_engine/utils/listener.py`
+
+**Update `create_listener_info` to populate context:**
+```python
+        context={
+            "setting": setting,
+            "endpoint_id": kwargs.get("endpoint_id"),
+            "part_id": kwargs.get("part_id"),            # NEW
+            "partition_key": kwargs.get("partition_key"), # NEW
+            "logger": logger,
+            "connectionId": kwargs.get("connection_id"),
+        },
+```
+
 ---
 
 ## 8. Cache Configuration Updates
@@ -664,7 +687,11 @@ cache_key = f"{partition_key}:{coordination_uuid}"
 **Configuration (1 file):**
 - `handlers/config.py` - Cache relationships (minor updates)
 
-**Total: ~37 files** (6 mutation files do NOT need changes)
+**Utilities (2 files):**
+- `handlers/ai_coordination_utility.py` - Batch helpers & ensure functions
+- `utils/listener.py` - Populate partition_key in listener context
+
+**Total: ~39 files** (6 mutation files do NOT need changes)
 
 ---
 
@@ -990,6 +1017,7 @@ def migrate_task_table():
 | Version | Date | Changes |
 |---------|------|---------|
 | 1.0 | 2025-12-11 | Initial migration plan for ai_coordination_engine based on ai_agent_core_engine pattern |
+| 1.1 | 2025-12-12 | Added async entry points and utility updates based on code analysis |
 
 ---
 

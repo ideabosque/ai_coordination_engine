@@ -10,7 +10,9 @@ import traceback
 from typing import Any, Dict, List
 
 from graphene import ResolveInfo
-from silvaengine_utility import Utility
+
+from silvaengine_utility.invoker import Invoker
+from silvaengine_utility.serializer import Serializer
 
 from ...handlers.config import Config
 from ...models.session import insert_update_session, resolve_session
@@ -305,16 +307,13 @@ def invoke_next_iteration(
         },
     )
     params = {"coordination_uuid": coordination_uuid, "session_uuid": session_uuid}
-    if "connectionId" in info.context:
-        params.update({"connection_id": info.context["connectionId"]})
+    if "" in info.context:
+        params.update({"connection_id": info.context[""]})
 
-    Utility.invoke_funct_on_aws_lambda(
-        info.context["logger"],
-        info.context["endpoint_id"],
+    Invoker.invoke_funct_on_aws_lambda(
+        info.context,
         "async_execute_procedure_task_session",
         params=params,
-        setting=info.context["setting"],
-        execute_mode=info.context["setting"].get("execute_mode"),
         aws_lambda=Config.aws_lambda,
     )
 
@@ -330,15 +329,13 @@ def _process_task_completion(
 
     while time.time() - start <= timeout:
         task = get_async_task(
-            info.context.get("logger"),
-            info.context.get("endpoint_id"),
-            info.context.get("setting"),
+            info.context,
             functionName="async_execute_ask_model",
             asyncTaskUuid=async_task_uuid,
         )
 
         if task["status"] == "completed":
-            result = Utility.json_loads(task["result"])
+            result = Serializer.json_loads(task["result"])
             info.context["logger"].info(f"Result: {result}.")
 
             if "subtask_queries" in result:
@@ -354,7 +351,7 @@ def _process_task_completion(
             variables.update(
                 {
                     "status": "failed",
-                    "logs": Utility.json_dumps(
+                    "logs": Serializer.json_dumps(
                         [{"run_uuid": current_run_uuid, "log": error_msg}]
                     ),
                 }
@@ -365,7 +362,7 @@ def _process_task_completion(
             variables.update(
                 {
                     "status": "failed",
-                    "logs": Utility.json_dumps(
+                    "logs": Serializer.json_dumps(
                         [
                             {
                                 "run_uuid": current_run_uuid,
@@ -382,7 +379,7 @@ def _process_task_completion(
         variables.update(
             {
                 "status": "failed",
-                "logs": Utility.json_dumps(
+                "logs": Serializer.json_dumps(
                     [
                         {
                             "run_uuid": current_run_uuid,
@@ -444,7 +441,7 @@ def async_orchestrate_task_query(
     if orchestrator_agent["agent_type"] == "decompose":
         # Create query for task decomposition
         query = (
-            f"Analyze agents: {Utility.json_dumps(agents)}\n\n"
+            f"Analyze agents: {Serializer.json_dumps(agents)}\n\n"
             f"Decompose task: '{session.task_query}' into subtasks for available agents.\n\n"
             "Consider:\n"
             "- Match agent capabilities\n"
@@ -456,7 +453,7 @@ def async_orchestrate_task_query(
     elif orchestrator_agent["agent_type"] == "planning":
         # Create query for task decomposition
         query = (
-            f"Analyzing the following agents: {Utility.json_dumps(agents)}\n\n"
+            f"Analyzing the following agents: {Serializer.json_dumps(agents)}\n\n"
             f"Planning the main task: '{session.task_query}' into subtasks suitable for the available agents.\n\n"
             "Guidelines:\n"
             "- Generate 5 distinct subqueries, each a rephrased version of the original query\n"
@@ -470,9 +467,7 @@ def async_orchestrate_task_query(
 
     # Ask model to decompose task
     ask_model = invoke_ask_model(
-        info.context.get("logger"),
-        info.context.get("endpoint_id"),
-        setting=info.context.get("setting"),
+        info.context,
         **{
             "agentUuid": orchestrator_agent["agent_uuid"],
             "userQuery": query,
@@ -499,7 +494,7 @@ def async_orchestrate_task_query(
     # Initialize in-degree values for session agents
     updated_session_agents = init_in_degree(info, session_agents)
     info.context["logger"].info(
-        f"Updated session agents: {Utility.json_dumps(updated_session_agents)}"
+        f"Updated session agents: {Serializer.json_dumps(updated_session_agents)}"
     )
     session = insert_update_session(
         info,
@@ -656,7 +651,7 @@ def _handle_pending_agents(info: ResolveInfo, session: SessionType) -> None:
                 "coordination_uuid": session.coordination_uuid,
                 "session_uuid": session.session_uuid,
                 "status": "failed",
-                "logs": Utility.json_dumps(
+                "logs": Serializer.json_dumps(
                     [
                         {
                             "error": f"Maximum iterations ({MAX_ITERATIONS}) reached - possible infinite loop"
