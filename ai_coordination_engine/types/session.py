@@ -5,14 +5,14 @@ from __future__ import print_function
 __author__ = "bibow"
 
 from graphene import DateTime, Field, Int, List, ObjectType, String
-from promise import Promise
 from silvaengine_dynamodb_base import ListObjectType
-from silvaengine_utility import JSON, Utility
+from silvaengine_utility import JSON
+from silvaengine_utility.serializer import Serializer
 
 from ..utils.normalization import normalize_to_json
 
 
-class SessionTypeBase(ObjectType):
+class SessionBaseType(ObjectType):
     """Base Session type with flat fields only (no nested resolvers)."""
 
     session_uuid = String()
@@ -20,6 +20,7 @@ class SessionTypeBase(ObjectType):
     task_uuid = String()  # FK to Task
     user_id = String()
     endpoint_id = String()
+    partition_key = String()
     task_query = String()
     input_files = List(JSON)
     iteration_count = Int()
@@ -31,11 +32,11 @@ class SessionTypeBase(ObjectType):
     updated_at = DateTime()
 
 
-class SessionType(SessionTypeBase):
+class SessionType(SessionBaseType):
     """
     Session type with nested resolvers for related entities.
 
-    This type extends SessionTypeBase to add lazy-loaded nested fields
+    This type extends SessionBaseType to add lazy-loaded nested fields
     for coordination and task, using DataLoader for efficient batching.
     """
 
@@ -64,20 +65,24 @@ class SessionType(SessionTypeBase):
         # Case 1: Already embedded as dict
         existing = getattr(parent, "coordination", None)
         if isinstance(existing, dict):
-            return CoordinationType(**Utility.json_normalize(existing))
+            return CoordinationType(**Serializer.json_normalize(existing))
         if isinstance(existing, CoordinationType):
             return existing
 
         # Case 2: Need to fetch using DataLoader
-        endpoint_id = getattr(parent, "endpoint_id", None)
+        partition_key = getattr(parent, "partition_key", None) or getattr(
+            parent, "endpoint_id", None
+        )
         coordination_uuid = getattr(parent, "coordination_uuid", None)
-        if not endpoint_id or not coordination_uuid:
+        if not partition_key or not coordination_uuid:
             return None
 
         loaders = get_loaders(info.context)
-        return loaders.coordination_loader.load((endpoint_id, coordination_uuid)).then(
+        return loaders.coordination_loader.load(
+            (partition_key, coordination_uuid)
+        ).then(
             lambda coord_dict: (
-                CoordinationType(**Utility.json_normalize(coord_dict))
+                CoordinationType(**Serializer.json_normalize(coord_dict))
                 if coord_dict
                 else None
             )
@@ -100,7 +105,7 @@ class SessionType(SessionTypeBase):
         # Case 1: Already embedded as dict
         existing = getattr(parent, "task", None)
         if isinstance(existing, dict):
-            return TaskType(**Utility.json_normalize(existing))
+            return TaskType(**Serializer.json_normalize(existing))
         if isinstance(existing, TaskType):
             return existing
 
@@ -113,7 +118,7 @@ class SessionType(SessionTypeBase):
         loaders = get_loaders(info.context)
         return loaders.task_loader.load((coordination_uuid, task_uuid)).then(
             lambda task_dict: (
-                TaskType(**Utility.json_normalize(task_dict)) if task_dict else None
+                TaskType(**Serializer.json_normalize(task_dict)) if task_dict else None
             )
         )
 

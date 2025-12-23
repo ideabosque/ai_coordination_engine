@@ -168,12 +168,24 @@ class AICoordinationEngine(Graphql):
         self.logger = logger
         self.setting = setting
 
-    def async_insert_update_session(self, **params: Dict[str, Any]) -> Any:
+    def _apply_partition_defaults(self, params: Dict[str, Any]) -> None:
+        """
+        Ensure endpoint_id/part_id defaults and assemble partition_key.
+        """
         ## Test the waters 🧪 before diving in!
         ##<--Testing Data-->##
         if params.get("endpoint_id") is None:
             params["endpoint_id"] = self.setting.get("endpoint_id")
+        if params.get("part_id") is None:
+            params["part_id"] = self.setting.get("part_id")
         ##<--Testing Data-->##
+
+        endpoint_id = params.get("endpoint_id")
+        part_id = params.get("part_id")
+        params["partition_key"] = f"{endpoint_id}#{part_id}"
+
+    def async_insert_update_session(self, **params: Dict[str, Any]) -> Any:
+        self._apply_partition_defaults(params)
 
         operation_hub_listener.async_insert_update_session(
             self.logger, self.setting, **params
@@ -181,11 +193,7 @@ class AICoordinationEngine(Graphql):
         return
 
     def async_execute_procedure_task_session(self, **params: Dict[str, Any]) -> Any:
-        ## Test the waters 🧪 before diving in!
-        ##<--Testing Data-->##
-        if params.get("endpoint_id") is None:
-            params["endpoint_id"] = self.setting.get("endpoint_id")
-        ##<--Testing Data-->##
+        self._apply_partition_defaults(params)
 
         procedure_hub_listener.async_execute_procedure_task_session(
             self.logger, self.setting, **params
@@ -193,11 +201,7 @@ class AICoordinationEngine(Graphql):
         return
 
     def async_update_session_agent(self, **params: Dict[str, Any]) -> Any:
-        ## Test the waters 🧪 before diving in!
-        ##<--Testing Data-->##
-        if params.get("endpoint_id") is None:
-            params["endpoint_id"] = self.setting.get("endpoint_id")
-        ##<--Testing Data-->##
+        self._apply_partition_defaults(params)
 
         procedure_hub_listener.async_update_session_agent(
             self.logger, self.setting, **params
@@ -205,11 +209,7 @@ class AICoordinationEngine(Graphql):
         return
 
     def async_orchestrate_task_query(self, **params: Dict[str, Any]) -> Any:
-        ## Test the waters 🧪 before diving in!
-        ##<--Testing Data-->##
-        if params.get("endpoint_id") is None:
-            params["endpoint_id"] = self.setting.get("endpoint_id")
-        ##<--Testing Data-->##
+        self._apply_partition_defaults(params)
 
         procedure_hub_listener.async_orchestrate_task_query(
             self.logger, self.setting, **params
@@ -221,9 +221,10 @@ class AICoordinationEngine(Graphql):
         ##<--Testing Data-->##
         if params.get("connection_id") is None:
             params["connection_id"] = self.setting.pop("connection_id", None)
-        if params.get("endpoint_id") is None:
-            params["endpoint_id"] = self.setting.get("endpoint_id")
         ##<--Testing Data-->##
+
+        self._apply_partition_defaults(params)
+
         schema = Schema(
             query=Query,
             mutation=Mutations,

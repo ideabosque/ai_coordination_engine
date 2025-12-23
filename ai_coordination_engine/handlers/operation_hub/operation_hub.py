@@ -8,7 +8,9 @@ import traceback
 from typing import Any, Dict, Optional
 
 from graphene import ResolveInfo
-from silvaengine_utility import Utility
+
+from silvaengine_utility.invoker import Invoker
+from silvaengine_utility.serializer import Serializer
 
 from ...models.coordination import resolve_coordination
 from ...models.session import insert_update_session
@@ -155,13 +157,10 @@ def ask_operation_hub(
             variables["inputFiles"] = kwargs["input_files"]
 
         ask_model = invoke_ask_model(
-            info.context.get("logger"),
-            info.context.get("endpoint_id"),
-            setting=info.context.get("setting"),
-            connection_id=connection_id,
+            info.context,
             **variables,
         )
-        session_run = insert_update_session_run(
+        session_run: SessionRunType = insert_update_session_run(
             info,
             **{
                 "session_uuid": session.session_uuid,
@@ -180,17 +179,13 @@ def ask_operation_hub(
         # Step 7: Return response
         return AskOperationHubType(
             **{
-                "session": {
-                    "coordination_uuid": session.coordination_uuid,
-                    "session_uuid": session.session_uuid,
-                    "user_id": session.user_id,
-                    "endpoint_id": session.endpoint_id,
-                    "status": session.status,
-                },
+                "coordination_uuid": session.coordination_uuid,
+                "session_uuid": session.session_uuid,
+                "partition_key": session.partition_key,
                 "run_uuid": session_run.run_uuid,
                 "thread_uuid": session_run.thread_uuid,
                 "agent_uuid": session_run.agent_uuid,
-                "async_task_uuid": session_run.async_task["async_task_uuid"],
+                "async_task_uuid": session_run.async_task_uuid,
                 "updated_at": session_run.updated_at,
             }
         )
@@ -296,7 +291,7 @@ def _process_query(
         user_query = (
             f"Based on the following user query, please analyze and select the most appropriate agent:\n"
             f"User Query: {user_query}\n"
-            f"Available Agents: {Utility.json_dumps(available_task_agents)}\n"
+            f"Available Agents: {Serializer.json_dumps(available_task_agents)}\n"
             f"Please assess the intent behind the query and align it with the agent's most appropriate capabilities, then export the results in JSON format."
         )
         info.context.get("logger").info(f"Enhanced triage request: {user_query}")
@@ -320,7 +315,7 @@ def _handle_connection_routing(
     Returns:
         Optional[str]: Connection ID for routing messages
     """
-    connection_id = info.context.get("connectionId")
+    connection_id = info.context.get("connection_id")
     if "receiver_email" in kwargs and agent["agent_type"] != "triage":
         receiver_connection = get_connection_by_email(
             info.context.get("logger"),
@@ -365,13 +360,10 @@ def _trigger_async_update(
     ):
         params["receiver_email"] = kwargs["receiver_email"]
 
-    Utility.invoke_funct_on_aws_lambda(
-        info.context["logger"],
-        info.context["endpoint_id"],
+    Invoker.invoke_funct_on_aws_lambda(
+        info.context,
         "async_insert_update_session",
         params=params,
-        setting=info.context["setting"],
-        execute_mode=info.context["setting"].get("execute_mode"),
         aws_lambda=Config.aws_lambda,
         invocation_type="Event",
     )

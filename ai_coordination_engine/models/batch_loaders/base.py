@@ -7,7 +7,7 @@ __author__ = "bibow"
 from typing import Any, Dict
 
 from promise.dataloader import DataLoader
-from silvaengine_utility import Utility
+from silvaengine_utility.serializer import Serializer
 
 from ...handlers.config import Config
 
@@ -23,7 +23,7 @@ def normalize_model(model: Any) -> Dict[str, Any]:
         Dictionary representation of the model
     """
     if hasattr(model, "__dict__") and "attribute_values" in model.__dict__:
-        return Utility.json_normalize(model.__dict__["attribute_values"])
+        return Serializer.json_normalize(model.__dict__["attribute_values"])
     return {}
 
 

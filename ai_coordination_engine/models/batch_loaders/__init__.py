@@ -7,6 +7,7 @@ __author__ = "bibow"
 from typing import Any, Dict
 
 from ...handlers.config import Config
+from .async_task_loader import AsyncTaskLoader
 from .coordination_loader import CoordinationLoader
 from .session_agent_loader import SessionAgentLoader
 from .session_agents_by_session_loader import SessionAgentsBySessionLoader
@@ -19,6 +20,7 @@ __all__ = [
     "RequestLoaders",
     "get_loaders",
     "clear_loaders",
+    "AsyncTaskLoader",
     "CoordinationLoader",
     "TaskLoader",
     "SessionLoader",
@@ -68,6 +70,11 @@ class RequestLoaders:
         )
         self.session_runs_by_session_loader = SessionRunsBySessionLoader(
             logger=logger, cache_enabled=cache_enabled
+        )
+        
+        # Async task loader
+        self.async_task_loader = AsyncTaskLoader(
+            logger=logger, cache_enabled=cache_enabled, context=context
         )
 
     def invalidate_cache(self, entity_type: str, entity_keys: Dict[str, str]):
@@ -135,6 +142,10 @@ class RequestLoaders:
                 self.session_runs_by_session_loader.cache.delete(
                     entity_keys.get("session_uuid")
                 )
+        
+        elif entity_type == "async_task" and "async_task_uuid" in entity_keys:
+            if hasattr(self.async_task_loader, "cache"):
+                self.async_task_loader.cache.delete(entity_keys["async_task_uuid"])
 
 
 def get_loaders(context: Dict[str, Any]) -> RequestLoaders:
