@@ -8,7 +8,6 @@ import logging
 from typing import Any, Dict, List
 
 from graphene import Schema
-
 from silvaengine_dynamodb_base import BaseModel
 from silvaengine_utility import Graphql
 
@@ -170,19 +169,20 @@ class AICoordinationEngine(Graphql):
 
     def _apply_partition_defaults(self, params: Dict[str, Any]) -> None:
         """
-        Ensure endpoint_id/part_id defaults and assemble partition_key.
-        """
-        ## Test the waters 🧪 before diving in!
-        ##<--Testing Data-->##
-        if params.get("endpoint_id") is None:
-            params["endpoint_id"] = self.setting.get("endpoint_id")
-        if params.get("part_id") is None:
-            params["part_id"] = self.setting.get("part_id")
-        ##<--Testing Data-->##
+        Apply default partition values if not provided in params.
 
-        endpoint_id = params.get("endpoint_id")
-        part_id = params.get("part_id")
-        params["partition_key"] = f"{endpoint_id}#{part_id}"
+        Args:
+            params (Dict[str, Any]): A dictionary of parameters required to build the GraphQL query.
+        """
+        endpoint_id = params.get("endpoint_id", self.setting.get("endpoint_id"))
+        part_id = params.get("custom_headers", {}).get(
+            "part_id", self.setting.get("part_id")
+        )
+
+        if params.get("context") is None:
+            params["context"] = {}
+
+        params["context"]["partition_key"] = f"{endpoint_id}#{part_id}"
 
     def async_insert_update_session(self, **params: Dict[str, Any]) -> Any:
         self._apply_partition_defaults(params)
@@ -230,4 +230,5 @@ class AICoordinationEngine(Graphql):
             mutation=Mutations,
             types=type_class(),
         )
+
         return self.execute(schema, **params)
