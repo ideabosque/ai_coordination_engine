@@ -29,6 +29,11 @@ def execute_graphql_query(
     variables: Dict[str, Any],
 ) -> Dict[str, Any]:
     schema = Config.fetch_graphql_schema(context, function_name)
+    context.get("logger").info(f"Schema {'>' * 60} {schema}")
+    context.get("logger").info(f"Function Name {'>' * 60} {function_name}")
+    context.get("logger").info(f"Operation Name {'>' * 60} {operation_name}")
+    context.get("logger").info(f"Operation Type {'>' * 60} {operation_type}")
+    context.get("logger").info(f"Variables {'>' * 60} {variables}")
     result = Graphql.execute_graphql_query(
         context,
         function_name,
