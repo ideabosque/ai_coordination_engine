@@ -170,7 +170,15 @@ class Config:
     def _setup_function_paths(cls, setting: Dict[str, Any]) -> None:
         cls.module_bucket_name = setting.get("module_bucket_name")
         cls.funct_zip_path = setting.get("funct_zip_path", "/tmp/funct_zips")
+
+        if not cls.funct_zip_path or not str(cls.funct_zip_path).strip():
+            cls.funct_zip_path = "/tmp/funct_zips"
+
         cls.funct_extract_path = setting.get("funct_extract_path", "/tmp/functs")
+
+        if not cls.funct_extract_path or not str(cls.funct_extract_path).strip():
+            cls.funct_extract_path = "/tmp/functs"
+
         os.makedirs(cls.funct_zip_path, exist_ok=True)
         os.makedirs(cls.funct_extract_path, exist_ok=True)
 
