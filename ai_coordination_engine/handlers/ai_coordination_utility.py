@@ -44,6 +44,7 @@ def execute_graphql_query(
         variables,
         aws_lambda=Config.aws_lambda,
     )
+    
     return result
 
 

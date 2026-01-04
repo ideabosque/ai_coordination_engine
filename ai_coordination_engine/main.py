@@ -184,8 +184,6 @@ class AICoordinationEngine(Graphql):
 
         params["context"]["partition_key"] = f"{endpoint_id}#{part_id}"
 
-        self.logger.info(f"{'*' * 60} {params}")
-
     def async_insert_update_session(self, **params: Dict[str, Any]) -> Any:
         self._apply_partition_defaults(params)
 
@@ -219,11 +217,8 @@ class AICoordinationEngine(Graphql):
         return
 
     def ai_coordination_graphql(self, **params: Dict[str, Any]) -> Any:
-        ## Test the waters 🧪 before diving in!
-        ##<--Testing Data-->##
         if params.get("connection_id") is None:
-            params["connection_id"] = self.setting.pop("connection_id", None)
-        ##<--Testing Data-->##
+            params["connection_id"] = self.setting.get("connection_id", None)
 
         self._apply_partition_defaults(params)
 
