@@ -8,7 +8,6 @@ import traceback
 from typing import Any, Dict, Optional
 
 from graphene import ResolveInfo
-
 from silvaengine_utility.invoker import Invoker
 from silvaengine_utility.serializer import Serializer
 
@@ -142,6 +141,7 @@ def ask_operation_hub(
 
         # Step 5: Execute AI model and record session run
         variables = {
+            "partition_key": info.context.get("partition_key"),
             "agentUuid": agent["agent_uuid"],
             "threadUuid": kwargs.get("thread_uuid"),
             "userQuery": user_query,
