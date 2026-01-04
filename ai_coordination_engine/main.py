@@ -184,6 +184,8 @@ class AICoordinationEngine(Graphql):
 
         params["context"]["partition_key"] = f"{endpoint_id}#{part_id}"
 
+        self.logger.info(f"{'*' * 60} {params}")
+
     def async_insert_update_session(self, **params: Dict[str, Any]) -> Any:
         self._apply_partition_defaults(params)
 
