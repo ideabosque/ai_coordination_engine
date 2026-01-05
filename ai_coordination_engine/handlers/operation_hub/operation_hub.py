@@ -149,6 +149,12 @@ def ask_operation_hub(
             "updatedBy": "operation_hub",
         }
 
+        if "thread_uuid" in kwargs:
+            variables["threadUuid"] = kwargs.get("thread_uuid")
+
+        if "user_id" in kwargs:
+            variables["userId"] = kwargs.get("user_id")
+
         if "thread_life_minutes" in kwargs:
             variables["threadLifeMinutes"] = kwargs["thread_life_minutes"]
 
