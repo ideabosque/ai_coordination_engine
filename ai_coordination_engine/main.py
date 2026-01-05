@@ -176,13 +176,21 @@ class AICoordinationEngine(Graphql):
         """
         endpoint_id = params.get("endpoint_id", self.setting.get("endpoint_id"))
         part_id = params.get("custom_headers", {}).get(
-            "part_id", self.setting.get("part_id")
+            "part_id",
+            params.get("part_id", self.setting.get("part_id")),
         )
 
         if params.get("context") is None:
             params["context"] = {}
 
-        params["context"]["partition_key"] = f"{endpoint_id}#{part_id}"
+        if "partition_key" not in params["context"]:
+            params["context"]["partition_key"] = f"{endpoint_id}#{part_id}"
+
+        if "logger" in params:
+            params.pop("logger")
+
+        if "setting" in params:
+            params.pop("setting")
 
     def async_insert_update_session(self, **params: Dict[str, Any]) -> Any:
         self._apply_partition_defaults(params)
