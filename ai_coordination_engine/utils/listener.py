@@ -20,7 +20,7 @@ def create_listener_info(
     """
     return ResolveInfo(
         field_name=field_name,
-        field_asts=[],  # legacy GraphQL AST field nodes
+        field_nodes=[],  # legacy GraphQL AST field nodes
         return_type=None,
         parent_type=None,
         schema=None,
