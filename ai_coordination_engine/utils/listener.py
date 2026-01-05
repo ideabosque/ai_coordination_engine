@@ -28,6 +28,7 @@ def create_listener_info(
         root_value=None,
         operation=None,
         variable_values={},
+        is_awaitable=True,
         context={
             "setting": setting,
             "endpoint_id": kwargs.get("endpoint_id"),
