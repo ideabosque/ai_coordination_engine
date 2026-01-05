@@ -275,10 +275,10 @@ class Config:
             Dict containing the GraphQL schema
         """
         # Check if schema exists in cache, if not fetch and store it
-        # if Config.schemas.get(function_name) is None:
-        Config.schemas[function_name] = Graphql.fetch_graphql_schema(
-            context,
-            function_name,
-            aws_lambda=Config.aws_lambda,
-        )
+        if Config.schemas.get(function_name) is None:
+            Config.schemas[function_name] = Graphql.fetch_graphql_schema(
+                context,
+                function_name,
+                aws_lambda=Config.aws_lambda,
+            )
         return Config.schemas[function_name]
