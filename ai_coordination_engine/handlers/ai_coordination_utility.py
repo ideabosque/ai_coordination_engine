@@ -29,13 +29,21 @@ def execute_graphql_query(
     variables: Dict[str, Any],
 ) -> Dict[str, Any]:
     schema = Config.fetch_graphql_schema(context, function_name)
-    context.get("logger").info(f"Function Name {'>' * 60} {function_name}")
-    context.get("logger").info(f"Operation Name {'>' * 60} {operation_name}")
-    context.get("logger").info(f"Operation Type {'>' * 60} {operation_type}")
-    context.get("logger").info(f"Variables {'>' * 60} {variables}")
-    context.get("logger").info(
-        f"Generate Graphql Operation {'>' * 60} {Graphql.generate_graphql_operation(operation_name, operation_type, schema)}"
-    )
+    context.get("logger").info(f"{'=' * 40} Schema Start {'>' * 40}")
+    context.get("logger").info(variables)
+    context.get("logger").info(f"{'=' * 40} Schema End {'>' * 40}")
+    context.get("logger").info(f"{'=' * 40} Function Name Start {'>' * 40}")
+    context.get("logger").info(function_name)
+    context.get("logger").info(f"{'=' * 40} Function Name End {'>' * 40}")
+    context.get("logger").info(f"{'=' * 40} Operation Name Start {'>' * 40}")
+    context.get("logger").info(operation_name)
+    context.get("logger").info(f"{'=' * 40} Operation Name End {'>' * 40}")
+    context.get("logger").info(f"{'=' * 40} Operation Type Start {'>' * 40}")
+    context.get("logger").info(operation_type)
+    context.get("logger").info(f"{'=' * 40} Operation Type End {'>' * 40}")
+    context.get("logger").info(f"{'=' * 40} Variables Start {'>' * 40}")
+    context.get("logger").info(variables)
+    context.get("logger").info(f"{'=' * 40} Variables End {'>' * 40}")
 
     result = Graphql.execute_graphql_query(
         context,
@@ -44,7 +52,7 @@ def execute_graphql_query(
         variables,
         aws_lambda=Config.aws_lambda,
     )
-    
+
     return result
 
 
