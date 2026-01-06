@@ -151,7 +151,6 @@ def ask_operation_hub(
         variables = {
             "agentUuid": agent["agent_uuid"],
             "userQuery": user_query,
-            "userId": kwargs.get("user_id"),
             "stream": kwargs.get("stream", False),
             "updatedBy": "operation_hub",
         }
