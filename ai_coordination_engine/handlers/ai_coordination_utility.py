@@ -97,7 +97,7 @@ def invoke_ask_model(
 ) -> Dict[str, Any]:
     """Call AI model for assistance via GraphQL query."""
     try:
-        context["execute_mode"] = ExecuteMode.LOCAL.value()
+        context["execute_mode"] = ExecuteMode.LOCAL.value
         ask_model = execute_graphql_query(
             context,
             "ai_agent_core_graphql",
