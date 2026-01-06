@@ -15,6 +15,7 @@ import humps
 from boto3.dynamodb.conditions import Attr, Key
 from graphene import ResolveInfo
 from promise import Promise
+from silvaengine_constants import ExecuteMode
 from silvaengine_utility.graphql import Graphql
 from silvaengine_utility.serializer import Serializer
 
@@ -96,6 +97,7 @@ def invoke_ask_model(
 ) -> Dict[str, Any]:
     """Call AI model for assistance via GraphQL query."""
     try:
+        context["execute_mode"] = ExecuteMode.LOCAL.value()
         ask_model = execute_graphql_query(
             context,
             "ai_agent_core_graphql",
