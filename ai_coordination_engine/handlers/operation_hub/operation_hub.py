@@ -174,6 +174,9 @@ def ask_operation_hub(
             info.context,
             **variables,
         )
+
+        Debug.info(info, ask_model, "Step 6")
+
         session_run: SessionRunType = insert_update_session_run(
             info,
             **{
@@ -187,12 +190,12 @@ def ask_operation_hub(
             },
         )
 
-        Debug.info(info, ask_model, "Step 6")
+        Debug.info(info, ask_model, "Step 7")
 
         # Step 6: Handle async updates
         _trigger_async_update(info, session_run, connection_id, agent, **kwargs)
 
-        Debug.info(info, session_run, "Step 7")
+        Debug.info(info, session_run, "Step 8")
 
         # Step 7: Return response
         return AskOperationHubType(

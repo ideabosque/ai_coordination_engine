@@ -235,6 +235,7 @@ def resolve_session_run_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any
 def insert_update_session_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     session_uuid = kwargs.get("session_uuid")
     run_uuid = kwargs.get("run_uuid")
+
     if kwargs.get("entity") is None:
         cols = {
             "thread_uuid": kwargs["thread_uuid"],
