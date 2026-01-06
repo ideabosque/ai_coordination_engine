@@ -230,10 +230,12 @@ class AICoordinationEngine(Graphql):
 
         self._apply_partition_defaults(params)
 
-        schema = Schema(
+        return self.execute(self.__class__.build_graphql_schema(), **params)
+
+    @staticmethod
+    def build_graphql_schema() -> Schema:
+        return Schema(
             query=Query,
             mutation=Mutations,
             types=type_class(),
         )
-
-        return self.execute(schema, **params)

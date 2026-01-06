@@ -96,13 +96,22 @@ def invoke_ask_model(
 ) -> Dict[str, Any]:
     """Call AI model for assistance via GraphQL query."""
     try:
-        ask_model = execute_graphql_query(
-            context,
-            "ai_agent_core_graphql",
-            "askModel",
-            "Query",
-            variables,
-        )["askModel"]
+        ask_model = Graphql.request_graphql(
+            context=context,
+            module_name="ai_agent_core_engine",
+            function_name="ai_agent_core_graphql",
+            class_name="AIAgentCoreEngine",
+            graphql_operation_type="Query",
+            graphql_operation_name="askModel",
+            variables=variables,
+        )
+        # ask_model = execute_graphql_query(
+        #     context,
+        #     "ai_agent_core_graphql",
+        #     "askModel",
+        #     "Query",
+        #     variables,
+        # )["askModel"]
         return humps.decamelize(ask_model)
     except Exception as e:
         context["logger"].error(f"Error invoking askModel: {e}")
