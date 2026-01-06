@@ -186,11 +186,11 @@ class AICoordinationEngine(Graphql):
         if "partition_key" not in params["context"]:
             params["context"]["partition_key"] = f"{endpoint_id}#{part_id}"
 
-        if "logger" in params:
-            params.pop("logger")
+        exclude = ["logger", "setting"]
 
-        if "setting" in params:
-            params.pop("setting")
+        for index in exclude:
+            if index in params:
+                params.pop(index)
 
     def async_insert_update_session(self, **params: Dict[str, Any]) -> Any:
         self._apply_partition_defaults(params)
