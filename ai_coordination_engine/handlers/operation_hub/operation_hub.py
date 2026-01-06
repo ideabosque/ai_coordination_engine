@@ -190,7 +190,7 @@ def ask_operation_hub(
             },
         )
 
-        Debug.info(info, ask_model, "Step 7")
+        Debug.info(info, session_run, "Step 7")
 
         # Step 6: Handle async updates
         _trigger_async_update(info, session_run, connection_id, agent, **kwargs)
