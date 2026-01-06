@@ -221,17 +221,17 @@ def resolve_session_run_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any
     return inquiry_funct, count_funct, args
 
 
-@insert_update_decorator(
-    keys={
-        "hash_key": "session_uuid",
-        "range_key": "run_uuid",
-    },
-    range_key_required=True,
-    model_funct=get_session_run,
-    count_funct=get_session_run_count,
-    type_funct=get_session_run_type,
-)
-@purge_cache()
+# @insert_update_decorator(
+#     keys={
+#         "hash_key": "session_uuid",
+#         "range_key": "run_uuid",
+#     },
+#     range_key_required=True,
+#     model_funct=get_session_run,
+#     count_funct=get_session_run_count,
+#     type_funct=get_session_run_type,
+# )
+# @purge_cache()
 def insert_update_session_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     session_uuid = kwargs.get("session_uuid")
     run_uuid = kwargs.get("run_uuid")
