@@ -150,23 +150,22 @@ def ask_operation_hub(
         # Step 5: Execute AI model and record session run
         variables = {
             "agentUuid": agent["agent_uuid"],
-            "threadUuid": kwargs.get("thread_uuid"),
             "userQuery": user_query,
             "userId": kwargs.get("user_id"),
             "stream": kwargs.get("stream", False),
             "updatedBy": "operation_hub",
         }
 
-        if "thread_uuid" in kwargs:
+        if kwargs.get("thread_uuid") is not None:
             variables["threadUuid"] = kwargs.get("thread_uuid")
 
-        if "user_id" in kwargs:
+        if kwargs.get("user_id") is not None:
             variables["userId"] = kwargs.get("user_id")
 
-        if "thread_life_minutes" in kwargs:
+        if kwargs.get("thread_life_minutes") is not None:
             variables["threadLifeMinutes"] = kwargs["thread_life_minutes"]
 
-        if "input_files" in kwargs:
+        if kwargs.get("input_files") is not None:
             variables["inputFiles"] = kwargs["input_files"]
 
         ask_model = invoke_ask_model(
