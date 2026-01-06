@@ -132,6 +132,14 @@ def ask_operation_hub(
         # Step 2: Create/update session
         session = _handle_session(info, **kwargs)
 
+        info.context.get("logger").info(
+            f"{'*' * 30} Ask Operation Hub Start {'*' * 30}"
+        )
+        info.context.get("logger").info(f"Coordination: {coordination}")
+        info.context.get("logger").info(f"Kwargs: {kwargs}")
+
+        info.context.get("logger").info(f"{'*' * 31} Ask Operation Hub End {'*' * 31}")
+
         # Step 3: Select and validate agent
         agent = _select_agent(coordination, **kwargs)
 
