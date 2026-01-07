@@ -130,23 +130,15 @@ def ask_operation_hub(
             },
         )
 
-        Debug.info(info, coordination, "Step 1")
-
         # Step 2: Create/update session
         session = _handle_session(info, **kwargs)
-
-        Debug.info(info, session, "Step 2")
 
         # Step 3: Select and validate agent
         agent = _select_agent(coordination, **kwargs)
 
-        Debug.info(info, agent, "Step 3")
-
         # Step 4: Process query and handle routing
         user_query = _process_query(info, kwargs["user_query"], agent, coordination)
         connection_id = _handle_connection_routing(info, agent, **kwargs)
-
-        Debug.info(info, (user_query, connection_id), "Step 4")
 
         # Step 5: Execute AI model and record session run
         variables = {
@@ -168,14 +160,10 @@ def ask_operation_hub(
         if kwargs.get("input_files") is not None:
             variables["inputFiles"] = kwargs["input_files"]
 
-        Debug.info(info, variables, "Step 5")
-
         ask_model = invoke_ask_model(
             info.context,
             **variables,
         )
-
-        Debug.info(info, ask_model, "Step 6")
 
         session_run: SessionRunType = insert_update_session_run(
             info,
@@ -190,12 +178,8 @@ def ask_operation_hub(
             },
         )
 
-        Debug.info(info, session_run, "Step 7")
-
         # Step 6: Handle async updates
         _trigger_async_update(info, session_run, connection_id, agent, **kwargs)
-
-        Debug.info(info, session_run, "Step 8")
 
         # Step 7: Return response
         return AskOperationHubType(
