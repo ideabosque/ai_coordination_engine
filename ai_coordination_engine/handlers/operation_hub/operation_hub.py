@@ -8,7 +8,6 @@ import traceback
 from typing import Any, Dict, Optional
 
 from graphene import ResolveInfo
-from silvaengine_utility.debug import Debug
 from silvaengine_utility.invoker import Invoker
 from silvaengine_utility.serializer import Serializer
 

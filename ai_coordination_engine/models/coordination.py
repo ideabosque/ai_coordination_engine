@@ -25,7 +25,7 @@ from silvaengine_dynamodb_base import (
     monitor_decorator,
     resolve_list_decorator,
 )
-from silvaengine_utility import Debug, method_cache
+from silvaengine_utility import method_cache
 from silvaengine_utility.serializer import Serializer
 from tenacity import retry, stop_after_attempt, wait_exponential
 
@@ -141,7 +141,6 @@ def get_coordination_type(
 def resolve_coordination(
     info: ResolveInfo, **kwargs: Dict[str, Any]
 ) -> CoordinationType | None:
-    Debug.info(info, info.context)
     partition_key = info.context.get("partition_key") or info.context.get("endpoint_id")
     count = get_coordination_count(partition_key, kwargs["coordination_uuid"])
 
