@@ -254,10 +254,14 @@ def _select_agent(
         (
             agent
             for agent in coordination.agents
-            if agent["agent_uuid"] == kwargs.get("agent_uuid")
+            if agent.get("agent_uuid") == kwargs.get("agent_uuid")
         ),
         next(
-            (agent for agent in coordination.agents if agent["agent_type"] == "triage"),
+            (
+                agent
+                for agent in coordination.agents
+                if agent.get("agent_type") == "triage"
+            ),
             None,
         ),
     )

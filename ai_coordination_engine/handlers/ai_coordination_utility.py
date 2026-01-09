@@ -105,7 +105,7 @@ def invoke_ask_model(
             graphql_operation_name="askModel",
             variables=variables,
         )
-        context.get("logger").info(f"{'*' * 40} {ask_model}")
+
         # ask_model = execute_graphql_query(
         #     context,
         #     "ai_agent_core_graphql",
