@@ -285,7 +285,7 @@ def _process_query(
     Returns:
         str: Processed query string with enhanced context for triage agents
     """
-    if agent["agent_type"] == "triage":
+    if type(agent) is dict and agent["agent_type"] == "triage":
         available_task_agents = [
             {
                 "agent_uuid": agent["agent_uuid"],
