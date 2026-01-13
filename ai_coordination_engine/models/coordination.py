@@ -115,10 +115,10 @@ def create_coordination_table(logger: logging.Logger) -> bool:
     wait=wait_exponential(multiplier=1, max=60),
     stop=stop_after_attempt(5),
 )
-@method_cache(
-    ttl=Config.get_cache_ttl(),
-    cache_name=Config.get_cache_name("models", "coordination"),
-)
+# @method_cache(
+#     ttl=Config.get_cache_ttl(),
+#     cache_name=Config.get_cache_name("models", "coordination"),
+# )
 def get_coordination(partition_key: str, coordination_uuid: str) -> CoordinationModel:
     return CoordinationModel.get(partition_key, coordination_uuid)
 
