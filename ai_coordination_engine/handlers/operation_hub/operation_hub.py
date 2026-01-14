@@ -141,11 +141,6 @@ def ask_operation_hub(
         connection_id = _handle_connection_routing(info, agent, **kwargs)
 
         # Step 5: Execute AI model and record session run
-        Debugger.info(
-            variable=agent,
-            stage="AskOperationHubType",
-            logger=info.context.get("logger"),
-        )
         variables = {
             "agentUuid": agent.get("agent_uuid"),
             "userQuery": user_query,
