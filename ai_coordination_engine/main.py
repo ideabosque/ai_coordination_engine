@@ -9,7 +9,7 @@ from typing import Any, Dict, List
 
 from graphene import Schema
 from silvaengine_dynamodb_base import BaseModel
-from silvaengine_utility import Graphql
+from silvaengine_utility import Debugger, Graphql
 
 from .handlers.config import Config
 from .handlers.operation_hub import operation_hub_listener
@@ -164,9 +164,6 @@ class AICoordinationEngine(Graphql):
         # Initialize configuration via the Config class
         Config.initialize(logger, **setting)
 
-        self.logger = logger
-        self.setting = setting
-
     def _apply_partition_defaults(self, params: Dict[str, Any]) -> None:
         """
         Apply default partition values if not provided in params.
@@ -185,12 +182,6 @@ class AICoordinationEngine(Graphql):
 
         if "partition_key" not in params["context"]:
             params["context"]["partition_key"] = f"{endpoint_id}#{part_id}"
-
-        exclude = ["logger", "setting"]
-
-        for index in exclude:
-            if index in params:
-                params.pop(index)
 
     def async_insert_update_session(self, **params: Dict[str, Any]) -> Any:
         self._apply_partition_defaults(params)
@@ -229,6 +220,13 @@ class AICoordinationEngine(Graphql):
             params["connection_id"] = self.setting.get("connection_id", None)
 
         self._apply_partition_defaults(params)
+
+        Debugger.info(
+            variable=params,
+            stage="ai_coordination_graphql",
+            setting=self.setting,
+            logger=self.logger,
+        )
 
         return self.execute(self.__class__.build_graphql_schema(), **params)
 
