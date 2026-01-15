@@ -376,7 +376,7 @@ def _trigger_async_update(
     ):
         params["receiver_email"] = kwargs["receiver_email"]
 
-    Invoker.create_async_task(
+    Invoker.execute_async_task(
         task=Invoker.resolve_proxied_callable(
             module_name="ai_coordination_engine",
             function_name="async_insert_update_session",
