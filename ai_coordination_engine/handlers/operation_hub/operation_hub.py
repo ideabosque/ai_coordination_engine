@@ -196,8 +196,11 @@ def ask_operation_hub(
         )
 
     except Exception as e:
-        log = traceback.format_exc()
-        info.context.get("logger").error(log)
+        Debugger.info(
+            variable=f"Error: {e}, Trace: {traceback.format_exc()}",
+            stage="AI Coordination Engine (ask_operation_hub)",
+            setting=info.context.get("setting"),
+        )
         raise e
 
 
@@ -369,10 +372,25 @@ def _trigger_async_update(
     ):
         params["receiver_email"] = kwargs["receiver_email"]
 
-    Invoker.invoke_funct_on_aws_lambda(
-        info.context,
-        "async_insert_update_session",
-        params=params,
-        aws_lambda=Config.aws_lambda,
-        invocation_type="Event",
+    Invoker.sync_call_async_compatible(
+        coroutine_task=Invoker.create_async_task(
+            task=Invoker.resolve_proxied_callable(
+                module_name="ai_coordination_engine",
+                function_name="async_insert_update_session",
+                class_name="AICoordinationEngine",
+                constructor_parameters={
+                    "logger": info.context.get("logger"),
+                    **info.context.get("setting", {}),
+                },
+            ),
+            parameters=params,
+        )
     )
+
+    # Invoker.invoke_funct_on_aws_lambda(
+    #     info.context,
+    #     "async_insert_update_session",
+    #     params=params,
+    #     aws_lambda=Config.aws_lambda,
+    #     invocation_type="Event",
+    # )
