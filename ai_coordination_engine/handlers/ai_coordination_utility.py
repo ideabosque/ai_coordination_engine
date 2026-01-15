@@ -114,8 +114,12 @@ def invoke_ask_model(
         # )["askModel"]
         return humps.decamelize(ask_model)
     except Exception as e:
-        context["logger"].error(f"Error invoking askModel: {e}")
-        context["logger"].error(f"Variables passed: {Serializer.json_dumps(variables)}")
+        Debugger.info(
+            variable=e,
+            stage=__name__,
+            logger=context.get("logger"),
+            setting=context.get("setting"),
+        )
         raise
 
 

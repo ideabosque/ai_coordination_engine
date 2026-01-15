@@ -122,13 +122,6 @@ def ask_operation_hub(
         AskOperationHubType: Structured response with session details and run metadata
     """
     try:
-        Debugger.info(
-            variable="Step 1: Initialize and validate coordination",
-            stage="ai_coordination_graphql",
-            setting=info.context.get("setting"),
-            logger=info.context.get("logger"),
-        )
-
         # Step 1: Initialize and validate coordination
         coordination = resolve_coordination(
             info,
@@ -137,43 +130,16 @@ def ask_operation_hub(
             },
         )
 
-        Debugger.info(
-            variable="Step 2: Create/update session",
-            stage="ai_coordination_graphql",
-            setting=info.context.get("setting"),
-            logger=info.context.get("logger"),
-        )
-
         # Step 2: Create/update session
         session = _handle_session(info, **kwargs)
 
-        Debugger.info(
-            variable="Step 3: Select and validate agent",
-            stage="ai_coordination_graphql",
-            setting=info.context.get("setting"),
-            logger=info.context.get("logger"),
-        )
-
         # Step 3: Select and validate agent
         agent = _select_agent(coordination, **kwargs)
-
-        Debugger.info(
-            variable="Step 4: Process query and handle routing",
-            stage="ai_coordination_graphql",
-            setting=info.context.get("setting"),
-            logger=info.context.get("logger"),
-        )
 
         # Step 4: Process query and handle routing
         user_query = _process_query(info, kwargs["user_query"], agent, coordination)
         connection_id = _handle_connection_routing(info, agent, **kwargs)
 
-        Debugger.info(
-            variable="Step 5: Execute AI model",
-            stage="ai_coordination_graphql",
-            setting=info.context.get("setting"),
-            logger=info.context.get("logger"),
-        )
         # Step 5: Execute AI model and record session run
         variables = {
             "agentUuid": agent.get("agent_uuid"),
@@ -196,13 +162,6 @@ def ask_operation_hub(
 
         ask_model = invoke_ask_model(context=info.context, **variables)
 
-        Debugger.info(
-            variable="Step 7: Record session run",
-            stage="ai_coordination_graphql",
-            setting=info.context.get("setting"),
-            logger=info.context.get("logger"),
-        )
-
         session_run: SessionRunType = insert_update_session_run(
             info,
             **{
@@ -216,21 +175,9 @@ def ask_operation_hub(
             },
         )
 
-        Debugger.info(
-            variable="Step 8: Handle async updates",
-            stage="ai_coordination_graphql",
-            setting=info.context.get("setting"),
-            logger=info.context.get("logger"),
-        )
         # Step 6: Handle async updates
         _trigger_async_update(info, session_run, connection_id, agent, **kwargs)
 
-        Debugger.info(
-            variable="Step 9: Return response",
-            stage="ai_coordination_graphql",
-            setting=info.context.get("setting"),
-            logger=info.context.get("logger"),
-        )
         # Step 7: Return response
         return AskOperationHubType(
             **{
@@ -250,6 +197,7 @@ def ask_operation_hub(
             variable=f"Error: {e}, Trace: {traceback.format_exc()}",
             stage="AI Coordination Engine (ask_operation_hub)",
             setting=info.context.get("setting"),
+            logger=info.context.get("logger"),
         )
         raise e
 
@@ -303,7 +251,10 @@ def _select_agent(
     Raises:
         AssertionError: If no agents found for coordination
     """
+    print("#### 11111")
+    print(f"#### {coordination}")
     assert len(coordination.agents) > 0, "No agent found for the coordination."
+    print("#### 2222")
     return next(
         (
             agent
