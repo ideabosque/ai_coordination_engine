@@ -221,13 +221,6 @@ class AICoordinationEngine(Graphql):
 
         self._apply_partition_defaults(params)
 
-        Debugger.info(
-            variable=params,
-            stage="ai_coordination_graphql",
-            setting=self.setting,
-            logger=self.logger,
-        )
-
         return self.execute(self.__class__.build_graphql_schema(), **params)
 
     @staticmethod
