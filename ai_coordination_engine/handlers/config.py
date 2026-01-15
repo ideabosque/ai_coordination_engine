@@ -8,7 +8,7 @@ import os
 from typing import Any, Dict, List
 
 import boto3
-from silvaengine_utility.graphql import Graphql
+from silvaengine_utility import Debugger, Graphql
 
 from ..models import utils
 
@@ -274,9 +274,15 @@ class Config:
         Returns:
             Dict containing the GraphQL schema
         """
+        Debugger.info(
+            variable=context,
+            stage=__name__,
+            delimiter="#",
+        )
+
         # Check if schema exists in cache, if not fetch and store it
         if Config.schemas.get(function_name) is None:
-            Config.schemas[function_name] = Graphql.fetch_graphql_schema(
+            Config.schemas[function_name] = Graphql.get_graphql_schema(
                 context,
                 function_name,
                 aws_lambda=Config.aws_lambda,
