@@ -365,6 +365,7 @@ def _trigger_async_update(
         "coordination_uuid": session_run.coordination_uuid,
         "session_uuid": session_run.session_uuid,
         "run_uuid": session_run.run_uuid,
+        "context": info.context,
     }
     if connection_id:
         params["connection_id"] = connection_id
