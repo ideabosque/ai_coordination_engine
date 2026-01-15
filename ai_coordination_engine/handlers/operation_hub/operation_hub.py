@@ -169,7 +169,7 @@ def ask_operation_hub(
         connection_id = _handle_connection_routing(info, agent, **kwargs)
 
         Debugger.info(
-            variable="Step 5: Execute AI model and record session run",
+            variable="Step 5: Execute AI model",
             stage="ai_coordination_graphql",
             setting=info.context.get("setting"),
             logger=info.context.get("logger"),
@@ -199,6 +199,13 @@ def ask_operation_hub(
             **variables,
         )
 
+        Debugger.info(
+            variable="Step 7: Record session run",
+            stage="ai_coordination_graphql",
+            setting=info.context.get("setting"),
+            logger=info.context.get("logger"),
+        )
+
         session_run: SessionRunType = insert_update_session_run(
             info,
             **{
@@ -213,7 +220,7 @@ def ask_operation_hub(
         )
 
         Debugger.info(
-            variable="Step 6: Handle async updates",
+            variable="Step 8: Handle async updates",
             stage="ai_coordination_graphql",
             setting=info.context.get("setting"),
             logger=info.context.get("logger"),
@@ -222,7 +229,7 @@ def ask_operation_hub(
         _trigger_async_update(info, session_run, connection_id, agent, **kwargs)
 
         Debugger.info(
-            variable="Step 7: Return response",
+            variable="Step 9: Return response",
             stage="ai_coordination_graphql",
             setting=info.context.get("setting"),
             logger=info.context.get("logger"),
