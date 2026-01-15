@@ -166,7 +166,7 @@ def ask_operation_hub(
             variables["inputFiles"] = kwargs["input_files"]
 
         ask_model = invoke_ask_model(context=info.context, **variables)
-        print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>", info.context)
+
         session_run: SessionRunType = insert_update_session_run(
             info,
             **{
@@ -376,19 +376,17 @@ def _trigger_async_update(
     ):
         params["receiver_email"] = kwargs["receiver_email"]
 
-    Invoker.sync_call_async_compatible(
-        coroutine_task=Invoker.create_async_task(
-            task=Invoker.resolve_proxied_callable(
-                module_name="ai_coordination_engine",
-                function_name="async_insert_update_session",
-                class_name="AICoordinationEngine",
-                constructor_parameters={
-                    "logger": info.context.get("logger"),
-                    **info.context.get("setting", {}),
-                },
-            ),
-            parameters=params,
-        )
+    Invoker.create_async_task(
+        task=Invoker.resolve_proxied_callable(
+            module_name="ai_coordination_engine",
+            function_name="async_insert_update_session",
+            class_name="AICoordinationEngine",
+            constructor_parameters={
+                "logger": info.context.get("logger"),
+                **info.context.get("setting", {}),
+            },
+        ),
+        parameters=params,
     )
 
     # Invoker.invoke_funct_on_aws_lambda(
