@@ -121,6 +121,11 @@ def ask_operation_hub(
     Returns:
         AskOperationHubType: Structured response with session details and run metadata
     """
+    Debugger.info(
+        variable=info.context,
+        stage=__name__,
+    )
+
     try:
         # Step 1: Initialize and validate coordination
         coordination = resolve_coordination(
@@ -251,10 +256,8 @@ def _select_agent(
     Raises:
         AssertionError: If no agents found for coordination
     """
-    print("#### 11111")
-    print(f"#### {coordination}")
     assert len(coordination.agents) > 0, "No agent found for the coordination."
-    print("#### 2222")
+
     return next(
         (
             agent
