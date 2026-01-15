@@ -194,10 +194,7 @@ def ask_operation_hub(
         if kwargs.get("input_files") is not None:
             variables["inputFiles"] = kwargs["input_files"]
 
-        ask_model = invoke_ask_model(
-            info.context,
-            **variables,
-        )
+        ask_model = invoke_ask_model(context=info.context, **variables)
 
         Debugger.info(
             variable="Step 7: Record session run",
