@@ -121,11 +121,6 @@ def ask_operation_hub(
     Returns:
         AskOperationHubType: Structured response with session details and run metadata
     """
-    Debugger.info(
-        variable=info.context,
-        stage=__name__,
-    )
-
     try:
         # Step 1: Initialize and validate coordination
         coordination = resolve_coordination(
@@ -133,6 +128,11 @@ def ask_operation_hub(
             **{
                 "coordination_uuid": kwargs["coordination_uuid"],
             },
+        )
+
+        Debugger.info(
+            variable=coordination,
+            stage=__name__,
         )
 
         # Step 2: Create/update session
