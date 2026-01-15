@@ -166,7 +166,7 @@ def ask_operation_hub(
             variables["inputFiles"] = kwargs["input_files"]
 
         ask_model = invoke_ask_model(context=info.context, **variables)
-
+        print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>", info.context)
         session_run: SessionRunType = insert_update_session_run(
             info,
             **{
