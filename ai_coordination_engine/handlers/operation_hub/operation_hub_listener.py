@@ -7,7 +7,7 @@ import logging
 import time
 from typing import Any, Dict
 
-from silvaengine_utility.serializer import Serializer
+from silvaengine_utility.serializer import Debugger, Serializer
 
 from ...models.session import insert_update_session, resolve_session
 from ...models.session_run import resolve_session_run
@@ -16,7 +16,9 @@ from ..ai_coordination_utility import get_async_task
 
 
 def async_insert_update_session(
-    logger: logging.Logger, setting: Dict[str, Any], **kwargs: Dict[str, Any]
+    logger: logging.Logger,
+    setting: Dict[str, Any],
+    **kwargs: Dict[str, Any],
 ) -> None:
     """
     Asynchronously inserts or updates a session based on async task status.
@@ -30,6 +32,9 @@ def async_insert_update_session(
             - session_uuid: UUID of the session
             - run_uuid: UUID of the run
     """
+    if not kwargs.get("session_uuid") or not kwargs.get("run_uuid"):
+        raise ValueError("Invalid required parameter(s)")
+
     # Create listener info with session details
     info = create_listener_info(logger, "insert_update_session", setting, **kwargs)
 
@@ -44,6 +49,7 @@ def async_insert_update_session(
 
     # Poll async task status with 60 second timeout
     start_time = time.time()
+
     while True:
         async_task = get_async_task(
             info.context,
@@ -52,7 +58,6 @@ def async_insert_update_session(
                 "asyncTaskUuid": session_run.async_task_uuid,
             },
         )
-
         session = resolve_session(
             info,
             **{
@@ -61,6 +66,7 @@ def async_insert_update_session(
             },
         )
         logs = Serializer.json_loads(session.logs if session.logs else "[]")
+
         if async_task["status"] == "failed" or time.time() - start_time > 60:
             # If async task failed, update session with failure details
             status = "failed" if async_task["status"] == "failed" else "timeout"
@@ -107,3 +113,10 @@ def async_insert_update_session(
         else:
             # Wait for 1 second before checking again
             time.sleep(1)
+
+    Debugger.info(
+        variable="",
+        stage=f"{__name__}: async_insert_update_session",
+        delimiter="#",
+        setting=setting,
+    )
