@@ -377,8 +377,6 @@ def _trigger_async_update(
     ):
         params["receiver_email"] = kwargs["receiver_email"]
 
-    Debugger.info(variable=info.context, stage=__name__, delimiter="+")
-
     Invoker.execute_async_task(
         task=Invoker.resolve_proxied_callable(
             module_name="ai_coordination_engine",
