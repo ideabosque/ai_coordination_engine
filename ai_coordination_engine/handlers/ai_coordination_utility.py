@@ -15,8 +15,7 @@ import humps
 from boto3.dynamodb.conditions import Attr, Key
 from graphene import ResolveInfo
 from promise import Promise
-from silvaengine_utility.graphql import Graphql
-from silvaengine_utility.serializer import Serializer
+from silvaengine_utility import Debugger, Graphql, Invoker, Serializer
 
 from .config import Config
 
@@ -36,6 +35,7 @@ def execute_graphql_query(
         variables,
         aws_lambda=Config.aws_lambda,
     )
+
     return result
 
 
@@ -95,17 +95,31 @@ def invoke_ask_model(
 ) -> Dict[str, Any]:
     """Call AI model for assistance via GraphQL query."""
     try:
-        ask_model = execute_graphql_query(
-            context,
-            "ai_agent_core_graphql",
-            "askModel",
-            "Query",
-            variables,
-        )["askModel"]
+        ask_model = Graphql.request_graphql(
+            context=context,
+            module_name="ai_agent_core_engine",
+            function_name="ai_agent_core_graphql",
+            class_name="AIAgentCoreEngine",
+            graphql_operation_type="Query",
+            graphql_operation_name="askModel",
+            variables=variables,
+        )
+
+        # ask_model = execute_graphql_query(
+        #     context,
+        #     "ai_agent_core_graphql",
+        #     "askModel",
+        #     "Query",
+        #     variables,
+        # )["askModel"]
         return humps.decamelize(ask_model)
     except Exception as e:
-        context["logger"].error(f"Error invoking askModel: {e}")
-        context["logger"].error(f"Variables passed: {Serializer.json_dumps(variables)}")
+        Debugger.info(
+            variable=e,
+            stage=__name__,
+            logger=context.get("logger"),
+            setting=context.get("setting"),
+        )
         raise
 
 
@@ -114,13 +128,38 @@ def get_async_task(
     **variables: Dict[str, Any],
 ) -> Dict[str, Any]:
     """Call AI model for assistance via GraphQL query."""
-    async_task = execute_graphql_query(
-        context,
-        "ai_agent_core_graphql",
-        "asyncTask",
-        "Query",
-        variables,
-    )["asyncTask"]
+    # Invoker.execute_async_task(
+    #     task=Invoker.resolve_proxied_callable(
+    #         module_name="ai_agent_core_graphql",
+    #         function_name="asyncTask",
+    #         class_name="AICoordinationEngine",
+    #         constructor_parameters={
+    #             "logger": info.context.get("logger"),
+    #             **info.context.get("setting", {}),
+    #         },
+    #     ),
+    #     parameters=params,
+    # )
+    async_task = Graphql.request_graphql(
+        context=context,
+        module_name="ai_agent_core_engine",
+        function_name="ai_agent_core_graphql",
+        graphql_operation_type="Query",
+        graphql_operation_name="asyncTask",
+        class_name="AIAgentCoreEngine",
+        variables=variables,
+    )
+
+    if isinstance(async_task, dict) and "asyncTask" in async_task:
+        async_task = async_task.get("asyncTask", {})
+
+    # async_task = execute_graphql_query(
+    #     context,
+    #     "ai_agent_core_graphql",
+    #     "asyncTask",
+    #     "Query",
+    #     variables,
+    # )["asyncTask"]
     return humps.decamelize(async_task)
 
 

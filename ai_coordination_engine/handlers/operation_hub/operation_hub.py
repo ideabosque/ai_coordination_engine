@@ -8,7 +8,7 @@ import traceback
 from typing import Any, Dict, Optional
 
 from graphene import ResolveInfo
-
+from silvaengine_utility.debugger import Debugger
 from silvaengine_utility.invoker import Invoker
 from silvaengine_utility.serializer import Serializer
 
@@ -130,6 +130,11 @@ def ask_operation_hub(
             },
         )
 
+        Debugger.info(
+            variable=coordination,
+            stage=__name__,
+        )
+
         # Step 2: Create/update session
         session = _handle_session(info, **kwargs)
 
@@ -142,24 +147,26 @@ def ask_operation_hub(
 
         # Step 5: Execute AI model and record session run
         variables = {
-            "agentUuid": agent["agent_uuid"],
-            "threadUuid": kwargs.get("thread_uuid"),
+            "agentUuid": agent.get("agent_uuid"),
             "userQuery": user_query,
-            "userId": kwargs.get("user_id"),
             "stream": kwargs.get("stream", False),
             "updatedBy": "operation_hub",
         }
 
-        if "thread_life_minutes" in kwargs:
+        if kwargs.get("thread_uuid") is not None:
+            variables["threadUuid"] = kwargs.get("thread_uuid")
+
+        if kwargs.get("user_id") is not None:
+            variables["userId"] = kwargs.get("user_id")
+
+        if kwargs.get("thread_life_minutes") is not None:
             variables["threadLifeMinutes"] = kwargs["thread_life_minutes"]
 
-        if "input_files" in kwargs:
+        if kwargs.get("input_files") is not None:
             variables["inputFiles"] = kwargs["input_files"]
 
-        ask_model = invoke_ask_model(
-            info.context,
-            **variables,
-        )
+        ask_model = invoke_ask_model(context=info.context, **variables)
+
         session_run: SessionRunType = insert_update_session_run(
             info,
             **{
@@ -191,8 +198,12 @@ def ask_operation_hub(
         )
 
     except Exception as e:
-        log = traceback.format_exc()
-        info.context.get("logger").error(log)
+        Debugger.info(
+            variable=f"Error: {e}, Trace: {traceback.format_exc()}",
+            stage="AI Coordination Engine (ask_operation_hub)",
+            setting=info.context.get("setting"),
+            logger=info.context.get("logger"),
+        )
         raise e
 
 
@@ -246,14 +257,19 @@ def _select_agent(
         AssertionError: If no agents found for coordination
     """
     assert len(coordination.agents) > 0, "No agent found for the coordination."
+
     return next(
         (
             agent
             for agent in coordination.agents
-            if agent["agent_uuid"] == kwargs.get("agent_uuid")
+            if agent.get("agent_uuid") == kwargs.get("agent_uuid")
         ),
         next(
-            (agent for agent in coordination.agents if agent["agent_type"] == "triage"),
+            (
+                agent
+                for agent in coordination.agents
+                if agent.get("agent_type") == "triage"
+            ),
             None,
         ),
     )
@@ -277,7 +293,7 @@ def _process_query(
     Returns:
         str: Processed query string with enhanced context for triage agents
     """
-    if agent["agent_type"] == "triage":
+    if type(agent) is dict and agent.get("agent_type") == "triage":
         available_task_agents = [
             {
                 "agent_uuid": agent["agent_uuid"],
@@ -285,7 +301,7 @@ def _process_query(
                 "agent_description": agent["agent_description"],
             }
             for agent in coordination.agents
-            if agent["agent_type"] == "task"
+            if agent.get("agent_type") == "task"
         ]
 
         user_query = (
@@ -349,6 +365,7 @@ def _trigger_async_update(
         "coordination_uuid": session_run.coordination_uuid,
         "session_uuid": session_run.session_uuid,
         "run_uuid": session_run.run_uuid,
+        "context": info.context,
     }
     if connection_id:
         params["connection_id"] = connection_id
@@ -360,10 +377,23 @@ def _trigger_async_update(
     ):
         params["receiver_email"] = kwargs["receiver_email"]
 
-    Invoker.invoke_funct_on_aws_lambda(
-        info.context,
-        "async_insert_update_session",
-        params=params,
-        aws_lambda=Config.aws_lambda,
-        invocation_type="Event",
+    Invoker.execute_async_task(
+        task=Invoker.resolve_proxied_callable(
+            module_name="ai_coordination_engine",
+            function_name="async_insert_update_session",
+            class_name="AICoordinationEngine",
+            constructor_parameters={
+                "logger": info.context.get("logger"),
+                **info.context.get("setting", {}),
+            },
+        ),
+        parameters=params,
     )
+
+    # Invoker.invoke_funct_on_aws_lambda(
+    #     info.context,
+    #     "async_insert_update_session",
+    #     params=params,
+    #     aws_lambda=Config.aws_lambda,
+    #     invocation_type="Event",
+    # )

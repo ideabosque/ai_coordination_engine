@@ -24,7 +24,7 @@ from silvaengine_dynamodb_base import (
     monitor_decorator,
     resolve_list_decorator,
 )
-from silvaengine_utility import method_cache
+from silvaengine_utility import Debugger, method_cache
 from silvaengine_utility.serializer import Serializer
 from tenacity import retry, stop_after_attempt, wait_exponential
 
@@ -53,7 +53,6 @@ def purge_cache():
         @functools.wraps(original_function)
         def wrapper_function(*args, **kwargs):
             try:
-
                 # Execute original function first
                 result = original_function(*args, **kwargs)
 
@@ -135,6 +134,7 @@ def resolve_coordination(
 ) -> CoordinationType | None:
     partition_key = info.context.get("partition_key") or info.context.get("endpoint_id")
     count = get_coordination_count(partition_key, kwargs["coordination_uuid"])
+
     if count == 0:
         return None
 

@@ -9,7 +9,7 @@ from typing import Any, Dict, List
 
 from graphene import Schema
 from silvaengine_dynamodb_base import BaseModel
-from silvaengine_utility import Graphql
+from silvaengine_utility import Debugger, Graphql
 
 from .handlers.config import Config
 from .handlers.operation_hub import operation_hub_listener
@@ -163,9 +163,6 @@ class AICoordinationEngine(Graphql):
 
         # Initialize configuration via the Config class
         Config.initialize(logger, **setting)
-
-        self.logger = logger
-        self.setting = setting
 
     def _apply_partition_defaults(self, params: Dict[str, Any]) -> None:
         """
