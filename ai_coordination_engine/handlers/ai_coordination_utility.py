@@ -146,7 +146,7 @@ def get_async_task(
         function_name="ai_agent_core_graphql",
         graphql_operation_type="Query",
         graphql_operation_name="asyncTask",
-        class_name="AICoordinationEngine",
+        class_name="AIAgentCoreEngine",
         variables=variables,
     )
 
