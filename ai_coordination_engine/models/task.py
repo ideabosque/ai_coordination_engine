@@ -5,7 +5,6 @@ from __future__ import print_function
 __author__ = "bibow"
 
 import functools
-import logging
 import traceback
 from typing import Any, Dict
 
@@ -30,7 +29,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..handlers.config import Config
 from ..types.task import TaskListType, TaskType
-from .utils import _get_coordination
+from .utils import get_coordination
 
 
 class TaskModel(BaseModel):
@@ -100,22 +99,15 @@ def purge_cache():
     return actual_decorator
 
 
-def create_task_table(logger: logging.Logger) -> bool:
-    """Create the Task table if it doesn't exist."""
-    if not TaskModel.exists():
-        # Create with on-demand billing (PAY_PER_REQUEST)
-        TaskModel.create_table(billing_mode="PAY_PER_REQUEST", wait=True)
-        logger.info("The Task table has been created.")
-    return True
-
-
 @retry(
     reraise=True,
     wait=wait_exponential(multiplier=1, max=60),
     stop=stop_after_attempt(5),
 )
 @method_cache(
-    ttl=Config.get_cache_ttl(), cache_name=Config.get_cache_name("models", "task")
+    ttl=Config.get_cache_ttl(),
+    cache_name=Config.get_cache_name("models", "task"),
+    cache_enabled=Config.is_cache_enabled,
 )
 def get_task(coordination_uuid: str, task_uuid: str) -> TaskModel:
     return TaskModel.get(coordination_uuid, task_uuid)
@@ -207,7 +199,7 @@ def insert_update_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
 
     if "subtask_queries" in kwargs or "agent_actions" in kwargs:
         partition_key = info.context.get("partition_key")
-        coordination = _get_coordination(partition_key, coordination_uuid)
+        coordination = get_coordination(partition_key, coordination_uuid)
         valid_agent_uuids = [agent["agent_uuid"] for agent in coordination["agents"]]
 
         # Filter subtask queries

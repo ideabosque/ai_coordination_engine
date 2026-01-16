@@ -5,7 +5,6 @@ from __future__ import print_function
 __author__ = "bibow"
 
 import functools
-import logging
 import traceback
 from typing import Any, Dict
 
@@ -123,15 +122,6 @@ def purge_cache():
     return actual_decorator
 
 
-def create_session_run_table(logger: logging.Logger) -> bool:
-    """Create the SessionRun table if it doesn't exist."""
-    if not SessionRunModel.exists():
-        # Create with on-demand billing (PAY_PER_REQUEST)
-        SessionRunModel.create_table(billing_mode="PAY_PER_REQUEST", wait=True)
-        logger.info("The SessionRun table has been created.")
-    return True
-
-
 @retry(
     reraise=True,
     wait=wait_exponential(multiplier=1, max=60),
@@ -140,6 +130,7 @@ def create_session_run_table(logger: logging.Logger) -> bool:
 @method_cache(
     ttl=Config.get_cache_ttl(),
     cache_name=Config.get_cache_name("models", "session_run"),
+    cache_enabled=Config.is_cache_enabled,
 )
 def get_session_run(session_uuid: str, run_uuid: str) -> SessionRunModel:
     return SessionRunModel.get(session_uuid, run_uuid)
