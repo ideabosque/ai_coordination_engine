@@ -128,18 +128,6 @@ def get_async_task(
     **variables: Dict[str, Any],
 ) -> Dict[str, Any]:
     """Call AI model for assistance via GraphQL query."""
-    # Invoker.execute_async_task(
-    #     task=Invoker.resolve_proxied_callable(
-    #         module_name="ai_agent_core_graphql",
-    #         function_name="asyncTask",
-    #         class_name="AICoordinationEngine",
-    #         constructor_parameters={
-    #             "logger": info.context.get("logger"),
-    #             **info.context.get("setting", {}),
-    #         },
-    #     ),
-    #     parameters=params,
-    # )
     async_task = Graphql.request_graphql(
         context=context,
         module_name="ai_agent_core_engine",
