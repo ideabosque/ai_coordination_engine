@@ -8,6 +8,7 @@ import os
 from typing import Any, Dict, List
 
 import boto3
+from silvaengine_dynamodb_base.models import FunctionModel
 from silvaengine_utility import Debugger, Graphql
 
 from ..models import utils
@@ -274,17 +275,39 @@ class Config:
         Returns:
             Dict containing the GraphQL schema
         """
-        Debugger.info(
-            variable=context,
-            stage=__name__,
-            delimiter="#",
-        )
+        function_name = str(function_name).strip()
+
+        if (
+            not isinstance(context, dict)
+            or not function_name
+            or "aws_lambda_arn" not in context
+        ):
+            raise Exception("Invalid required parameter(s)")
 
         # Check if schema exists in cache, if not fetch and store it
         if Config.schemas.get(function_name) is None:
-            Config.schemas[function_name] = Graphql.fetch_graphql_schema(
-                context,
-                function_name,
-                aws_lambda=Config.aws_lambda,
+            function = FunctionModel.get(
+                hash_key=context.get("aws_lambda_arn"),
+                range_key=function_name,
             )
+
+            if (
+                not hasattr(function.config, "module_name")
+                or not hasattr(function.config, "class_name")
+                or not hasattr(function, "function")
+            ):
+                raise ValueError("Missing function config")
+
+            try:
+                Config.schemas[function_name] = Graphql.get_graphql_schema(
+                    module_name=function.config.module_name,
+                    class_name=function.config.class_name,
+                )
+            except Exception as e:
+                Debugger.info(
+                    variable=context,
+                    stage=f"{__name__}(fetch_graphql_schema)",
+                    delimiter="#",
+                )
+                raise e
         return Config.schemas[function_name]
