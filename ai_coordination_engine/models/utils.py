@@ -7,24 +7,37 @@ import logging
 from typing import Any, Dict
 
 
-def _initialize_tables(logger: logging.Logger) -> None:
+def initialize_tables(logger: logging.Logger) -> None:
     """Initialize all DynamoDB tables for the AI Coordination Engine."""
-    from .coordination import create_coordination_table
-    from .session import create_session_table
-    from .session_agent import create_session_agent_table
-    from .session_run import create_session_run_table
-    from .task import create_task_table
-    from .task_schedule import create_task_schedule_table
+    from typing import List
 
-    create_coordination_table(logger)
-    create_session_table(logger)
-    create_session_agent_table(logger)
-    create_session_run_table(logger)
-    create_task_table(logger)
-    create_task_schedule_table(logger)
+    from .coordination import CoordinationModel
+    from .session import SessionModel
+    from .session_agent import SessionAgentModel
+    from .session_run import SessionRunModel
+    from .task import TaskModel
+    from .task_schedule import TaskScheduleModel
+
+    models: List = [
+        CoordinationModel,
+        SessionModel,
+        SessionAgentModel,
+        SessionRunModel,
+        TaskModel,
+        TaskScheduleModel,
+    ]
+
+    for model in models:
+        if model.exists():
+            continue
+
+        table_name = model.Meta.table_name
+        # Create with on-demand billing (PAY_PER_REQUEST)
+        model.create_table(billing_mode="PAY_PER_REQUEST", wait=True)
+        logger.info(f"The {table_name} table has been created.")
 
 
-def _get_coordination(partition_key: str, coordination_uuid: str) -> Dict[str, Any]:
+def get_coordination(partition_key: str, coordination_uuid: str) -> Dict[str, Any]:
     """
     Get coordination as a dictionary for embedding purposes.
 
@@ -38,9 +51,9 @@ def _get_coordination(partition_key: str, coordination_uuid: str) -> Dict[str, A
     Returns:
         Dict containing coordination data
     """
-    from .coordination import get_coordination
+    from .coordination import get_coordination as _get_coordination
 
-    coordination = get_coordination(partition_key, coordination_uuid)
+    coordination = _get_coordination(partition_key, coordination_uuid)
     return {
         "partition_key": coordination.partition_key,
         "endpoint_id": coordination.endpoint_id,

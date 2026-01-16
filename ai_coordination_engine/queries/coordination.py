@@ -16,13 +16,14 @@ from ..types.coordination import CoordinationListType, CoordinationType
 
 def resolve_coordination(
     info: ResolveInfo, **kwargs: Dict[str, Any]
-) -> CoordinationType:
+) -> CoordinationType | None:
     return coordination.resolve_coordination(info, **kwargs)
 
 
 @method_cache(
     ttl=Config.get_cache_ttl(),
     cache_name=Config.get_cache_name("queries", "coordination"),
+    cache_enabled=Config.is_cache_enabled,
 )
 def resolve_coordination_list(
     info: ResolveInfo, **kwargs: Dict[str, Any]
