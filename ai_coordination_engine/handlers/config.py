@@ -305,7 +305,7 @@ class Config:
                 )
             except Exception as e:
                 Debugger.info(
-                    variable=context,
+                    variable=e,
                     stage=f"{__name__}(fetch_graphql_schema)",
                     delimiter="#",
                 )
