@@ -130,11 +130,6 @@ def ask_operation_hub(
             },
         )
 
-        Debugger.info(
-            variable=coordination,
-            stage=__name__,
-        )
-
         # Step 2: Create/update session
         session = _handle_session(info, **kwargs)
 
