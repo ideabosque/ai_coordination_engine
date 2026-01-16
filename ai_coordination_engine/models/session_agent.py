@@ -5,7 +5,6 @@ from __future__ import print_function
 __author__ = "bibow"
 
 import functools
-import logging
 import traceback
 from typing import Any, Dict
 
@@ -102,15 +101,6 @@ def purge_cache():
     return actual_decorator
 
 
-def create_session_agent_table(logger: logging.Logger) -> bool:
-    """Create the Session Agent table if it doesn't exist."""
-    if not SessionAgentModel.exists():
-        # Create with on-demand billing (PAY_PER_REQUEST)
-        SessionAgentModel.create_table(billing_mode="PAY_PER_REQUEST", wait=True)
-        logger.info("The SessionAgent table has been created.")
-    return True
-
-
 @retry(
     reraise=True,
     wait=wait_exponential(multiplier=1, max=60),
@@ -119,6 +109,7 @@ def create_session_agent_table(logger: logging.Logger) -> bool:
 @method_cache(
     ttl=Config.get_cache_ttl(),
     cache_name=Config.get_cache_name("models", "session_agent"),
+    cache_enabled=Config.is_cache_enabled,
 )
 def get_session_agent(session_uuid: str, session_agent_uuid: str) -> SessionAgentModel:
     return SessionAgentModel.get(session_uuid, session_agent_uuid)

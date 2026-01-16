@@ -14,13 +14,14 @@ from ..models import task
 from ..types.task import TaskListType, TaskType
 
 
-def resolve_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> TaskType:
+def resolve_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> TaskType | None:
     return task.resolve_task(info, **kwargs)
 
 
 @method_cache(
     ttl=Config.get_cache_ttl(),
     cache_name=Config.get_cache_name("queries", "task"),
+    cache_enabled=Config.is_cache_enabled,
 )
 def resolve_task_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> TaskListType:
     return task.resolve_task_list(info, **kwargs)

@@ -5,7 +5,6 @@ from __future__ import print_function
 __author__ = "bibow"
 
 import functools
-import logging
 import traceback
 from typing import Any, Dict
 
@@ -90,15 +89,6 @@ def purge_cache():
     return actual_decorator
 
 
-def create_task_schedule_table(logger: logging.Logger) -> bool:
-    """Create the TaskSchedule table if it doesn't exist."""
-    if not TaskScheduleModel.exists():
-        # Create with on-demand billing (PAY_PER_REQUEST)
-        TaskScheduleModel.create_table(billing_mode="PAY_PER_REQUEST", wait=True)
-        logger.info("The TaskSchedule table has been created.")
-    return True
-
-
 @retry(
     reraise=True,
     wait=wait_exponential(multiplier=1, max=60),
@@ -107,6 +97,7 @@ def create_task_schedule_table(logger: logging.Logger) -> bool:
 @method_cache(
     ttl=Config.get_cache_ttl(),
     cache_name=Config.get_cache_name("models", "task_schedule"),
+    cache_enabled=Config.is_cache_enabled,
 )
 def get_task_schedule(task_uuid: str, schedule_uuid: str) -> TaskScheduleModel:
     return TaskScheduleModel.get(task_uuid, schedule_uuid)

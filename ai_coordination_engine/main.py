@@ -180,8 +180,24 @@ class AICoordinationEngine(Graphql):
         if params.get("context") is None:
             params["context"] = {}
 
+        if "endpoint_id" not in params["context"]:
+            params["context"]["endpoint_id"] = endpoint_id
+        if "part_id" not in params["context"]:
+            params["context"]["part_id"] = part_id
+        if "connection_id" not in params:
+            params["connection_id"] = self.setting.get("connection_id")
+
         if "partition_key" not in params["context"]:
-            params["context"]["partition_key"] = f"{endpoint_id}#{part_id}"
+            # Validate endpoint_id and part_id before creating partition_key
+            if not endpoint_id or not part_id:
+                self.logger.error(
+                    f"Missing endpoint_id or part_id: endpoint_id={endpoint_id}, part_id={part_id}"
+                )
+                # Only create partition key if both values are present
+                if endpoint_id and part_id:
+                    params["context"]["partition_key"] = f"{endpoint_id}#{part_id}"
+            else:
+                params["context"]["partition_key"] = f"{endpoint_id}#{part_id}"
 
     def async_insert_update_session(self, **params: Dict[str, Any]) -> Any:
         self._apply_partition_defaults(params)
@@ -216,8 +232,15 @@ class AICoordinationEngine(Graphql):
         return
 
     def ai_coordination_graphql(self, **params: Dict[str, Any]) -> Any:
-        if params.get("connection_id") is None:
-            params["connection_id"] = self.setting.get("connection_id", None)
+        """
+        Execute a GraphQL query based on the provided parameters.
+
+        Args:
+            params (Dict[str, Any]): A dictionary of parameters required to build the GraphQL query.
+
+        Returns:
+            Any: The result of the GraphQL query execution.
+        """
 
         self._apply_partition_defaults(params)
 
