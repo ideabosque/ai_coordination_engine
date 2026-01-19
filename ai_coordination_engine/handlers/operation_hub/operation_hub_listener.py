@@ -113,10 +113,3 @@ def async_insert_update_session(
         else:
             # Wait for 1 second before checking again
             time.sleep(1)
-
-    Debugger.info(
-        variable="",
-        stage=f"{__name__}: async_insert_update_session",
-        delimiter="#",
-        setting=setting,
-    )
