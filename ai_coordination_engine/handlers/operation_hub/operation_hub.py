@@ -122,6 +122,12 @@ def ask_operation_hub(
         AskOperationHubType: Structured response with session details and run metadata
     """
     try:
+        Debugger.info(
+            variable=info.context,
+            stage=f"{__name__}:ask_operation_hub-1",
+            delimiter="+",
+        )
+        # Start async task and get identifiers
         # Step 1: Initialize and validate coordination
         coordination = resolve_coordination(
             info,
@@ -130,11 +136,29 @@ def ask_operation_hub(
             },
         )
 
+        Debugger.info(
+            variable=coordination,
+            stage=f"{__name__}:ask_operation_hub-2",
+            delimiter="+",
+        )
+
         # Step 2: Create/update session
         session = _handle_session(info, **kwargs)
 
+        Debugger.info(
+            variable=session,
+            stage=f"{__name__}:ask_operation_hub-3",
+            delimiter="+",
+        )
+
         # Step 3: Select and validate agent
         agent = _select_agent(coordination, **kwargs)
+
+        Debugger.info(
+            variable=agent,
+            stage=f"{__name__}:ask_operation_hub-4",
+            delimiter="+",
+        )
 
         # Step 4: Process query and handle routing
         user_query = _process_query(info, kwargs["user_query"], agent, coordination)
@@ -162,6 +186,12 @@ def ask_operation_hub(
 
         ask_model = invoke_ask_model(context=info.context, **variables)
 
+        Debugger.info(
+            variable=ask_model,
+            stage=f"{__name__}:ask_operation_hub-5",
+            delimiter="+",
+        )
+
         session_run: SessionRunType = insert_update_session_run(
             info,
             **{
@@ -175,8 +205,20 @@ def ask_operation_hub(
             },
         )
 
+        Debugger.info(
+            variable=session_run,
+            stage=f"{__name__}:ask_operation_hub-6",
+            delimiter="+",
+        )
+
         # Step 6: Handle async updates
         _trigger_async_update(info, session_run, connection_id, agent, **kwargs)
+
+        Debugger.info(
+            variable=connection_id,
+            stage=f"{__name__}:ask_operation_hub-7",
+            delimiter="+",
+        )
 
         # Step 7: Return response
         return AskOperationHubType(
