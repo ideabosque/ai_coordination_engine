@@ -8,8 +8,7 @@ import traceback
 from typing import Any, Dict
 
 from graphene import Boolean, Field, Int, Mutation, String
-
-from silvaengine_utility import JSON
+from silvaengine_utility import JSONCamelCase
 
 from ..models.session_agent import delete_session_agent, insert_update_session_agent
 from ..types.session_agent import SessionAgentType
@@ -23,7 +22,7 @@ class InsertUpdateSessionAgent(Mutation):
         session_agent_uuid = String(required=False)
         coordination_uuid = String(required=False)
         agent_uuid = String(required=False)
-        agent_action = JSON(required=False)
+        agent_action = JSONCamelCase(required=False)
         user_input = String(required=False)
         agent_input = String(required=False)
         agent_output = String(required=False)

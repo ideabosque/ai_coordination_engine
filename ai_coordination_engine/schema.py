@@ -8,7 +8,7 @@ import time
 from typing import Any, Dict
 
 from graphene import Boolean, Field, Int, List, ObjectType, ResolveInfo, String
-from silvaengine_utility import JSON
+from silvaengine_utility import JSONCamelCase
 
 from .mutations.coordination import DeleteCoordination, InsertUpdateCoordination
 from .mutations.procedure_hub import ExecuteForUserInput, ExecuteProcedureTaskSession
@@ -159,7 +159,7 @@ class Query(ObjectType):
         agent_uuid=String(required=False),
         session_uuid=String(required=False),
         user_query=String(required=True),
-        input_files=List(JSON, required=False),
+        input_files=List(JSONCamelCase, required=False),
         receiver_email=String(required=False),
         thread_uuid=String(required=False),
         stream=Boolean(required=False),

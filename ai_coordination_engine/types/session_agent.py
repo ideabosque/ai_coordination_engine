@@ -6,18 +6,17 @@ __author__ = "bibow"
 
 from graphene import DateTime, Field, Int, List, ObjectType, String
 from silvaengine_dynamodb_base import ListObjectType
-from silvaengine_utility import JSON
+from silvaengine_utility import JSONCamelCase
 from silvaengine_utility.serializer import Serializer
 
 
 class SessionAgentBaseType(ObjectType):
     """Base SessionAgent type with flat fields only (no nested resolvers)."""
-
     session_agent_uuid = String()
     session_uuid = String()  # FK to Session
     coordination_uuid = String()  # FK to Coordination
     agent_uuid = String()
-    agent_action = JSON()
+    agent_action = Field(JSONCamelCase)
     user_input = String()
     agent_input = String()
     agent_output = String()

@@ -6,13 +6,12 @@ __author__ = "bibow"
 
 from graphene import DateTime, Field, List, ObjectType, String
 from silvaengine_dynamodb_base import ListObjectType
-from silvaengine_utility import JSON
+from silvaengine_utility import JSONCamelCase
 from silvaengine_utility.serializer import Serializer
 
 
 class SessionRunBaseType(ObjectType):
     """Base SessionRun type with flat fields only (no nested resolvers)."""
-
     run_uuid = String()
     session_uuid = String()  # FK to Session
     coordination_uuid = String()  # FK to Coordination
@@ -21,7 +20,7 @@ class SessionRunBaseType(ObjectType):
     agent_uuid = String()
     partition_key = String()
     async_task_uuid = String()
-    async_task = JSON()  # Async task details
+    async_task = Field(JSONCamelCase)
     updated_by = String()
     created_at = DateTime()
     updated_at = DateTime()
@@ -38,7 +37,7 @@ class SessionRunType(SessionRunBaseType):
     # Nested fields (lazy-loaded via resolvers)
     session = Field(lambda: SessionType)
     session_agent = Field(lambda: SessionAgentType)
-    async_task = Field(JSON)
+    async_task = Field(JSONCamelCase)
 
     # ------- Nested resolvers -------
 

@@ -8,8 +8,7 @@ import traceback
 from typing import Any, Dict
 
 from graphene import Boolean, Field, List, Mutation, String
-
-from silvaengine_utility import JSON
+from silvaengine_utility import JSONCamelCase
 
 from ..models.task_schedule import delete_task_schedule, insert_update_task_schedule
 from ..types.task_schedule import TaskScheduleType
@@ -20,7 +19,7 @@ class InsertUpdateTaskSchedule(Mutation):
 
     class Arguments:
         task_uuid = String(required=True)
-        task_schedule = JSON(required=False)
+        task_schedule = JSONCamelCase(required=False)
         coordination_uuid = String(required=False)
         schedule = String(required=False)
         status = String(required=False)
