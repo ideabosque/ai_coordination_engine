@@ -134,7 +134,7 @@ def ask_operation_hub(
         )
 
         print(
-            f"{'>' * 20} Execute function `resolve_coordination` spent {time.perf_counter() - start_time} ms."
+            f"{'>' * 20} Execute function `resolve_coordination` spent {time.perf_counter() - start_time} s."
         )
         start_time = time.perf_counter()
 
@@ -142,7 +142,7 @@ def ask_operation_hub(
         session = _handle_session(info, **kwargs)
 
         print(
-            f"{'>' * 20} Execute function `_handle_session` spent {time.perf_counter() - start_time} ms."
+            f"{'>' * 20} Execute function `_handle_session` spent {time.perf_counter() - start_time} s."
         )
         start_time = time.perf_counter()
 
@@ -153,7 +153,7 @@ def ask_operation_hub(
             raise ValueError("Not found the specified agent")
 
         print(
-            f"{'>' * 20} Execute function `_select_agent` spent {time.perf_counter() - start_time} ms."
+            f"{'>' * 20} Execute function `_select_agent` spent {time.perf_counter() - start_time} s."
         )
         start_time = time.perf_counter()
 
@@ -161,14 +161,14 @@ def ask_operation_hub(
         user_query = _process_query(info, kwargs["user_query"], agent, coordination)
 
         print(
-            f"{'>' * 20} Execute function `_process_query` spent {time.perf_counter() - start_time} ms."
+            f"{'>' * 20} Execute function `_process_query` spent {time.perf_counter() - start_time} s."
         )
         start_time = time.perf_counter()
 
         connection_id = _handle_connection_routing(info, agent, **kwargs)
 
         print(
-            f"{'>' * 20} Execute function `_handle_connection_routing` spent {time.perf_counter() - start_time} ms."
+            f"{'>' * 20} Execute function `_handle_connection_routing` spent {time.perf_counter() - start_time} s."
         )
         start_time = time.perf_counter()
 
@@ -195,7 +195,7 @@ def ask_operation_hub(
         ask_model = invoke_ask_model(context=info.context, **variables)
 
         print(
-            f"{'>' * 20} Execute function `invoke_ask_model` spent {time.perf_counter() - start_time} ms."
+            f"{'>' * 20} Execute function `invoke_ask_model` spent {time.perf_counter() - start_time} s."
         )
         start_time = time.perf_counter()
 
@@ -213,7 +213,7 @@ def ask_operation_hub(
         )
 
         print(
-            f"{'>' * 20} Execute function `insert_update_session_run` spent {time.perf_counter() - start_time} ms."
+            f"{'>' * 20} Execute function `insert_update_session_run` spent {time.perf_counter() - start_time} s."
         )
         start_time = time.perf_counter()
 
@@ -221,9 +221,8 @@ def ask_operation_hub(
         _trigger_async_update(info, session_run, connection_id, agent, **kwargs)
 
         print(
-            f"{'>' * 20} Execute function `_trigger_async_update` spent {time.perf_counter() - start_time} ms."
+            f"{'>' * 20} Execute function `_trigger_async_update` spent {time.perf_counter() - start_time} s."
         )
-        start_time = time.perf_counter()
 
         # Step 7: Return response
         return AskOperationHubType(
