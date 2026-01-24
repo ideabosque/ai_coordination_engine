@@ -402,6 +402,12 @@ def _trigger_async_update(
         **kwargs: Request parameters including:
             - receiver_email: Optional email for routing
     """
+    Debugger.info(
+        variable=info.context,
+        stage=f"{__file__}._trigger_async_update",
+        delimiter="*",
+        enabled_trace=False,
+    )
     params = {
         "coordination_uuid": session_run.coordination_uuid,
         "session_uuid": session_run.session_uuid,
@@ -430,11 +436,3 @@ def _trigger_async_update(
         ),
         parameters=params,
     )
-
-    # Invoker.invoke_funct_on_aws_lambda(
-    #     info.context,
-    #     "async_insert_update_session",
-    #     params=params,
-    #     aws_lambda=Config.aws_lambda,
-    #     invocation_type="Event",
-    # )

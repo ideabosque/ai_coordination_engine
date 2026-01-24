@@ -108,7 +108,7 @@ def invoke_ask_model(
         )
 
         print(
-            f"{'>' * 20} Execute function `invoke_ask_model` spent {time.perf_counter() - start_time} s."
+            f"\n{'--' * 20} Execute function `invoke_ask_model` spent {time.perf_counter() - start_time} s."
         )
 
         return humps.decamelize(ask_model)
