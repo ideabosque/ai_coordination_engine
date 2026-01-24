@@ -24,7 +24,7 @@ from silvaengine_dynamodb_base import (
     resolve_list_decorator,
 )
 from silvaengine_utility import method_cache
-from silvaengine_utility.serializer import Serializer
+from ..utils.normalization import normalize_to_json
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..handlers.config import Config
@@ -141,7 +141,7 @@ def get_session_agent_type(
     _ = info  # Keep for signature compatibility with decorators
     session_agent_dict = session_agent.__dict__["attribute_values"].copy()
     # Keep all fields including FKs - nested resolvers will handle lazy loading
-    return SessionAgentType(**Serializer.json_normalize(session_agent_dict))
+    return SessionAgentType(**normalize_to_json(session_agent_dict))
 
 
 def resolve_session_agent(

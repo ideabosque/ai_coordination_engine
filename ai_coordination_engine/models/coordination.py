@@ -25,7 +25,7 @@ from silvaengine_dynamodb_base import (
     resolve_list_decorator,
 )
 from silvaengine_utility import Debugger, method_cache
-from silvaengine_utility.serializer import Serializer
+from ..utils.normalization import normalize_to_json
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..handlers.config import Config
@@ -126,7 +126,7 @@ def get_coordination_type(
     _ = info  # Keep for signature compatibility with decorators
     coordination_dict = coordination.__dict__["attribute_values"].copy()
     # Keep all fields including FKs - nested resolvers will handle lazy loading
-    return CoordinationType(**Serializer.json_normalize(coordination_dict))
+    return CoordinationType(**normalize_to_json(coordination_dict))
 
 
 def resolve_coordination(
