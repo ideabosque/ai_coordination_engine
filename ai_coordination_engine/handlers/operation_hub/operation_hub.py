@@ -403,12 +403,6 @@ def _trigger_async_update(
         **kwargs: Request parameters including:
             - receiver_email: Optional email for routing
     """
-    Debugger.info(
-        variable=info.context,
-        stage=f"{__file__}._trigger_async_update",
-        delimiter="*",
-        enabled_trace=False,
-    )
     params = {
         "coordination_uuid": session_run.coordination_uuid,
         "session_uuid": session_run.session_uuid,
@@ -426,8 +420,15 @@ def _trigger_async_update(
         params["receiver_email"] = kwargs["receiver_email"]
 
     invoker = info.context.get("aws_lambda_invoker")
+    print("+" * 120)
 
     if callable(invoker):
+        Debugger.info(
+            variable=info.context,
+            stage=f"{__file__}._trigger_async_update",
+            delimiter="*",
+            enabled_trace=False,
+        )
         invoker(
             function_name=info.context.get("aws_lambda_arn"),
             invocation_type=InvocationType.EVENT,
@@ -439,15 +440,15 @@ def _trigger_async_update(
             },
         )
 
-    Invoker.execute_async_task(
-        task=Invoker.resolve_proxied_callable(
-            module_name="ai_coordination_engine",
-            function_name="async_insert_update_session",
-            class_name="AICoordinationEngine",
-            constructor_parameters={
-                "logger": info.context.get("logger"),
-                **info.context.get("setting", {}),
-            },
-        ),
-        parameters=params,
-    )
+    # Invoker.execute_async_task(
+    #     task=Invoker.resolve_proxied_callable(
+    #         module_name="ai_coordination_engine",
+    #         function_name="async_insert_update_session",
+    #         class_name="AICoordinationEngine",
+    #         constructor_parameters={
+    #             "logger": info.context.get("logger"),
+    #             **info.context.get("setting", {}),
+    #         },
+    #     ),
+    #     parameters=params,
+    # )
