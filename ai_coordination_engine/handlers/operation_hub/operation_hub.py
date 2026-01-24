@@ -129,6 +129,7 @@ def ask_operation_hub(
             stage="AI Coordination Engine (ask_operation_hub)",
             setting=info.context.get("setting"),
             logger=info.context.get("logger"),
+            delimiter="[]",
         )
         start_time = time.perf_counter()
         # Start async task and get identifiers
