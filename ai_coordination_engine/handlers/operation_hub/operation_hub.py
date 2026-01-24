@@ -429,7 +429,7 @@ def _trigger_async_update(
             delimiter="*",
             enabled_trace=False,
         )
-        invoker(
+        response = invoker(
             function_name=info.context.get("aws_lambda_arn"),
             invocation_type=InvocationType.EVENT,
             payload={
@@ -439,6 +439,7 @@ def _trigger_async_update(
                 "parameters": params,
             },
         )
+        print(">>>>>>>>>", response)
 
     # Invoker.execute_async_task(
     #     task=Invoker.resolve_proxied_callable(
