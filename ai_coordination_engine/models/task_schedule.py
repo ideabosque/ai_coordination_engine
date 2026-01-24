@@ -19,7 +19,7 @@ from silvaengine_dynamodb_base import (
     resolve_list_decorator,
 )
 from silvaengine_utility import method_cache
-from silvaengine_utility.serializer import Serializer
+from ..utils.normalization import normalize_to_json
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..handlers.config import Config
@@ -129,7 +129,7 @@ def get_task_schedule_type(
     _ = info  # Keep for signature compatibility with decorators
     task_schedule_dict = task_schedule.__dict__["attribute_values"].copy()
     # Keep all fields including FKs - nested resolvers will handle lazy loading
-    return TaskScheduleType(**Serializer.json_normalize(task_schedule_dict))
+    return TaskScheduleType(**normalize_to_json(task_schedule_dict))
 
 
 def resolve_task_schedule(

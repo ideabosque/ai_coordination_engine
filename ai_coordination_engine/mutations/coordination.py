@@ -8,8 +8,7 @@ import traceback
 from typing import Any, Dict
 
 from graphene import Boolean, Field, List, Mutation, String
-
-from silvaengine_utility import JSON
+from silvaengine_utility import JSONCamelCase
 
 from ..models.coordination import delete_coordination, insert_update_coordination
 from ..types.coordination import CoordinationType
@@ -22,7 +21,7 @@ class InsertUpdateCoordination(Mutation):
         coordination_uuid = String(required=False)
         coordination_name = String(required=False)
         coordination_description = String(required=False)
-        agents = List(JSON, required=False)
+        agents = List(JSONCamelCase, required=False)
         updated_by = String(required=True)
 
     @staticmethod

@@ -6,9 +6,8 @@ __author__ = "bibow"
 
 from graphene import DateTime, Field, Int, List, ObjectType, String
 from silvaengine_dynamodb_base import ListObjectType
-from silvaengine_utility import JSON
+from silvaengine_utility import JSONCamelCase
 from silvaengine_utility.serializer import Serializer
-
 from ..utils.normalization import normalize_to_json
 
 
@@ -22,9 +21,9 @@ class SessionBaseType(ObjectType):
     endpoint_id = String()
     partition_key = String()
     task_query = String()
-    input_files = List(JSON)
+    input_files = List(JSONCamelCase)
     iteration_count = Int()
-    subtask_queries = List(JSON)
+    subtask_queries = List(JSONCamelCase)
     status = String()
     logs = String()
     updated_by = String()
@@ -43,8 +42,8 @@ class SessionType(SessionBaseType):
     # Nested fields (lazy-loaded via resolvers)
     coordination = Field(lambda: CoordinationType)
     task = Field(lambda: TaskType)
-    session_agents = List(JSON)  # List of session agents for this session
-    session_runs = List(JSON)  # List of session runs for this session
+    session_agents = List(JSONCamelCase)  # List of session agents for this session
+    session_runs = List(JSONCamelCase)  # List of session runs for this session
 
     # ------- Nested resolvers -------
 

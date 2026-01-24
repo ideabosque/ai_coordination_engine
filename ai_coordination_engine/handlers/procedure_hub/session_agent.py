@@ -9,7 +9,6 @@ import traceback
 from typing import Any, Dict, List, Tuple
 
 from graphene import ResolveInfo
-
 from silvaengine_utility.invoker import Invoker
 from silvaengine_utility.serializer import Serializer
 
@@ -98,7 +97,7 @@ def init_session_agents(
                         ),
                     }
                 )
-            except:
+            except Exception:
                 # If task_query is not valid JSON, just update session_agent_uuid
                 subtask_query.update(
                     {
@@ -132,7 +131,6 @@ def init_in_degree(
     The in-degree represents the number of dependencies each session_agent has.
     """
     try:
-
         # Step 2: Build dependency graph (successor -> predecessors mapping)
         dependency_graph = {}
 

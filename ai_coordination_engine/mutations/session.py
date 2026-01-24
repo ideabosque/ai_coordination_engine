@@ -8,8 +8,7 @@ import traceback
 from typing import Any, Dict
 
 from graphene import Boolean, Field, Int, List, Mutation, String
-
-from silvaengine_utility import JSON
+from silvaengine_utility import JSONCamelCase
 
 from ..models.session import delete_session, insert_update_session
 from ..types.session import SessionType
@@ -24,9 +23,9 @@ class InsertUpdateSession(Mutation):
         task_uuid = String(required=False)
         user_id = String(required=False)
         task_query = String(required=False)
-        input_files = List(JSON, required=False)
+        input_files = List(JSONCamelCase, required=False)
         iteration_count = Int(required=False)
-        subtask_queries = List(JSON, required=False)
+        subtask_queries = List(JSONCamelCase, required=False)
         status = String(required=False)
         logs = String(required=False)
         updated_by = String(required=True)

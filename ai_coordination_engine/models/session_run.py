@@ -20,7 +20,7 @@ from silvaengine_dynamodb_base import (
     resolve_list_decorator,
 )
 from silvaengine_utility import method_cache
-from silvaengine_utility.serializer import Serializer
+from ..utils.normalization import normalize_to_json
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..handlers.config import Config
@@ -158,7 +158,7 @@ def get_session_run_type(
     """
     _ = info  # Keep for signature compatibility with decorators
     session_run_dict = session_run.__dict__["attribute_values"].copy()
-    return SessionRunType(**Serializer.json_normalize(session_run_dict))
+    return SessionRunType(**normalize_to_json(session_run_dict))
 
 
 def resolve_session_run(

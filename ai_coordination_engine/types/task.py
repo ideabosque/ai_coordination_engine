@@ -6,13 +6,12 @@ __author__ = "bibow"
 
 from graphene import DateTime, Field, List, ObjectType, String
 from silvaengine_dynamodb_base import ListObjectType
-from silvaengine_utility import JSON
+from silvaengine_utility import JSONCamelCase
 from silvaengine_utility.serializer import Serializer
 
 
 class TaskBaseType(ObjectType):
     """Base Task type with flat fields only (no nested resolvers)."""
-
     task_uuid = String()
     coordination_uuid = String()  # FK to Coordination
     endpoint_id = String()
@@ -20,8 +19,8 @@ class TaskBaseType(ObjectType):
     task_name = String()
     task_description = String()
     initial_task_query = String()
-    subtask_queries = List(JSON)
-    agent_actions = JSON()
+    subtask_queries = List(JSONCamelCase)
+    agent_actions = Field(JSONCamelCase)
     updated_by = String()
     created_at = DateTime()
     updated_at = DateTime()
