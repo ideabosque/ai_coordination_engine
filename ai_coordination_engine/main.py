@@ -205,7 +205,7 @@ class AICoordinationEngine(Graphql):
         Debugger.info(
             variable=params,
             stage=f"{__file__}.async_insert_update_session",
-            delimiter="<>",
+            delimiter="()",
             setting=self.setting,
             enabled_trace=False,
         )

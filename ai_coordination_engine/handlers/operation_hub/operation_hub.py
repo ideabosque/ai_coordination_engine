@@ -124,13 +124,6 @@ def ask_operation_hub(
         AskOperationHubType: Structured response with session details and run metadata
     """
     try:
-        Debugger.info(
-            variable=info.context,
-            stage="AI Coordination Engine (ask_operation_hub)",
-            setting=info.context.get("setting"),
-            logger=info.context.get("logger"),
-            delimiter="[]",
-        )
         start_time = time.perf_counter()
         # Start async task and get identifiers
         # Step 1: Initialize and validate coordination
