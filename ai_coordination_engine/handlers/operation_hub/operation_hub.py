@@ -9,6 +9,7 @@ import traceback
 from typing import Any, Dict, Optional
 
 from graphene import ResolveInfo
+from silvaengine_constants import InvocationType
 from silvaengine_utility.debugger import Debugger
 from silvaengine_utility.invoker import Invoker
 from silvaengine_utility.serializer import Serializer
@@ -423,6 +424,20 @@ def _trigger_async_update(
         and agent["agent_type"] != "triage"
     ):
         params["receiver_email"] = kwargs["receiver_email"]
+
+    invoker = info.context.get("aws_lambda_invoker")
+
+    if callable(invoker):
+        invoker(
+            function_name=info.context.get("aws_lambda_arn"),
+            invocation_type=InvocationType.EVENT,
+            payload={
+                "module_name": "ai_coordination_engine",
+                "function_name": "async_insert_update_session",
+                "class_name": "AICoordinationEngine",
+                "parameters": params,
+            },
+        )
 
     Invoker.execute_async_task(
         task=Invoker.resolve_proxied_callable(
