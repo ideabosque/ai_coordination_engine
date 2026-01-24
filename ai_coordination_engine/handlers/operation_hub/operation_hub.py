@@ -432,12 +432,13 @@ def _trigger_async_update(
         response = invoker(
             function_name=info.context.get("aws_lambda_arn"),
             invocation_type=InvocationType.EVENT,
-            payload={
-                "module_name": "ai_coordination_engine",
-                "function_name": "async_insert_update_session",
-                "class_name": "AICoordinationEngine",
-                "parameters": params,
-            },
+            payload=Invoker.build_invoker_payload(
+                context=info.context,
+                module_name="ai_coordination_engine",
+                function_name="async_insert_update_session",
+                class_name="AICoordinationEngine",
+                parameters=params,
+            ),
         )
         print(">>>>>>>>>", response)
 
