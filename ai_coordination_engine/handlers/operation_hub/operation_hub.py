@@ -409,6 +409,7 @@ def _trigger_async_update(
         "run_uuid": session_run.run_uuid,
         "context": info.context,
     }
+
     if connection_id:
         params["connection_id"] = connection_id
 
@@ -420,16 +421,9 @@ def _trigger_async_update(
         params["receiver_email"] = kwargs["receiver_email"]
 
     invoker = info.context.get("aws_lambda_invoker")
-    print("+" * 120)
 
     if callable(invoker):
-        Debugger.info(
-            variable=info.context,
-            stage=f"{__file__}._trigger_async_update",
-            delimiter="*",
-            enabled_trace=False,
-        )
-        response = invoker(
+        invoker(
             function_name=info.context.get("aws_lambda_arn"),
             invocation_type=InvocationType.EVENT,
             payload=Invoker.build_invoker_payload(
@@ -440,7 +434,6 @@ def _trigger_async_update(
                 parameters=params,
             ),
         )
-        print(">>>>>>>>>", response)
 
     # Invoker.execute_async_task(
     #     task=Invoker.resolve_proxied_callable(
