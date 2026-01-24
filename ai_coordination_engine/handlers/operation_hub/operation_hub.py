@@ -9,6 +9,7 @@ import traceback
 from typing import Any, Dict, Optional
 
 from graphene import ResolveInfo
+from silvaengine_constants import InvocationType
 from silvaengine_utility.debugger import Debugger
 from silvaengine_utility.invoker import Invoker
 from silvaengine_utility.serializer import Serializer
@@ -134,7 +135,7 @@ def ask_operation_hub(
         )
 
         print(
-            f"{'>' * 20} Execute function `resolve_coordination` spent {time.perf_counter() - start_time} ms."
+            f"{'>' * 20} Execute function `resolve_coordination` spent {time.perf_counter() - start_time} s."
         )
         start_time = time.perf_counter()
 
@@ -142,7 +143,7 @@ def ask_operation_hub(
         session = _handle_session(info, **kwargs)
 
         print(
-            f"{'>' * 20} Execute function `_handle_session` spent {time.perf_counter() - start_time} ms."
+            f"{'>' * 20} Execute function `_handle_session` spent {time.perf_counter() - start_time} s."
         )
         start_time = time.perf_counter()
 
@@ -153,7 +154,7 @@ def ask_operation_hub(
             raise ValueError("Not found the specified agent")
 
         print(
-            f"{'>' * 20} Execute function `_select_agent` spent {time.perf_counter() - start_time} ms."
+            f"{'>' * 20} Execute function `_select_agent` spent {time.perf_counter() - start_time} s."
         )
         start_time = time.perf_counter()
 
@@ -161,14 +162,14 @@ def ask_operation_hub(
         user_query = _process_query(info, kwargs["user_query"], agent, coordination)
 
         print(
-            f"{'>' * 20} Execute function `_process_query` spent {time.perf_counter() - start_time} ms."
+            f"{'>' * 20} Execute function `_process_query` spent {time.perf_counter() - start_time} s."
         )
         start_time = time.perf_counter()
 
         connection_id = _handle_connection_routing(info, agent, **kwargs)
 
         print(
-            f"{'>' * 20} Execute function `_handle_connection_routing` spent {time.perf_counter() - start_time} ms."
+            f"{'>' * 20} Execute function `_handle_connection_routing` spent {time.perf_counter() - start_time} s."
         )
         start_time = time.perf_counter()
 
@@ -195,7 +196,7 @@ def ask_operation_hub(
         ask_model = invoke_ask_model(context=info.context, **variables)
 
         print(
-            f"{'>' * 20} Execute function `invoke_ask_model` spent {time.perf_counter() - start_time} ms."
+            f"{'>' * 20} Execute function `invoke_ask_model` spent {time.perf_counter() - start_time} s."
         )
         start_time = time.perf_counter()
 
@@ -213,7 +214,7 @@ def ask_operation_hub(
         )
 
         print(
-            f"{'>' * 20} Execute function `insert_update_session_run` spent {time.perf_counter() - start_time} ms."
+            f"{'>' * 20} Execute function `insert_update_session_run` spent {time.perf_counter() - start_time} s."
         )
         start_time = time.perf_counter()
 
@@ -221,9 +222,8 @@ def ask_operation_hub(
         _trigger_async_update(info, session_run, connection_id, agent, **kwargs)
 
         print(
-            f"{'>' * 20} Execute function `_trigger_async_update` spent {time.perf_counter() - start_time} ms."
+            f"{'>' * 20} Execute function `_trigger_async_update` spent {time.perf_counter() - start_time} s."
         )
-        start_time = time.perf_counter()
 
         # Step 7: Return response
         return AskOperationHubType(
@@ -409,6 +409,7 @@ def _trigger_async_update(
         "run_uuid": session_run.run_uuid,
         "context": info.context,
     }
+
     if connection_id:
         params["connection_id"] = connection_id
 
@@ -419,23 +420,30 @@ def _trigger_async_update(
     ):
         params["receiver_email"] = kwargs["receiver_email"]
 
-    Invoker.execute_async_task(
-        task=Invoker.resolve_proxied_callable(
-            module_name="ai_coordination_engine",
-            function_name="async_insert_update_session",
-            class_name="AICoordinationEngine",
-            constructor_parameters={
-                "logger": info.context.get("logger"),
-                **info.context.get("setting", {}),
-            },
-        ),
-        parameters=params,
-    )
+    invoker = info.context.get("aws_lambda_invoker")
 
-    # Invoker.invoke_funct_on_aws_lambda(
-    #     info.context,
-    #     "async_insert_update_session",
-    #     params=params,
-    #     aws_lambda=Config.aws_lambda,
-    #     invocation_type="Event",
+    if callable(invoker):
+        invoker(
+            function_name=info.context.get("aws_lambda_arn"),
+            invocation_type=InvocationType.EVENT,
+            payload=Invoker.build_invoker_payload(
+                context=info.context,
+                module_name="ai_coordination_engine",
+                function_name="async_insert_update_session",
+                class_name="AICoordinationEngine",
+                parameters=params,
+            ),
+        )
+
+    # Invoker.execute_async_task(
+    #     task=Invoker.resolve_proxied_callable(
+    #         module_name="ai_coordination_engine",
+    #         function_name="async_insert_update_session",
+    #         class_name="AICoordinationEngine",
+    #         constructor_parameters={
+    #             "logger": info.context.get("logger"),
+    #             **info.context.get("setting", {}),
+    #         },
+    #     ),
+    #     parameters=params,
     # )

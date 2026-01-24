@@ -202,6 +202,14 @@ class AICoordinationEngine(Graphql):
     def async_insert_update_session(self, **params: Dict[str, Any]) -> Any:
         self._apply_partition_defaults(params)
 
+        Debugger.info(
+            variable=params,
+            stage=f"{__file__}.async_insert_update_session",
+            delimiter="()",
+            setting=self.setting,
+            enabled_trace=False,
+        )
+
         operation_hub_listener.async_insert_update_session(
             self.logger, self.setting, **params
         )

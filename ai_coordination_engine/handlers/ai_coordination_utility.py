@@ -7,6 +7,7 @@ __author__ = "bibow"
 import logging
 import os
 import sys
+import time
 import traceback
 import zipfile
 from typing import Any, Callable, Dict, List, Optional
@@ -95,6 +96,7 @@ def invoke_ask_model(
 ) -> Dict[str, Any]:
     """Call AI model for assistance via GraphQL query."""
     try:
+        start_time = time.perf_counter()
         ask_model = Graphql.request_graphql(
             context=context,
             module_name="ai_agent_core_engine",
@@ -105,13 +107,10 @@ def invoke_ask_model(
             variables=variables,
         )
 
-        # ask_model = execute_graphql_query(
-        #     context,
-        #     "ai_agent_core_graphql",
-        #     "askModel",
-        #     "Query",
-        #     variables,
-        # )["askModel"]
+        print(
+            f"\n{'--' * 20} Execute function `invoke_ask_model` spent {time.perf_counter() - start_time} s."
+        )
+
         return humps.decamelize(ask_model)
     except Exception as e:
         Debugger.info(
