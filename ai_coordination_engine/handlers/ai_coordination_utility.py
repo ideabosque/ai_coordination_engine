@@ -96,22 +96,17 @@ def invoke_ask_model(
 ) -> Dict[str, Any]:
     """Call AI model for assistance via GraphQL query."""
     try:
-        start_time = time.perf_counter()
-        ask_model = Graphql.request_graphql(
-            context=context,
-            module_name="ai_agent_core_engine",
-            function_name="ai_agent_core_graphql",
-            class_name="AIAgentCoreEngine",
-            graphql_operation_type="Query",
-            graphql_operation_name="askModel",
-            variables=variables,
+        return humps.decamelize(
+            Graphql.request_graphql(
+                context=context,
+                module_name="ai_agent_core_engine",
+                function_name="ai_agent_core_graphql",
+                class_name="AIAgentCoreEngine",
+                graphql_operation_type="Query",
+                graphql_operation_name="askModel",
+                variables=variables,
+            )
         )
-
-        print(
-            f"\n{'--' * 20} Execute function `invoke_ask_model` spent {time.perf_counter() - start_time} s."
-        )
-
-        return humps.decamelize(ask_model)
     except Exception as e:
         Debugger.info(
             variable=e,
