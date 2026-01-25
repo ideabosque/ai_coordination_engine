@@ -124,7 +124,7 @@ def ask_operation_hub(
         AskOperationHubType: Structured response with session details and run metadata
     """
     try:
-        required_keys = ["coordination_uuid", "agent_uuid"]
+        required_keys = {"coordination_uuid", "agent_uuid"}
 
         if not required_keys.issubset(kwargs.keys()):
             raise ValueError("Missing required parameter(s)")
