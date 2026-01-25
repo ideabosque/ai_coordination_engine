@@ -9,7 +9,7 @@ import traceback
 from typing import Any, Dict, Optional
 
 from graphene import ResolveInfo
-from silvaengine_constants import InvocationType
+from silvaengine_constants import AgentType, InvocationType
 from silvaengine_utility.debugger import Debugger
 from silvaengine_utility.invoker import Invoker
 from silvaengine_utility.serializer import Serializer
@@ -124,11 +124,16 @@ def ask_operation_hub(
         AskOperationHubType: Structured response with session details and run metadata
     """
     try:
+        required_keys = ["coordination_uuid", "agent_uuid"]
+
+        if not required_keys.issubset(kwargs.keys()):
+            raise ValueError("Missing required parameter(s)")
+
         start_time = time.perf_counter()
         # Start async task and get identifiers
         # Step 1: Initialize and validate coordination
         coordination = resolve_coordination(
-            info,
+            info=info,
             **{
                 "coordination_uuid": kwargs["coordination_uuid"],
             },
@@ -164,13 +169,14 @@ def ask_operation_hub(
         print(
             f"{'>' * 20} Execute function `_process_query` spent {time.perf_counter() - start_time} s."
         )
-        start_time = time.perf_counter()
+        # start_time = time.perf_counter()
 
-        connection_id = _handle_connection_routing(info, agent, **kwargs)
+        # connection_id = _handle_connection_routing(info, agent, **kwargs)
 
-        print(
-            f"{'>' * 20} Execute function `_handle_connection_routing` spent {time.perf_counter() - start_time} s."
-        )
+        # print(
+        #     f"{'>' * 20} Execute function `_handle_connection_routing` spent {time.perf_counter() - start_time} s."
+        # )
+
         start_time = time.perf_counter()
 
         # Step 5: Execute AI model and record session run
@@ -219,7 +225,13 @@ def ask_operation_hub(
         start_time = time.perf_counter()
 
         # Step 6: Handle async updates
-        _trigger_async_update(info, session_run, connection_id, agent, **kwargs)
+        _trigger_async_update(
+            info=info,
+            session_run=session_run,
+            connection_id=info.context.get("connection_id"),
+            agent=agent,
+            **kwargs,
+        )
 
         print(
             f"{'>' * 20} Execute function `_trigger_async_update` spent {time.perf_counter() - start_time} s."
@@ -293,28 +305,28 @@ def _select_agent(
             - agent_uuid: Optional agent identifier
 
     Returns:
-        Dict[str, Any]: Selected agent details
+        Dict[str, Any]: Selected agent details or None if no matching agent found
 
     Raises:
-        AssertionError: If no agents found for coordination
+        ValueError: If no agents found for coordination
     """
-    assert len(coordination.agents) > 0, "No agent found for the coordination."
+    target_agent_uuid = kwargs.get("agent_uuid")
+    agents = coordination.agents
 
-    return next(
-        (
-            agent
-            for agent in coordination.agents
-            if agent.get("agent_uuid") == kwargs.get("agent_uuid")
-        ),
-        next(
-            (
-                agent
-                for agent in coordination.agents
-                if agent.get("agent_type") == "triage"
-            ),
-            None,
-        ),
-    )
+    if not agents:
+        raise ValueError("No agent found for the coordination.")
+
+    triage_agent = None
+    agent_triage_type = AgentType.TRIAGE.value
+
+    for agent in agents:
+        if agent.get("agent_uuid") == target_agent_uuid:
+            return agent
+
+        if triage_agent is None and agent.get("agent_type") == agent_triage_type:
+            triage_agent = agent
+
+    return triage_agent
 
 
 def _process_query(
@@ -335,15 +347,18 @@ def _process_query(
     Returns:
         str: Processed query string with enhanced context for triage agents
     """
-    if type(agent) is dict and agent.get("agent_type") == "triage":
+    agent_triage_type = AgentType.TRIAGE.value
+    agent_task_type = AgentType.TASK.value
+
+    if isinstance(agent, dict) and agent.get("agent_type") == agent_triage_type:
         available_task_agents = [
             {
-                "agent_uuid": agent["agent_uuid"],
-                "agent_name": agent["agent_name"],
-                "agent_description": agent["agent_description"],
+                "agent_uuid": agent.get("agent_uuid"),
+                "agent_name": agent.get("agent_name"),
+                "agent_description": agent.get("agent_description"),
             }
             for agent in coordination.agents
-            if agent.get("agent_type") == "task"
+            if agent.get("agent_type") == agent_task_type
         ]
 
         user_query = (
@@ -374,6 +389,7 @@ def _handle_connection_routing(
         Optional[str]: Connection ID for routing messages
     """
     connection_id = info.context.get("connection_id")
+
     if "receiver_email" in kwargs and agent["agent_type"] != "triage":
         receiver_connection = get_connection_by_email(
             info.context.get("logger"),
@@ -414,7 +430,7 @@ def _trigger_async_update(
         params["connection_id"] = connection_id
 
     if (
-        connection_id is None
+        not connection_id
         and "receiver_email" in kwargs
         and agent["agent_type"] != "triage"
     ):
