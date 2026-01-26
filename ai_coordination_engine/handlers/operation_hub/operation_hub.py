@@ -6,7 +6,7 @@ __author__ = "bibow"
 
 import time
 import traceback
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from graphene import ResolveInfo
 from silvaengine_constants import AgentType, InvocationType
@@ -124,9 +124,11 @@ def ask_operation_hub(
         AskOperationHubType: Structured response with session details and run metadata
     """
     try:
-        required_keys = {"coordination_uuid", "agent_uuid", "user_query"}
+        coordination_uuid = kwargs.get("coordination_uuid")
+        agent_uuid = kwargs.get("agent_uuid")
+        user_query = kwargs.get("user_query")
 
-        if not required_keys.issubset(kwargs.keys()):
+        if not all([coordination_uuid, agent_uuid, user_query]):
             raise ValueError("Missing required parameter(s)")
 
         start_time = time.perf_counter()
@@ -134,13 +136,16 @@ def ask_operation_hub(
         # Step 1: Initialize and validate coordination
         coordination = resolve_coordination(
             info=info,
-            **{
-                "coordination_uuid": kwargs["coordination_uuid"],
-            },
+            **{"coordination_uuid": coordination_uuid},
         )
 
+        if not coordination or not isinstance(coordination.agents, list):
+            raise ValueError("Not found any coordination")
+
+        agents = coordination.agents
+
         print(
-            f"{'>' * 20} Execute function `resolve_coordination` spent {time.perf_counter() - start_time} s."
+            f"{'>' * 20} Execute function `resolve_coordination` spent {(time.perf_counter() - start_time):.6f} s."
         )
         start_time = time.perf_counter()
 
@@ -148,33 +153,38 @@ def ask_operation_hub(
         session = _handle_session(info, **kwargs)
 
         print(
-            f"{'>' * 20} Execute function `_handle_session` spent {time.perf_counter() - start_time} s."
+            f"{'>' * 20} Execute function `_handle_session` spent {(time.perf_counter() - start_time):.6f} s."
         )
         start_time = time.perf_counter()
 
         # Step 3: Select and validate agent
-        agent = _select_agent(coordination, **kwargs)
+        agent = _select_agent(agents=agents, agent_uuid=agent_uuid)
 
         if not agent:
             raise ValueError("Not found the specified agent")
 
         print(
-            f"{'>' * 20} Execute function `_select_agent` spent {time.perf_counter() - start_time} s."
+            f"{'>' * 20} Execute function `_select_agent` spent {(time.perf_counter() - start_time):.6f} s."
         )
         start_time = time.perf_counter()
 
         # Step 4: Process query and handle routing
-        user_query = _process_query(info, kwargs["user_query"], agent, coordination)
+        user_query = _process_query(
+            info=info,
+            user_query=user_query,
+            selected_agent=agent,
+            agents=agents,
+        )
 
         print(
-            f"{'>' * 20} Execute function `_process_query` spent {time.perf_counter() - start_time} s."
+            f"{'>' * 20} Execute function `_process_query` spent {(time.perf_counter() - start_time):.6f} s."
         )
         # start_time = time.perf_counter()
 
         # connection_id = _handle_connection_routing(info, agent, **kwargs)
 
         # print(
-        #     f"{'>' * 20} Execute function `_handle_connection_routing` spent {time.perf_counter() - start_time} s."
+        #     f"{'>' * 20} Execute function `_handle_connection_routing` spent {(time.perf_counter() - start_time):.6f} s."
         # )
 
         start_time = time.perf_counter()
@@ -202,7 +212,7 @@ def ask_operation_hub(
         ask_model = invoke_ask_model(context=info.context, **variables)
 
         print(
-            f"{'>' * 20} Execute function `invoke_ask_model` spent {time.perf_counter() - start_time} s."
+            f"{'>' * 20} Execute function `invoke_ask_model` spent {(time.perf_counter() - start_time):.6f} s."
         )
         start_time = time.perf_counter()
 
@@ -220,7 +230,7 @@ def ask_operation_hub(
         )
 
         print(
-            f"{'>' * 20} Execute function `insert_update_session_run` spent {time.perf_counter() - start_time} s."
+            f"{'>' * 20} Execute function `insert_update_session_run` spent {(time.perf_counter() - start_time):.6f} s."
         )
         start_time = time.perf_counter()
 
@@ -234,7 +244,7 @@ def ask_operation_hub(
         )
 
         print(
-            f"{'>' * 20} Execute function `_trigger_async_update` spent {time.perf_counter() - start_time} s."
+            f"{'>' * 20} Execute function `_trigger_async_update` spent {(time.perf_counter() - start_time):.6f} s."
         )
 
         # Step 7: Return response
@@ -293,9 +303,7 @@ def _handle_session(info: ResolveInfo, **kwargs: Dict[str, Any]) -> SessionType 
     return insert_update_session(info, **variables)
 
 
-def _select_agent(
-    coordination: CoordinationType, **kwargs: Dict[str, Any]
-) -> Dict[str, Any] | None:
+def _select_agent(agents: List, agent_uuid: str) -> Dict[str, Any] | None:
     """
     Helper function to select appropriate agent.
 
@@ -310,9 +318,6 @@ def _select_agent(
     Raises:
         ValueError: If no agents found for coordination
     """
-    target_agent_uuid = kwargs.get("agent_uuid")
-    agents = coordination.agents
-
     if not agents:
         raise ValueError("No agent found for the coordination.")
 
@@ -320,7 +325,7 @@ def _select_agent(
     agent_triage_type = AgentType.TRIAGE.value
 
     for agent in agents:
-        if agent.get("agent_uuid") == target_agent_uuid:
+        if agent.get("agent_uuid") == agent_uuid:
             return agent
 
         if triage_agent is None and agent.get("agent_type") == agent_triage_type:
@@ -332,8 +337,8 @@ def _select_agent(
 def _process_query(
     info: ResolveInfo,
     user_query: str,
-    agent: Dict[str, Any],
-    coordination: CoordinationType,
+    selected_agent: Dict[str, Any],
+    agents: List,
 ) -> str:
     """
     Helper function to process and enhance user queries.
@@ -348,27 +353,30 @@ def _process_query(
         str: Processed query string with enhanced context for triage agents
     """
     agent_triage_type = AgentType.TRIAGE.value
+
+    if not (
+        isinstance(selected_agent, dict)
+        and selected_agent.get("agent_type") == agent_triage_type
+    ):
+        return user_query
+
     agent_task_type = AgentType.TASK.value
+    task_agents = [
+        {
+            "agent_uuid": agent.get("agent_uuid"),
+            "agent_name": agent.get("agent_name"),
+            "agent_description": agent.get("agent_description"),
+        }
+        for agent in agents
+        if agent.get("agent_type") == agent_task_type
+    ]
 
-    if isinstance(agent, dict) and agent.get("agent_type") == agent_triage_type:
-        available_task_agents = [
-            {
-                "agent_uuid": agent.get("agent_uuid"),
-                "agent_name": agent.get("agent_name"),
-                "agent_description": agent.get("agent_description"),
-            }
-            for agent in coordination.agents
-            if agent.get("agent_type") == agent_task_type
-        ]
-
-        user_query = (
-            f"Based on the following user query, please analyze and select the most appropriate agent:\n"
-            f"User Query: {user_query}\n"
-            f"Available Agents: {Serializer.json_dumps(available_task_agents)}\n"
-            f"Please assess the intent behind the query and align it with the agent's most appropriate capabilities, then export the results in JSON format."
-        )
-        info.context.get("logger").info(f"Enhanced triage request: {user_query}")
-    return user_query
+    return f"""
+    Based on the following user query, please analyze and select the most appropriate agent:
+    User Query: {user_query}
+    Available Agents: {Serializer.json_dumps(task_agents)}
+    Please assess the intent behind the query and align it with the agent's most appropriate capabilities, then export the results in JSON format.
+    """
 
 
 def _handle_connection_routing(
