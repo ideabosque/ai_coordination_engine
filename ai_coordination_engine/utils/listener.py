@@ -28,6 +28,7 @@ def create_listener_info(
             "partition_key", kwargs.get("context", {}).get("partition_key")
         ),
     }
+    context.update(kwargs.get("context", {}))
 
     if "context" in kwargs:
         context.update(kwargs.get("context", {}))
