@@ -7,6 +7,7 @@ __author__ = "bibow"
 from typing import Any, Dict
 
 from graphene import ResolveInfo
+from silvaengine_utility import Debugger
 
 
 def create_listener_info(
@@ -30,8 +31,11 @@ def create_listener_info(
     }
     context.update(kwargs.get("context", {}))
 
-    if "context" in kwargs:
-        context.update(kwargs.get("context", {}))
+    Debugger.info(
+        variable=context,
+        stage=f"{__file__}.create_listener_info",
+        delimiter="#",
+    )
 
     return ResolveInfo(
         field_name=field_name,
