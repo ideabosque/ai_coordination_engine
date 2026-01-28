@@ -127,12 +127,15 @@ def invoke_ask_model(
         #   }
         # }
         # """
-        query = GraphqlSchemaModel.fetch(
+        query = GraphqlSchemaModel.get_schema(
             endpoint_id=context.get("endpoint_id"),
             operation_type="Query",
             operation_name="askModel",
             module_name="ai_agent_core_engine",
-        ).schema
+        )
+
+        Debugger.info(variable=query, stage=f"{__file__}.invoke_ask_model")
+
         return humps.decamelize(
             Graphql.request_graphql(
                 context=context,
