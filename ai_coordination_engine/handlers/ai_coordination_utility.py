@@ -97,44 +97,12 @@ def invoke_ask_model(
 ) -> Dict[str, Any]:
     """Call AI model for assistance via GraphQL query."""
     try:
-        # query = """
-        # query askModel(
-        #   $agentUuid: String!
-        #   $threadUuid: String
-        #   $userId: String
-        #   $userQuery: String!
-        #   $inputFiles: [JSONCamelCase]
-        #   $stream: Boolean
-        #   $threadLifeMinutes: Int
-        #   $updatedBy: String!
-        # ) {
-        #   askModel(
-        #     agentUuid: $agentUuid
-        #     threadUuid: $threadUuid
-        #     userId: $userId
-        #     userQuery: $userQuery
-        #     inputFiles: $inputFiles
-        #     stream: $stream
-        #     threadLifeMinutes: $threadLifeMinutes
-        #     updatedBy: $updatedBy
-        #   ) {
-        #     agentUuid
-        #     threadUuid
-        #     userQuery
-        #     functionName
-        #     asyncTaskUuid
-        #     currentRunUuid
-        #   }
-        # }
-        # """
-        query = GraphqlSchemaModel.get_schema(
-            endpoint_id=context.get("endpoint_id"),
-            operation_type="Query",
-            operation_name="askModel",
-            module_name="ai_agent_core_engine",
-        )
-
-        Debugger.info(variable=query, stage=f"{__file__}.invoke_ask_model")
+        # query = GraphqlSchemaModel.get_schema(
+        #     endpoint_id=context.get("endpoint_id"),
+        #     operation_type="Query",
+        #     operation_name="askModel",
+        #     module_name="ai_agent_core_engine",
+        # )
 
         return humps.decamelize(
             Graphql.request_graphql(
@@ -142,10 +110,10 @@ def invoke_ask_model(
                 module_name="ai_agent_core_engine",
                 function_name="ai_agent_core_graphql",
                 class_name="AIAgentCoreEngine",
-                graphql_operation_type="Query",
-                graphql_operation_name="askModel",
-                query=query,
+                operation_name="askModel",
                 variables=variables,
+                # operation_type="Query",
+                # query=query,
             )
         )
     except Exception as e:
@@ -167,8 +135,8 @@ def get_async_task(
         context=context,
         module_name="ai_agent_core_engine",
         function_name="ai_agent_core_graphql",
-        graphql_operation_type="Query",
-        graphql_operation_name="asyncTask",
+        # operation_type="Query",
+        operation_name="asyncTask",
         class_name="AIAgentCoreEngine",
         variables=variables,
     )
