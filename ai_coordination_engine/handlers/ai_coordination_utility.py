@@ -16,6 +16,7 @@ import humps
 from boto3.dynamodb.conditions import Attr, Key
 from graphene import ResolveInfo
 from promise import Promise
+from silvaengine_dynamodb_base.models import GraphqlSchemaModel
 from silvaengine_utility import Debugger, Graphql, Invoker, Serializer
 
 from .config import Config
@@ -96,6 +97,42 @@ def invoke_ask_model(
 ) -> Dict[str, Any]:
     """Call AI model for assistance via GraphQL query."""
     try:
+        # query = """
+        # query askModel(
+        #   $agentUuid: String!
+        #   $threadUuid: String
+        #   $userId: String
+        #   $userQuery: String!
+        #   $inputFiles: [JSONCamelCase]
+        #   $stream: Boolean
+        #   $threadLifeMinutes: Int
+        #   $updatedBy: String!
+        # ) {
+        #   askModel(
+        #     agentUuid: $agentUuid
+        #     threadUuid: $threadUuid
+        #     userId: $userId
+        #     userQuery: $userQuery
+        #     inputFiles: $inputFiles
+        #     stream: $stream
+        #     threadLifeMinutes: $threadLifeMinutes
+        #     updatedBy: $updatedBy
+        #   ) {
+        #     agentUuid
+        #     threadUuid
+        #     userQuery
+        #     functionName
+        #     asyncTaskUuid
+        #     currentRunUuid
+        #   }
+        # }
+        # """
+        query = GraphqlSchemaModel.fetch(
+            endpoint_id=context.get("endpoint_id"),
+            operation_type="Query",
+            operation_name="askModel",
+            module_name="ai_agent_core_engine",
+        )
         return humps.decamelize(
             Graphql.request_graphql(
                 context=context,
@@ -104,6 +141,7 @@ def invoke_ask_model(
                 class_name="AIAgentCoreEngine",
                 graphql_operation_type="Query",
                 graphql_operation_name="askModel",
+                query=query,
                 variables=variables,
             )
         )

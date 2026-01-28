@@ -61,6 +61,10 @@ def deploy() -> List:
                             "action": "threadList",
                             "label": "View Coordination Message List",
                         },
+                        {
+                            "action": "askOperationHub",
+                            "label": "Ask Operation Hub",
+                        },
                     ],
                     "mutation": [
                         {
