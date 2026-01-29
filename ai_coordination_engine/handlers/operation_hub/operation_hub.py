@@ -131,7 +131,6 @@ def ask_operation_hub(
         if not all([coordination_uuid, agent_uuid, user_query]):
             raise ValueError("Missing required parameter(s)")
 
-        start_time = time.perf_counter()
         # Start async task and get identifiers
         # Step 1: Initialize and validate coordination
         coordination = resolve_coordination(
@@ -144,29 +143,14 @@ def ask_operation_hub(
 
         agents = coordination.agents
 
-        print(
-            f"{'>' * 20} Execute function `resolve_coordination` spent {(time.perf_counter() - start_time):.6f} s."
-        )
-        start_time = time.perf_counter()
-
         # Step 2: Create/update session
         session = _handle_session(info, **kwargs)
-
-        print(
-            f"{'>' * 20} Execute function `_handle_session` spent {(time.perf_counter() - start_time):.6f} s."
-        )
-        start_time = time.perf_counter()
 
         # Step 3: Select and validate agent
         agent = _select_agent(agents=agents, agent_uuid=agent_uuid)
 
         if not agent:
             raise ValueError("Not found the specified agent")
-
-        print(
-            f"{'>' * 20} Execute function `_select_agent` spent {(time.perf_counter() - start_time):.6f} s."
-        )
-        start_time = time.perf_counter()
 
         # Step 4: Process query and handle routing
         user_query = _process_query(
@@ -176,18 +160,7 @@ def ask_operation_hub(
             agents=agents,
         )
 
-        print(
-            f"{'>' * 20} Execute function `_process_query` spent {(time.perf_counter() - start_time):.6f} s."
-        )
-        # start_time = time.perf_counter()
-
         # connection_id = _handle_connection_routing(info, agent, **kwargs)
-
-        # print(
-        #     f"{'>' * 20} Execute function `_handle_connection_routing` spent {(time.perf_counter() - start_time):.6f} s."
-        # )
-
-        start_time = time.perf_counter()
 
         # Step 5: Execute AI model and record session run
         variables = {
@@ -211,11 +184,6 @@ def ask_operation_hub(
 
         ask_model = invoke_ask_model(context=info.context, **variables)
 
-        print(
-            f"{'>' * 20} Execute function `invoke_ask_model` spent {(time.perf_counter() - start_time):.6f} s."
-        )
-        start_time = time.perf_counter()
-
         session_run: SessionRunType = insert_update_session_run(
             info,
             **{
@@ -229,11 +197,6 @@ def ask_operation_hub(
             },
         )
 
-        print(
-            f"{'>' * 20} Execute function `insert_update_session_run` spent {(time.perf_counter() - start_time):.6f} s."
-        )
-        start_time = time.perf_counter()
-
         # Step 6: Handle async updates
         _trigger_async_update(
             info=info,
@@ -241,10 +204,6 @@ def ask_operation_hub(
             connection_id=info.context.get("connection_id"),
             agent=agent,
             **kwargs,
-        )
-
-        print(
-            f"{'>' * 20} Execute function `_trigger_async_update` spent {(time.perf_counter() - start_time):.6f} s."
         )
 
         # Step 7: Return response
