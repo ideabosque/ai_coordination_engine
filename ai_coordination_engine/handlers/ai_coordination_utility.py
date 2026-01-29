@@ -104,6 +104,8 @@ def invoke_ask_model(
             module_name="ai_agent_core_engine",
         )
 
+        Debugger.info(variable=query, stage=f"{__file__}.invoke_ask_model")
+
         return humps.decamelize(
             Graphql.request_graphql(
                 context=context,
@@ -112,7 +114,7 @@ def invoke_ask_model(
                 class_name="AIAgentCoreEngine",
                 operation_name="askModel",
                 variables=variables,
-                # operation_type="Query",
+                operation_type="Query",
                 query=query,
             )
         )
