@@ -25,13 +25,11 @@ def create_listener_info(
         "logger": logger,
         "connection_id": kwargs.get("connection_id"),
         "part_id": kwargs.get("part_id"),
+        "context": kwargs.get("context", {}),
         "partition_key": kwargs.get(
             "partition_key", kwargs.get("context", {}).get("partition_key")
         ),
     }
-
-    if "context" in kwargs and isinstance(kwargs["context"], dict):
-        context.update(kwargs.get("context", {}))
 
     if "metadata" in kwargs and isinstance(kwargs["metadata"], dict):
         context.update(kwargs.get("metadata", {}))
