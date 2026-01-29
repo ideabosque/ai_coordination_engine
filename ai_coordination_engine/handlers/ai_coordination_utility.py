@@ -97,12 +97,12 @@ def invoke_ask_model(
 ) -> Dict[str, Any]:
     """Call AI model for assistance via GraphQL query."""
     try:
-        # query = GraphqlSchemaModel.get_schema(
-        #     endpoint_id=context.get("endpoint_id"),
-        #     operation_type="Query",
-        #     operation_name="askModel",
-        #     module_name="ai_agent_core_engine",
-        # )
+        query = GraphqlSchemaModel.get_schema(
+            endpoint_id=context.get("endpoint_id"),
+            operation_type="Query",
+            operation_name="askModel",
+            module_name="ai_agent_core_engine",
+        )
 
         return humps.decamelize(
             Graphql.request_graphql(
@@ -113,7 +113,7 @@ def invoke_ask_model(
                 operation_name="askModel",
                 variables=variables,
                 # operation_type="Query",
-                # query=query,
+                query=query,
             )
         )
     except Exception as e:
