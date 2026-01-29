@@ -9,7 +9,6 @@ from typing import Any, Dict, List
 
 from graphene import Schema
 from silvaengine_dynamodb_base import BaseModel
-from silvaengine_dynamodb_base.models import GraphqlSchemaModel
 from silvaengine_utility import Debugger, Graphql
 
 from .handlers.config import Config
