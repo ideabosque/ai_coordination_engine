@@ -29,7 +29,12 @@ def create_listener_info(
             "partition_key", kwargs.get("context", {}).get("partition_key")
         ),
     }
-    # context.update(kwargs.get("context", {}))
+
+    if "context" in kwargs and isinstance(kwargs["context"], dict):
+        context.update(kwargs.get("context", {}))
+
+    if "metadata" in kwargs and isinstance(kwargs["metadata"], dict):
+        context.update(kwargs.get("metadata", {}))
 
     Debugger.info(
         variable=context,
