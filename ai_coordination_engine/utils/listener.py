@@ -36,12 +36,6 @@ def create_listener_info(
     if "metadata" in kwargs and isinstance(kwargs["metadata"], dict):
         context.update(kwargs.get("metadata", {}))
 
-    Debugger.info(
-        variable=context,
-        stage=f"{__file__}.create_listener_info",
-        delimiter="#",
-    )
-
     return ResolveInfo(
         field_name=field_name,
         field_nodes=[],  # legacy GraphQL AST field nodes

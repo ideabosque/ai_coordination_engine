@@ -194,10 +194,6 @@ class AICoordinationEngine(Graphql):
         if "part_id" not in params["context"]:
             params["context"]["part_id"] = part_id
 
-        if "graphql_schema_picker" not in params["context"]:
-            picker = GraphqlSchemaModel.get_schema_picker(endpoint_id=endpoint_id)
-            params["context"]["graphql_schema_picker"] = picker
-
         if "connection_id" not in params:
             params["connection_id"] = self.setting.get("connection_id")
 
