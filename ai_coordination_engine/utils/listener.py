@@ -29,7 +29,7 @@ def create_listener_info(
             "partition_key", kwargs.get("context", {}).get("partition_key")
         ),
     }
-    context.update(kwargs.get("context", {}))
+    # context.update(kwargs.get("context", {}))
 
     Debugger.info(
         variable=context,
