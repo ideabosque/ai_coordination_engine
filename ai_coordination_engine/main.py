@@ -175,9 +175,6 @@ class AICoordinationEngine(Graphql):
         Args:
             params (Dict[str, Any]): A dictionary of parameters required to build the GraphQL query.
         """
-        print(">>" * 120)
-        print(f"AICoordinationEngine._apply_partition_defaults: {params}")
-        print("<<" * 120)
         endpoint_id = params.get("endpoint_id", self.setting.get("endpoint_id"))
         part_id = params.get("metadata", {}).get(
             "part_id",
