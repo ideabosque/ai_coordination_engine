@@ -45,15 +45,17 @@ class CoordinationType(ObjectType):
         if not partition_key or not theme_uuid:
             return None
 
-        def cb(theme_setting):
-            print(theme_setting)
-            return (
-                ThemeSettingType(**Serializer.json_normalize(theme_setting))
-                if theme_setting
-                else None
+        return (
+            ThemeSettingLoader(info=info)
+            .load((partition_key, theme_uuid))
+            .then(
+                lambda theme_setting: (
+                    ThemeSettingType(**Serializer.json_normalize(theme_setting))
+                    if theme_setting
+                    else None
+                )
             )
-
-        return ThemeSettingLoader(info=info).load((partition_key, theme_uuid)).then(cb)
+        )
 
 
 class CoordinationListType(ListObjectType):
