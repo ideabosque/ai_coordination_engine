@@ -508,12 +508,19 @@ def execute_session_agent(info: ResolveInfo, session_agent: SessionAgentType) ->
             params.update({"connection_id": info.context["connection_id"]})
 
         # Invoke async update function on AWS Lambda
-        Invoker.invoke_funct_on_aws_lambda(
-            info.context,
-            "async_update_session_agent",
-            params=params,
-            aws_lambda=Config.aws_lambda,
-        )
+        invoker = info.context.get("aws_lambda_invoker")
+
+        if callable(invoker):
+            invoker(
+                payload=Invoker.build_invoker_payload(
+                    context=info.context,
+                    module_name="ai_coordination_engine",
+                    class_name="AICoordinationEngine",
+                    function_name="async_update_session_agent",
+                    parameters=params,
+                ),
+            )
+
         return
 
     except Exception as e:

@@ -10,7 +10,6 @@ import traceback
 from typing import Any, Dict, List
 
 from graphene import ResolveInfo
-
 from silvaengine_utility.invoker import Invoker
 from silvaengine_utility.serializer import Serializer
 
@@ -37,7 +36,7 @@ from .session_agent import (
 """Decompose System Instructions:
 Name: Task Decomposition and Agent Assignment Agent
 
-Description: An AI agent responsible for analyzing task queries, breaking them down into atomic subtasks, and assigning them to specialized agents based on their capabilities and execution dependencies. It evaluates agent capabilities, constructs detailed task prompts, and ensures proper sequencing according to dependency constraints. The agent handles ambiguity through clarification prompts and can escalate complex cases requiring human review. 
+Description: An AI agent responsible for analyzing task queries, breaking them down into atomic subtasks, and assigning them to specialized agents based on their capabilities and execution dependencies. It evaluates agent capabilities, constructs detailed task prompts, and ensures proper sequencing according to dependency constraints. The agent handles ambiguity through clarification prompts and can escalate complex cases requiring human review.
 
 Task: Decompose a high-level task query into atomic subtasks and assign each subtask to the appropriate agent based on capabilities and execution dependencies.
 
@@ -45,20 +44,20 @@ Role: You are a task orchestration assistant responsible for analyzing task quer
 
 Audience: This instruction is for the AI engine managing multi-agent systems and optimizing task execution.
 
-Context:  
+Context:
 You are given a task query and access to:
 - A list of agents and their capabilities (including agent_name, agent_description).
 - Predefined action dependency rules (`predecessors` relationships) that define the execution order and dependencies between agents in the workflow.
 - The primary path identifies the critical execution sequence and dependencies in the workflow, ensuring optimal task progression and completion.
 
 Steps:
-1. Analyze the task query:  
+1. Analyze the task query:
    Identify the primary goal and break it down into minimal, atomic subtasks necessary to achieve the task.
-2. Match subtasks to agents:  
+2. Match subtasks to agents:
    Evaluate agent capabilities and assign subtasks to the most suitable agents. Ensure each agent is only given tasks they are capable of completing.
 3. Generate agent-specific task queries:
    For each subtask, construct a detailed task prompt including all required context and parameters for the assigned agent.
-4. Validate subtask dependencies:  
+4. Validate subtask dependencies:
    Ensure the order of subtask execution aligns with the dependency constraints defined in predecessor relationships.
 
 Constraints and Notes:
@@ -72,22 +71,22 @@ Handling Ambiguity and Errors <<error_type>: <detailed_explanation>>:
 - Error Handling Prompt: "I cannot proceed with subtask generation because the agent capabilities or dependency data is incomplete or missing."
 - Transfer Prompt: "This task requires human review due to undefined dependencies or capability mismatches. Transferring now."
 
-Output Format:  
+Output Format:
 A structured JSON object with the following fields:
 ```json
 {
     "subtask_queries": [
         {
-            "agent_uuid": "<agent identifier>", 
+            "agent_uuid": "<agent identifier>",
             "subtask_query": "<specific subtask description>"
         }
     ]
 }
 ```
-The error output format should be a dictionary with 'Error' and 'Reason' keys: 
+The error output format should be a dictionary with 'Error' and 'Reason' keys:
 ```json
 {
-    "Error": "<error_type>", 
+    "Error": "<error_type>",
     "Reason": "<detailed_explanation>"
 }
 ```
@@ -104,7 +103,7 @@ Output
             "subtask_query": "Retrieve products related to carpet cleaning using `get_results_from_knowledge_rag` and present the response in English, summarizing key points and citing sources if available."
         },
         {
-            "agent_uuid": "agent-mock-002", 
+            "agent_uuid": "agent-mock-002",
             "subtask_query": "Translate the product retrieval results into Chinese and format the message for the provider, ensuring clarity and professionalism."
         }
     ]
@@ -310,12 +309,18 @@ def invoke_next_iteration(
     if "" in info.context:
         params.update({"connection_id": info.context[""]})
 
-    Invoker.invoke_funct_on_aws_lambda(
-        info.context,
-        "async_execute_procedure_task_session",
-        params=params,
-        aws_lambda=Config.aws_lambda,
-    )
+    invoker = info.context.get("aws_lambda_invoker")
+
+    if callable(invoker):
+        invoker(
+            payload=Invoker.build_invoker_payload(
+                context=info.context,
+                module_name="ai_coordination_engine",
+                class_name="AICoordinationEngine",
+                function_name="async_execute_procedure_task_session",
+                parameters=params,
+            ),
+        )
 
 
 def _process_task_completion(

@@ -7,7 +7,6 @@ __author__ = "bibow"
 from typing import Any, Dict
 
 from graphene import ResolveInfo
-
 from silvaengine_utility.invoker import Invoker
 from silvaengine_utility.serializer import Serializer
 
@@ -83,12 +82,18 @@ def execute_procedure_task_session(
 
     # Invoke async update function on AWS Lambda
     if not session.subtask_queries:
-        Invoker.invoke_funct_on_aws_lambda(
-            info.context,
-            "async_orchestrate_task_query",
-            params=params,
-            aws_lambda=Config.aws_lambda,
-        )
+        invoker = info.context.get("aws_lambda_invoker")
+
+        if callable(invoker):
+            invoker(
+                payload=Invoker.build_invoker_payload(
+                    context=info.context,
+                    module_name="ai_coordination_engine",
+                    class_name="AICoordinationEngine",
+                    function_name="async_orchestrate_task_query",
+                    parameters=params,
+                ),
+            )
     else:
         session: SessionType = insert_update_session(
             info,
@@ -109,12 +114,18 @@ def execute_procedure_task_session(
         )
 
     # Invoke async update function on AWS Lambda
-    Invoker.invoke_funct_on_aws_lambda(
-        info.context,
-        "async_execute_procedure_task_session",
-        params=params,
-        aws_lambda=Config.aws_lambda,
-    )
+    invoker = info.context.get("aws_lambda_invoker")
+
+    if callable(invoker):
+        invoker(
+            payload=Invoker.build_invoker_payload(
+                context=info.context,
+                module_name="ai_coordination_engine",
+                class_name="AICoordinationEngine",
+                function_name="async_execute_procedure_task_session",
+                parameters=params,
+            ),
+        )
 
     return ProcedureTaskSessionType(
         **{

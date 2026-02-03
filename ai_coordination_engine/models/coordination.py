@@ -25,11 +25,11 @@ from silvaengine_dynamodb_base import (
     resolve_list_decorator,
 )
 from silvaengine_utility import Debugger, method_cache
-from ..utils.normalization import normalize_to_json
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..handlers.config import Config
 from ..types.coordination import CoordinationListType, CoordinationType
+from ..utils.normalization import normalize_to_json
 
 
 class CoordinationModel(BaseModel):
@@ -43,6 +43,7 @@ class CoordinationModel(BaseModel):
     coordination_name = UnicodeAttribute()
     coordination_description = UnicodeAttribute()
     agents = ListAttribute(of=MapAttribute)
+    theme_uuid = UnicodeAttribute()
     updated_by = UnicodeAttribute()
     created_at = UTCDateTimeAttribute()
     updated_at = UTCDateTimeAttribute()
@@ -108,7 +109,7 @@ def purge_cache():
 @method_cache(
     ttl=Config.get_cache_ttl(),
     cache_name=Config.get_cache_name("models", "coordination"),
-    cache_enabled=Config.is_cache_enabled,
+    cache_enabled=False,
 )
 def get_coordination(partition_key: str, coordination_uuid: str) -> CoordinationModel:
     return CoordinationModel.get(partition_key, coordination_uuid)
