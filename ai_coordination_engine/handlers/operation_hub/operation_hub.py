@@ -417,16 +417,3 @@ def _trigger_async_update(
                 parameters=params,
             ),
         )
-
-    # Invoker.execute_async_task(
-    #     task=Invoker.resolve_proxied_callable(
-    #         module_name="ai_coordination_engine",
-    #         function_name="async_insert_update_session",
-    #         class_name="AICoordinationEngine",
-    #         constructor_parameters={
-    #             "logger": info.context.get("logger"),
-    #             **info.context.get("setting", {}),
-    #         },
-    #     ),
-    #     parameters=params,
-    # )

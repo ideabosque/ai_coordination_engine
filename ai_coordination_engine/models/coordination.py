@@ -199,9 +199,11 @@ def insert_update_coordination(info: ResolveInfo, **kwargs: Dict[str, Any]) -> N
             "created_at": pendulum.now("UTC"),
             "updated_at": pendulum.now("UTC"),
         }
+
         for key in [
             "coordination_name",
             "coordination_description",
+            "theme_uuid",
             "agents",
         ]:
             if key in kwargs:
@@ -224,6 +226,7 @@ def insert_update_coordination(info: ResolveInfo, **kwargs: Dict[str, Any]) -> N
         "coordination_name": CoordinationModel.coordination_name,
         "coordination_description": CoordinationModel.coordination_description,
         "agents": CoordinationModel.agents,
+        "theme_uuid": CoordinationModel.theme_uuid,
     }
 
     # Check if a key exists in kwargs before adding it to the update actions
