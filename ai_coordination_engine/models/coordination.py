@@ -43,7 +43,7 @@ class CoordinationModel(BaseModel):
     coordination_name = UnicodeAttribute()
     coordination_description = UnicodeAttribute()
     agents = ListAttribute(of=MapAttribute)
-    theme_uuid = UnicodeAttribute()
+    theme_uuid = UnicodeAttribute(null=True)
     updated_by = UnicodeAttribute()
     created_at = UTCDateTimeAttribute()
     updated_at = UTCDateTimeAttribute()
