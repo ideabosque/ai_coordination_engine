@@ -6,6 +6,7 @@ __author__ = "bibow"
 
 import time
 import traceback
+import uuid
 from typing import Any, Dict, List, Tuple
 
 from graphene import ResolveInfo
@@ -14,6 +15,8 @@ from silvaengine_utility.serializer import Serializer
 
 from ...models.session import insert_update_session
 from ...models.session_agent import (
+    batch_insert_session_agents,
+    batch_update_session_agents_in_degree,
     insert_update_session_agent,
     resolve_session_agent,
     resolve_session_agent_list,
@@ -28,12 +31,19 @@ from ..ai_coordination_utility import (
     invoke_ask_model,
 )
 from ..config import Config
+from ..config_manager import get_performance_config
+from .smart_polling import poll_async_task_smart
 
 
 def init_session_agents(
     info: ResolveInfo, session: SessionType
 ) -> List[SessionAgentType]:
     """Initializes session agents for each agent in the agent list
+    
+    This function supports both individual and batch creation modes.
+    When batch creation is enabled via feature flag, multiple agents
+    will be created in a single batch operation for improved performance.
+    
     Args:
         info (ResolveInfo): GraphQL resolve info containing context
         session (SessionType): Session object containing task and coordination details
@@ -44,8 +54,13 @@ def init_session_agents(
             - agent_uuid
             - agent_action
     """
+    logger = info.context.get("logger")
+    config = get_performance_config()
+    
     session_agents = []
     subtask_queries = []
+    agents_data = []
+    agent_uuid_to_session_agent_uuid = {}
 
     # Get task data with nested coordination info
     task_data = ensure_task_data(session, info)
@@ -59,6 +74,7 @@ def init_session_agents(
             f"Available keys: {list(task_data.keys())}"
         )
 
+    # Prepare agents data for batch creation
     for agent in task_data["coordination"]["agents"]:
         if agent["agent_type"] != "task":
             continue
@@ -70,19 +86,20 @@ def init_session_agents(
                 session.subtask_queries,
             )
         ):
-            session_agent = insert_update_session_agent(
-                info,
-                **{
-                    "session_uuid": session.session_uuid,
-                    "coordination_uuid": session.coordination_uuid,
-                    "agent_uuid": agent["agent_uuid"],
-                    "agent_action": task_data["agent_actions"].get(
-                        agent["agent_uuid"], {}
-                    ),
-                    "updated_by": "procedure_hub",
-                },
-            )
-
+            session_agent_uuid = str(uuid.uuid4())
+            agent_uuid_to_session_agent_uuid[agent["agent_uuid"]] = session_agent_uuid
+            
+            agents_data.append({
+                "session_uuid": session.session_uuid,
+                "session_agent_uuid": session_agent_uuid,
+                "coordination_uuid": session.coordination_uuid,
+                "agent_uuid": agent["agent_uuid"],
+                "agent_action": task_data["agent_actions"].get(
+                    agent["agent_uuid"], {}
+                ),
+                "updated_by": "procedure_hub",
+            })
+            
             try:
                 # Check if task_query is valid JSON and can be parsed
                 variables = {
@@ -91,7 +108,7 @@ def init_session_agents(
                 }
                 subtask_query.update(
                     {
-                        "session_agent_uuid": session_agent.session_agent_uuid,
+                        "session_agent_uuid": session_agent_uuid,
                         "subtask_query": subtask_query["subtask_query"].format(
                             **variables
                         ),
@@ -101,13 +118,24 @@ def init_session_agents(
                 # If task_query is not valid JSON, just update session_agent_uuid
                 subtask_query.update(
                     {
-                        "session_agent_uuid": session_agent.session_agent_uuid,
+                        "session_agent_uuid": session_agent_uuid,
                     }
                 )
 
             subtask_queries.append(subtask_query)
 
-            # Add session agent details to list
+    # Create session agents (batch or individual based on config)
+    if config.enable_batch_session_agent_create and len(agents_data) > 1:
+        logger.info(
+            f"Using batch creation for {len(agents_data)} session agents"
+        )
+        session_agents = batch_insert_session_agents(info, agents_data)
+    else:
+        logger.info(
+            f"Using individual creation for {len(agents_data)} session agents"
+        )
+        for data in agents_data:
+            session_agent = insert_update_session_agent(info, **data)
             session_agents.append(session_agent)
 
     session = insert_update_session(
@@ -129,8 +157,15 @@ def init_in_degree(
     """
     Initializes the in-degree for each session_agent in a task session.
     The in-degree represents the number of dependencies each session_agent has.
+    
+    This function supports both individual and batch update modes.
+    When batch update is enabled via feature flag, multiple agents
+    will be updated in a single batch operation for improved performance.
     """
     try:
+        logger = info.context.get("logger")
+        config = get_performance_config()
+        
         # Step 2: Build dependency graph (successor -> predecessors mapping)
         dependency_graph = {}
 
@@ -152,10 +187,10 @@ def init_in_degree(
                     in_degree_map[successor] += 1
 
         # Step 4: Batch update session agents with computed in-degree
-        updated_agents = []
+        updates = []
         for session_agent in session_agents:
             session_agent.in_degree = in_degree_map.get(session_agent.agent_uuid, 0)
-            updated_agents.append(
+            updates.append(
                 {
                     "session_uuid": session_agent.session_uuid,
                     "session_agent_uuid": session_agent.session_agent_uuid,
@@ -164,29 +199,36 @@ def init_in_degree(
                 }
             )
 
-        # Batch update instead of multiple insert/update calls
-
-        updated_session_agents = []
-        for agent_update in updated_agents:
-            updated_session_agent: SessionAgentType = insert_update_session_agent(
-                info, **agent_update
+        # Batch update or individual update based on config
+        if config.enable_batch_session_agent_create and len(updates) > 1:
+            logger.info(
+                f"Using batch update for in_degree of {len(updates)} session agents"
             )
-
-            # Add session agent details to list
-            updated_session_agents.append(
-                {
-                    "session_agent_uuid": updated_session_agent.session_agent_uuid,
-                    "agent_uuid": updated_session_agent.agent_uuid,
-                    "agent_action": updated_session_agent.agent_action,
-                    "in_degree": updated_session_agent.in_degree,
-                }
+            updated_session_agents = batch_update_session_agents_in_degree(info, updates)
+        else:
+            logger.info(
+                f"Using individual update for in_degree of {len(updates)} session agents"
             )
+            updated_session_agents = []
+            for agent_update in updates:
+                updated_session_agent: SessionAgentType = insert_update_session_agent(
+                    info, **agent_update
+                )
+                updated_session_agents.append(updated_session_agent)
 
-        info.context["logger"].info(
+        logger.info(
             f"In-degree initialized for {len(session_agents)} session agents."
         )
 
-        return updated_session_agents
+        return [
+            {
+                "session_agent_uuid": agent.session_agent_uuid,
+                "agent_uuid": agent.agent_uuid,
+                "agent_action": agent.agent_action,
+                "in_degree": agent.in_degree,
+            }
+            for agent in updated_session_agents
+        ]
 
     except Exception as e:
         info.context["logger"].error(
@@ -303,34 +345,36 @@ def update_session_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
         if session_agent.agent_action.get("user_in_the_loop"):
             info.context["logger"].info("🚀 Executing user_in_the_loop session_agent.")
 
-        # Poll async task with configurable timeout
-        start_time = time.time()
-        TIMEOUT = 60  # seconds
-        POLL_INTERVAL = 1  # seconds
-
-        while time.time() - start_time < TIMEOUT:
-            async_task = get_async_task(
+        # Use smart polling for async task monitoring
+        config = get_performance_config()
+        
+        def task_fetcher():
+            return get_async_task(
                 info.context,
                 **{
                     "functionName": "async_execute_ask_model",
                     "asyncTaskUuid": kwargs["async_task_uuid"],
                 },
             )
-
-            status = async_task["status"]
-            if status == "completed":
-                session_agent.agent_output = async_task["result"]
-                break
-            elif status == "failed":
-                session_agent.state = "failed"
-                session_agent.notes = async_task["notes"]
-                break
-
-            time.sleep(POLL_INTERVAL)  # Avoid tight polling loop
-        else:
-            # Handle timeout
+        
+        # Poll with smart strategy
+        poll_result = poll_async_task_smart(
+            task_fetcher=task_fetcher,
+            logger=info.context["logger"],
+            task_type="ask_model",
+            custom_config=config
+        )
+        
+        # Process polling result
+        if poll_result.status == "completed":
+            session_agent.agent_output = poll_result.result
+        elif poll_result.status == "failed":
             session_agent.state = "failed"
-            session_agent.notes = f"Task timed out after {TIMEOUT} seconds"
+            session_agent.notes = poll_result.notes
+        else:  # timeout
+            session_agent.state = "failed"
+            session_agent.notes = poll_result.notes or f"Task timed out after {poll_result.total_duration:.1f} seconds"
+            
     except Exception as e:
         # Handle exceptions by logging and marking agent as failed
         log = traceback.format_exc()

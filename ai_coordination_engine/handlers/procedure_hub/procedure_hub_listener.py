@@ -4,6 +4,7 @@ from __future__ import print_function
 
 __author__ = "bibow"
 
+import asyncio
 import logging
 import time
 import traceback
@@ -14,6 +15,7 @@ from silvaengine_utility.invoker import Invoker
 from silvaengine_utility.serializer import Serializer
 
 from ...handlers.config import Config
+from ...handlers.config_manager import get_performance_config
 from ...models.session import insert_update_session, resolve_session
 from ...models.session_agent import resolve_session_agent_list
 from ...types.session import SessionType
@@ -26,6 +28,7 @@ from ..ai_coordination_utility import (
     invoke_ask_model,
 )
 from .action_function import execute_action_function
+from .parallel_executor import get_parallel_executor, AgentExecutionStatus
 from .session_agent import (
     execute_session_agent,
     init_in_degree,
@@ -692,24 +695,108 @@ def _execute_ready_agents(
     info: ResolveInfo, ready_session_agents: List[SessionAgentType]
 ) -> None:
     """Execute all ready session agents
+    
+    This function supports both serial and parallel execution modes.
+    When parallel execution is enabled via feature flag, multiple agents
+    will be executed concurrently for improved performance.
+    
     Args:
-        logger (logging.Logger): Logger instance
-        endpoint_id (str): ID of the endpoint
-        ready_session_agents (list): List of agents ready for execution
-        setting (Dict): Dictionary containing settings
+        info: GraphQL resolve info containing context
+        ready_session_agents: List of agents ready for execution
+        
     Returns:
         None
     """
-    for session_agent in ready_session_agents:
-        if session_agent.state == "pending":
-            # TODO: Implement logic to handle pending state
-            execute_action_function(info, session_agent)
-        else:
-            # TODO: Execute execute_session_agent
-            info.context["logger"].info(
-                f"\n🚀 Executing session_agent: {session_agent.agent_uuid}"
+    config = get_performance_config()
+    logger = info.context["logger"]
+    
+    # Check if parallel execution is enabled and we have multiple agents
+    if (config.is_feature_enabled("PARALLEL_EXECUTION") and 
+        len(ready_session_agents) > 1):
+        
+        logger.info(
+            f"Parallel execution enabled for {len(ready_session_agents)} agents"
+        )
+        
+        # Run parallel execution in async context
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            # No event loop exists, create one
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        
+        # Get or create parallel executor
+        parallel_executor = get_parallel_executor(
+            max_workers=config.max_parallel_agents,
+            logger=logger
+        )
+        
+        # Separate action_function agents from session_agents
+        action_agents = [
+            agent for agent in ready_session_agents 
+            if agent.state == "pending"
+        ]
+        session_agents = [
+            agent for agent in ready_session_agents 
+            if agent.state != "pending"
+        ]
+        
+        # Execute action_function agents serially (they are typically fast)
+        for session_agent in action_agents:
+            logger.info(
+                f"\n🚀 Executing action_function for agent: {session_agent.agent_uuid}"
             )
-            execute_session_agent(info, session_agent)
+            execute_action_function(info, session_agent)
+        
+        # Execute session_agents in parallel
+        if session_agents:
+            logger.info(
+                f"\n🚀 Executing {len(session_agents)} session_agents in parallel"
+            )
+            
+            # Run parallel execution
+            results = loop.run_until_complete(
+                parallel_executor.execute_agents_parallel(
+                    info=info,
+                    ready_agents=session_agents,
+                    execute_func=execute_session_agent
+                )
+            )
+            
+            # Log results
+            for result in results:
+                if result.status == AgentExecutionStatus.COMPLETED:
+                    logger.info(
+                        f"✅ Agent {result.agent_uuid} completed in {result.duration_seconds:.2f}s"
+                    )
+                else:
+                    logger.error(
+                        f"❌ Agent {result.agent_uuid} failed: {result.error}"
+                    )
+                    # Propagate error by re-raising
+                    if result.error:
+                        raise Exception(
+                            f"Agent {result.agent_uuid} execution failed: {result.error}"
+                        )
+    else:
+        # Serial execution (default behavior for backward compatibility)
+        if config.is_feature_enabled("PARALLEL_EXECUTION"):
+            logger.info(
+                "Parallel execution enabled but only 1 agent ready, using serial mode"
+            )
+        
+        for session_agent in ready_session_agents:
+            if session_agent.state == "pending":
+                logger.info(
+                    f"\n🚀 Executing action_function for agent: {session_agent.agent_uuid}"
+                )
+                execute_action_function(info, session_agent)
+            else:
+                logger.info(
+                    f"\n🚀 Executing session_agent: {session_agent.agent_uuid}"
+                )
+                execute_session_agent(info, session_agent)
 
 
 def async_execute_procedure_task_session(

@@ -6,7 +6,7 @@ __author__ = "bibow"
 
 import functools
 import traceback
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 import pendulum
 from graphene import ResolveInfo
@@ -301,3 +301,156 @@ def insert_update_session_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> 
 def delete_session_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
     kwargs.get("entity").delete()
     return True
+
+
+def batch_insert_session_agents(
+    info: ResolveInfo, agents_data: List[Dict[str, Any]]
+) -> List[SessionAgentType]:
+    """Batch create session agents using DynamoDB batch write.
+    
+    This function provides optimized batch creation of session agents,
+    reducing the number of DynamoDB write operations from N individual
+    writes to a single batch write operation.
+    
+    Args:
+        info: GraphQL resolve info containing context
+        agents_data: List of dictionaries containing session agent data
+            Each dict should contain:
+            - session_uuid: UUID of the session
+            - session_agent_uuid: UUID for the new session agent
+            - coordination_uuid: UUID of the coordination
+            - agent_uuid: UUID of the agent
+            - agent_action: Agent action configuration
+            - updated_by: User who initiated the update
+            
+    Returns:
+        List of created SessionAgentType objects
+    """
+    import uuid
+    from ..handlers.config_manager import get_performance_config
+    
+    logger = info.context.get("logger")
+    config = get_performance_config()
+    
+    if not agents_data:
+        return []
+    
+    created_agents = []
+    
+    # Check if batch write is enabled
+    enable_batch = config.enable_batch_session_agent_create
+    
+    if enable_batch:
+        logger.info(
+            f"Batch creating {len(agents_data)} session agents (batch mode)"
+        )
+        
+        # Use batch write for better performance
+        with SessionAgentModel.batch_write() as batch:
+            for data in agents_data:
+                session_agent_uuid = data.get(
+                    "session_agent_uuid", str(uuid.uuid4())
+                )
+                
+                agent = SessionAgentModel(
+                    data["session_uuid"],
+                    session_agent_uuid,
+                    coordination_uuid=data["coordination_uuid"],
+                    agent_uuid=data["agent_uuid"],
+                    agent_action=data.get("agent_action", {
+                        "primary_path": True,
+                        "user_in_the_loop": None,
+                        "predecessors": [],
+                        "action_function": {},
+                    }),
+                    updated_by=data["updated_by"],
+                    created_at=pendulum.now("UTC"),
+                    updated_at=pendulum.now("UTC"),
+                )
+                batch.save(agent)
+                created_agents.append(agent)
+        
+        logger.info(
+            f"Successfully batch created {len(created_agents)} session agents"
+        )
+    else:
+        # Fall back to individual inserts
+        logger.info(
+            f"Creating {len(agents_data)} session agents (individual mode)"
+        )
+        
+        for data in agents_data:
+            session_agent = insert_update_session_agent(info, **data)
+            created_agents.append(session_agent)
+    
+    # Convert to SessionAgentType
+    return [get_session_agent_type(info, agent) for agent in created_agents]
+
+
+def batch_update_session_agents_in_degree(
+    info: ResolveInfo, updates: List[Dict[str, Any]]
+) -> List[SessionAgentType]:
+    """Batch update in_degree for multiple session agents.
+    
+    This function provides optimized batch update of in_degree values,
+    reducing the number of DynamoDB update operations.
+    
+    Args:
+        info: GraphQL resolve info containing context
+        updates: List of dictionaries containing update data
+            Each dict should contain:
+            - session_uuid: UUID of the session
+            - session_agent_uuid: UUID of the session agent
+            - in_degree: New in_degree value
+            - updated_by: User who initiated the update
+            
+    Returns:
+        List of updated SessionAgentType objects
+    """
+    from ..handlers.config_manager import get_performance_config
+    
+    logger = info.context.get("logger")
+    config = get_performance_config()
+    
+    if not updates:
+        return []
+    
+    updated_agents = []
+    
+    # Check if batch write is enabled
+    enable_batch = config.enable_batch_session_agent_create
+    
+    if enable_batch:
+        logger.info(
+            f"Batch updating in_degree for {len(updates)} session agents"
+        )
+        
+        # Batch update using batch_write with overwrite
+        with SessionAgentModel.batch_write() as batch:
+            for update_data in updates:
+                session_agent = get_session_agent(
+                    update_data["session_uuid"],
+                    update_data["session_agent_uuid"]
+                )
+                
+                if session_agent:
+                    session_agent.in_degree = update_data["in_degree"]
+                    session_agent.updated_by = update_data["updated_by"]
+                    session_agent.updated_at = pendulum.now("UTC")
+                    batch.save(session_agent)
+                    updated_agents.append(session_agent)
+        
+        logger.info(
+            f"Successfully batch updated {len(updated_agents)} session agents"
+        )
+    else:
+        # Fall back to individual updates
+        logger.info(
+            f"Updating in_degree for {len(updates)} session agents (individual mode)"
+        )
+        
+        for update_data in updates:
+            session_agent = insert_update_session_agent(info, **update_data)
+            updated_agents.append(session_agent)
+    
+    return [get_session_agent_type(info, agent) for agent in updated_agents]
