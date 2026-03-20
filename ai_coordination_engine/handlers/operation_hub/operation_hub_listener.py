@@ -13,6 +13,8 @@ from ...models.session import insert_update_session, resolve_session
 from ...models.session_run import resolve_session_run
 from ...utils.listener import create_listener_info
 from ..ai_coordination_utility import get_async_task
+from ..config_manager import get_performance_config
+from ..procedure_hub.smart_polling import poll_async_task_smart
 
 
 def async_insert_update_session(
@@ -23,6 +25,7 @@ def async_insert_update_session(
     """
     Asynchronously inserts or updates a session based on async task status.
     Monitors the async task execution and updates session logs if task fails.
+    Uses smart polling for improved performance.
 
     Args:
         logger: Logger instance for logging messages
@@ -35,10 +38,8 @@ def async_insert_update_session(
     if not kwargs.get("session_uuid") or not kwargs.get("run_uuid"):
         raise ValueError("Invalid required parameter(s)")
 
-    # Create listener info with session details
     info = create_listener_info(logger, "insert_update_session", setting, **kwargs)
 
-    # Resolve the session run using session and run UUIDs
     session_run = resolve_session_run(
         info,
         **{
@@ -47,69 +48,80 @@ def async_insert_update_session(
         },
     )
 
-    # Poll async task status with 60 second timeout
-    start_time = time.time()
+    config = get_performance_config()
 
-    while True:
-        async_task = get_async_task(
+    def task_fetcher():
+        return get_async_task(
             info.context,
             **{
                 "functionName": "async_execute_ask_model",
                 "asyncTaskUuid": session_run.async_task_uuid,
             },
         )
-        session = resolve_session(
+
+    poll_result = poll_async_task_smart(
+        task_fetcher=task_fetcher,
+        logger=logger,
+        task_type="ask_model",
+        custom_config=config
+    )
+
+    session = resolve_session(
+        info,
+        **{
+            "coordination_uuid": kwargs["coordination_uuid"],
+            "session_uuid": kwargs["session_uuid"],
+        },
+    )
+    logs = Serializer.json_loads(session.logs if session.logs else "[]")
+
+    if poll_result.status == "completed":
+        logs.append(
+            {
+                "run_uuid": kwargs["run_uuid"],
+                "log": "Task completed successfully.",
+            }
+        )
+        insert_update_session(
             info,
             **{
                 "coordination_uuid": kwargs["coordination_uuid"],
                 "session_uuid": kwargs["session_uuid"],
+                "logs": Serializer.json_dumps(logs),
+                "updated_by": "operation_hub",
             },
         )
-        logs = Serializer.json_loads(session.logs if session.logs else "[]")
-
-        if async_task["status"] == "failed" or time.time() - start_time > 60:
-            # If async task failed, update session with failure details
-            status = "failed" if async_task["status"] == "failed" else "timeout"
-            logs.append(
-                {
-                    "run_uuid": kwargs["run_uuid"],
-                    "log": (
-                        async_task["notes"]
-                        if status == "failed"
-                        else "The task has timed out."
-                    ),
-                }
-            )
-            session = insert_update_session(
-                info,
-                **{
-                    "coordination_uuid": kwargs["coordination_uuid"],
-                    "session_uuid": kwargs["session_uuid"],
-                    "status": status,
-                    "logs": Serializer.json_dumps(logs),
-                    "updated_by": "operation_hub",
-                },
-            )
-
-            break
-        elif async_task["status"] == "completed":
-            logs.append(
-                {
-                    "run_uuid": kwargs["run_uuid"],
-                    "log": "Task completed successfully.",
-                }
-            )
-            session = insert_update_session(
-                info,
-                **{
-                    "coordination_uuid": kwargs["coordination_uuid"],
-                    "session_uuid": kwargs["session_uuid"],
-                    "logs": Serializer.json_dumps(logs),
-                    "updated_by": "operation_hub",
-                },
-            )
-            # TODO: Send email if receiver_email is in kwargs
-            break
-        else:
-            # Wait for 1 second before checking again
-            time.sleep(1)
+    elif poll_result.status == "failed":
+        logs.append(
+            {
+                "run_uuid": kwargs["run_uuid"],
+                "log": poll_result.notes or "Task failed.",
+            }
+        )
+        insert_update_session(
+            info,
+            **{
+                "coordination_uuid": kwargs["coordination_uuid"],
+                "session_uuid": kwargs["session_uuid"],
+                "status": "failed",
+                "logs": Serializer.json_dumps(logs),
+                "updated_by": "operation_hub",
+            },
+        )
+    else:
+        logs.append(
+            {
+                "run_uuid": kwargs["run_uuid"],
+                "log": f"The task has timed out after {poll_result.total_duration:.1f} seconds.",
+            }
+        )
+        insert_update_session(
+            info,
+            **{
+                "coordination_uuid": kwargs["coordination_uuid"],
+                "session_uuid": kwargs["session_uuid"],
+                "status": "timeout",
+                "logs": Serializer.json_dumps(logs),
+                "updated_by": "operation_hub",
+            },
+        )

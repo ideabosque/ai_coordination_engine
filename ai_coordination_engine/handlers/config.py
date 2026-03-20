@@ -31,13 +31,23 @@ class Config:
     funct_extract_path = None
 
     # Cache Configuration
-    CACHE_TTL = 1800  # 30 minutes default TTL
+    CACHE_TTL = 600  # 10 minutes default TTL (optimized from 1800)
     CACHE_ENABLED = True
 
     # Cache name patterns for different modules
     CACHE_NAMES = {
         "models": "ai_coordination_engine.models",
         "queries": "ai_coordination_engine.queries",
+    }
+
+    # Entity-specific cache TTL configuration (in seconds)
+    ENTITY_CACHE_TTL = {
+        "coordination": 3600,    # 1 hour - coordination configs change infrequently
+        "task": 1800,            # 30 minutes - task definitions are relatively stable
+        "session": 600,          # 10 minutes - sessions change during execution
+        "session_agent": 300,    # 5 minutes - agents change frequently during execution
+        "session_run": 300,      # 5 minutes - runs change frequently
+        "task_schedule": 1800,   # 30 minutes - schedules are relatively stable
     }
 
     # Cache entity metadata (module paths, getters, cache key templates)
@@ -244,6 +254,18 @@ class Config:
     def get_cache_ttl(cls) -> int:
         """Get the configured cache TTL."""
         return cls.CACHE_TTL
+
+    @classmethod
+    def get_entity_cache_ttl(cls, entity_type: str) -> int:
+        """Get cache TTL for a specific entity type.
+        
+        Args:
+            entity_type: Type of entity (e.g., 'coordination', 'session')
+            
+        Returns:
+            TTL in seconds for the entity type
+        """
+        return cls.ENTITY_CACHE_TTL.get(entity_type, cls.CACHE_TTL)
 
     @classmethod
     def is_cache_enabled(cls) -> bool:

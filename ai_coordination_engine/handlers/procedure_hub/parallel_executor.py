@@ -144,9 +144,16 @@ class ParallelAgentExecutor:
         
         start_time = time.time()
         
-        # Create tasks for all agents
+        # Use semaphore to control concurrency
+        semaphore = asyncio.Semaphore(self.max_workers)
+        
+        async def execute_with_semaphore(agent: SessionAgentType) -> AgentExecutionResult:
+            async with semaphore:
+                return await self._execute_single_agent(info, agent, execute_func)
+        
+        # Create tasks for all agents with semaphore control
         tasks = [
-            self._execute_single_agent(info, agent, execute_func)
+            execute_with_semaphore(agent)
             for agent in ready_agents
         ]
         

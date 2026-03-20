@@ -36,16 +36,23 @@ class SafeDataLoader(DataLoader):
     error handling and caching behavior.
     """
 
-    def __init__(self, logger=None, cache_enabled=True, **kwargs):
+    def __init__(self, logger=None, cache_enabled=True, batch=True, max_batch_size=100, **kwargs):
         """
         Initialize SafeDataLoader.
 
         Args:
             logger: Logger instance for error logging
             cache_enabled: Whether to enable caching for this loader
+            batch: Whether to enable batching
+            max_batch_size: Maximum batch size for batch loading (default: 100)
             **kwargs: Additional arguments passed to DataLoader
         """
-        super(SafeDataLoader, self).__init__(**kwargs)
+        super(SafeDataLoader, self).__init__(
+            batch=batch,
+            max_batch_size=max_batch_size,
+            cache=cache_enabled,
+            **kwargs
+        )
         self.logger = logger
         self.cache_enabled = cache_enabled and Config.is_cache_enabled()
 

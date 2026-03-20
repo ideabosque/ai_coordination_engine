@@ -332,30 +332,37 @@ def _process_task_completion(
     current_run_uuid: str,
     **variables: Dict[str, Any],
 ) -> Dict[str, Any]:
-    start = time.time()
-    timeout = 60
-
-    while time.time() - start <= timeout:
-        task = get_async_task(
+    from .smart_polling import poll_async_task_smart
+    from ..config_manager import get_performance_config
+    
+    config = get_performance_config()
+    
+    def task_fetcher():
+        return get_async_task(
             info.context,
             functionName="async_execute_ask_model",
             asyncTaskUuid=async_task_uuid,
         )
+    
+    poll_result = poll_async_task_smart(
+        task_fetcher=task_fetcher,
+        logger=info.context["logger"],
+        task_type="task_decomposition",
+        custom_config=config
+    )
+    
+    if poll_result.status == "completed":
+        result = Serializer.json_loads(poll_result.result)
+        info.context["logger"].info(f"Result: {result}.")
 
-        if task["status"] == "completed":
-            result = Serializer.json_loads(task["result"])
-            info.context["logger"].info(f"Result: {result}.")
-
-            if "subtask_queries" in result:
-                variables.update({"subtask_queries": result["subtask_queries"]})
-                break
-
+        if "subtask_queries" in result:
+            variables.update({"subtask_queries": result["subtask_queries"]})
+        else:
             error_msg = (
                 f"{result['Error']}/{result['Reason']}"
                 if "Error" in result
                 else "An unexpected error occurred in the task processing. Please review the system logs and configuration for details."
             )
-
             variables.update(
                 {
                     "status": "failed",
@@ -364,25 +371,20 @@ def _process_task_completion(
                     ),
                 }
             )
-            break
-
-        if task["status"] == "failed":
-            variables.update(
-                {
-                    "status": "failed",
-                    "logs": Serializer.json_dumps(
-                        [
-                            {
-                                "run_uuid": current_run_uuid,
-                                "log": task["notes"],
-                            }
-                        ]
-                    ),
-                }
-            )
-            break
-
-        time.sleep(1)
+    elif poll_result.status == "failed":
+        variables.update(
+            {
+                "status": "failed",
+                "logs": Serializer.json_dumps(
+                    [
+                        {
+                            "run_uuid": current_run_uuid,
+                            "log": poll_result.notes or "Task failed.",
+                        }
+                    ]
+                ),
+            }
+        )
     else:
         variables.update(
             {
@@ -391,7 +393,7 @@ def _process_task_completion(
                     [
                         {
                             "run_uuid": current_run_uuid,
-                            "log": f"Task timed out after {timeout} seconds",
+                            "log": f"Task timed out after {poll_result.total_duration:.1f} seconds",
                         }
                     ]
                 ),
@@ -710,9 +712,8 @@ def _execute_ready_agents(
     config = get_performance_config()
     logger = info.context["logger"]
     
-    # Check if parallel execution is enabled and we have multiple agents
-    if (config.is_feature_enabled("PARALLEL_EXECUTION") and 
-        len(ready_session_agents) > 1):
+    # Parallel execution for multiple agents
+    if len(ready_session_agents) > 1:
         
         logger.info(
             f"Parallel execution enabled for {len(ready_session_agents)} agents"
@@ -780,12 +781,6 @@ def _execute_ready_agents(
                             f"Agent {result.agent_uuid} execution failed: {result.error}"
                         )
     else:
-        # Serial execution (default behavior for backward compatibility)
-        if config.is_feature_enabled("PARALLEL_EXECUTION"):
-            logger.info(
-                "Parallel execution enabled but only 1 agent ready, using serial mode"
-            )
-        
         for session_agent in ready_session_agents:
             if session_agent.state == "pending":
                 logger.info(
