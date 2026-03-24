@@ -147,7 +147,7 @@ def resolve_coordination(
 
 @monitor_decorator
 @resolve_list_decorator(
-    attributes_to_get=["endpoint_id", "coordination_uuid"],
+    attributes_to_get=["endpoint_id", "partition_key", "coordination_uuid"],
     list_type_class=CoordinationListType,
     type_funct=get_coordination_type,
 )
