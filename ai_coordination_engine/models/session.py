@@ -202,15 +202,15 @@ def resolve_session_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     inquiry_funct = SessionModel.scan
     count_funct = SessionModel.count
     if coordination_uuid:
-        args = [coordination_uuid, None]
+        args = [coordination_uuid]
         inquiry_funct = SessionModel.query
         if task_uuid:
             count_funct = SessionModel.task_uuid_index.count
-            args[1] = SessionModel.task_uuid_index == task_uuid
+            args.append(SessionModel.task_uuid_index == task_uuid)
             inquiry_funct = SessionModel.task_uuid_index.query
         if user_id:
             count_funct = SessionModel.user_id_index.count
-            args[1] = SessionModel.user_id_index == user_id
+            args.append(SessionModel.user_id_index == user_id)
             inquiry_funct = SessionModel.user_id_index.query
 
     the_filters = None  # We can add filters for the query.

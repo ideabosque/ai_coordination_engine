@@ -163,7 +163,7 @@ def resolve_task_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     inquiry_funct = TaskModel.scan
     count_funct = TaskModel.count
     if coordination_uuid:
-        args = [coordination_uuid, None]
+        args = [coordination_uuid]
         inquiry_funct = TaskModel.query
 
     the_filters = None  # We can add filters for the query.

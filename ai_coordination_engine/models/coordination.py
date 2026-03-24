@@ -162,7 +162,7 @@ def resolve_coordination_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> An
     print("#" * 40, partition_key)
 
     if partition_key:
-        args = [partition_key, None]
+        args = [partition_key]
         inquiry_funct = CoordinationModel.query
 
     the_filters = None  # We can add filters for the query.

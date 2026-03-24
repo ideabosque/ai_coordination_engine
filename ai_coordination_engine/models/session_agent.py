@@ -180,7 +180,7 @@ def resolve_session_agent_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> A
     inquiry_funct = SessionAgentModel.scan
     count_funct = SessionAgentModel.count
     if session_uuid:
-        args = [session_uuid, None]
+        args = [session_uuid]
         inquiry_funct = SessionAgentModel.query
 
     the_filters = None  # We can add filters for the query.

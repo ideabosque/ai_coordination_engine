@@ -190,15 +190,15 @@ def resolve_session_run_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any
     inquiry_funct = SessionRunModel.scan
     count_funct = SessionRunModel.count
     if session_uuid:
-        args = [session_uuid, None]
+        args = [session_uuid]
         inquiry_funct = SessionRunModel.query
         if agent_uuid:
             inquiry_funct = SessionRunModel.agent_uuid_index.query
-            args[1] = SessionRunModel.agent_uuid == agent_uuid
+            args.append(SessionRunModel.agent_uuid == agent_uuid)
             count_funct = SessionRunModel.agent_uuid_index.count
         if thread_uuid:
             inquiry_funct = SessionRunModel.thread_uuid_index.query
-            args[1] = SessionRunModel.thread_uuid == thread_uuid
+            args.append(SessionRunModel.thread_uuid == thread_uuid)
             count_funct = SessionRunModel.thread_uuid_index.count
 
     the_filters = None  # We can add filters for the query.

@@ -160,7 +160,7 @@ def resolve_task_schedule_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> A
     inquiry_funct = TaskScheduleModel.scan
     count_funct = TaskScheduleModel.count
     if task_uuid:
-        args = [task_uuid, None]
+        args = [task_uuid]
         inquiry_funct = TaskScheduleModel.query
 
     the_filters = None  # We can add filters for the query.
