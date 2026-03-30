@@ -4,8 +4,6 @@ from __future__ import print_function
 
 __author__ = "bibow"
 
-import functools
-import traceback
 from typing import Any, Dict
 
 import pendulum
@@ -25,6 +23,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..handlers.config import Config
 from ..types.session_run import SessionRunListType, SessionRunType
+from .decorators import cache_purger_session_run
 
 
 class ThreadUuidIndex(LocalSecondaryIndex):
@@ -74,52 +73,6 @@ class SessionRunModel(BaseModel):
     updated_at = UTCDateTimeAttribute()
     agent_uuid_index = AgentUuidIndex()
     thread_uuid_index = ThreadUuidIndex()
-
-
-def purge_cache():
-    def actual_decorator(original_function):
-        @functools.wraps(original_function)
-        def wrapper_function(*args, **kwargs):
-            try:
-                # Execute original function first
-                result = original_function(*args, **kwargs)
-
-                # Then purge cache after successful operation
-                from ..models.cache import purge_entity_cascading_cache
-
-                # Get entity keys from kwargs or entity parameter
-                entity_keys = {}
-
-                # Try to get from entity parameter first (for updates)
-                entity = kwargs.get("entity")
-                if entity:
-                    entity_keys["run_uuid"] = getattr(entity, "run_uuid", None)
-                    entity_keys["session_uuid"] = getattr(entity, "session_uuid", None)
-
-                # Fallback to kwargs (for creates/deletes)
-                if not entity_keys.get("run_uuid"):
-                    entity_keys["run_uuid"] = kwargs.get("run_uuid")
-                    entity_keys["session_uuid"] = kwargs.get("session_uuid")
-
-                # Only purge if we have the required keys
-                if entity_keys.get("run_uuid") and entity_keys.get("session_uuid"):
-                    purge_entity_cascading_cache(
-                        args[0].context.get("logger"),
-                        entity_type="session_run",
-                        context_keys=None,
-                        entity_keys=entity_keys,
-                        cascade_depth=3,
-                    )
-
-                return result
-            except Exception as e:
-                log = traceback.format_exc()
-                args[0].context.get("logger").error(log)
-                raise e
-
-        return wrapper_function
-
-    return actual_decorator
 
 
 @retry(
@@ -222,7 +175,7 @@ def resolve_session_run_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any
     count_funct=get_session_run_count,
     type_funct=get_session_run_type,
 )
-@purge_cache()
+@cache_purger_session_run
 def insert_update_session_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     session_uuid = kwargs.get("session_uuid")
     run_uuid = kwargs.get("run_uuid")
@@ -279,7 +232,7 @@ def insert_update_session_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> No
     },
     model_funct=get_session_run,
 )
-@purge_cache()
+@cache_purger_session_run
 def delete_session_run(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
     kwargs.get("entity").delete()
     return True

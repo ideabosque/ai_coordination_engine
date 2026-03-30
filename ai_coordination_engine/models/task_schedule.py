@@ -4,8 +4,6 @@ from __future__ import print_function
 
 __author__ = "bibow"
 
-import functools
-import traceback
 from typing import Any, Dict
 
 import pendulum
@@ -22,8 +20,10 @@ from silvaengine_utility import method_cache
 from ..utils.normalization import normalize_to_json
 from tenacity import retry, stop_after_attempt, wait_exponential
 
+from ..constants import TaskScheduleStatus
 from ..handlers.config import Config
 from ..types.task_schedule import TaskScheduleListType, TaskScheduleType
+from .decorators import cache_purger_task_schedule
 
 
 class TaskScheduleModel(BaseModel):
@@ -35,58 +35,10 @@ class TaskScheduleModel(BaseModel):
     coordination_uuid = UnicodeAttribute()
     partition_key = UnicodeAttribute()
     schedule = UnicodeAttribute()
-    status = UnicodeAttribute(default="initial")
+    status = UnicodeAttribute(default=TaskScheduleStatus.INITIAL.value)
     updated_by = UnicodeAttribute()
     created_at = UTCDateTimeAttribute()
     updated_at = UTCDateTimeAttribute()
-
-
-def purge_cache():
-    def actual_decorator(original_function):
-        @functools.wraps(original_function)
-        def wrapper_function(*args, **kwargs):
-            try:
-                # Execute original function first
-                result = original_function(*args, **kwargs)
-
-                # Then purge cache after successful operation
-                from ..models.cache import purge_entity_cascading_cache
-
-                # Get entity keys from kwargs or entity parameter
-                entity_keys = {}
-
-                # Try to get from entity parameter first (for updates)
-                entity = kwargs.get("entity")
-                if entity:
-                    entity_keys["schedule_uuid"] = getattr(
-                        entity, "schedule_uuid", None
-                    )
-                    entity_keys["task_uuid"] = getattr(entity, "task_uuid", None)
-
-                # Fallback to kwargs (for creates/deletes)
-                if not entity_keys.get("schedule_uuid"):
-                    entity_keys["schedule_uuid"] = kwargs.get("schedule_uuid")
-                    entity_keys["task_uuid"] = kwargs.get("task_uuid")
-
-                # Only purge if we have the required keys
-                if entity_keys.get("schedule_uuid") and entity_keys.get("task_uuid"):
-                    purge_entity_cascading_cache(
-                        args[0].context.get("logger"),
-                        entity_type="task_schedule",
-                        context_keys=None,
-                        entity_keys=entity_keys,
-                        cascade_depth=3,
-                    )
-
-                return result
-            except Exception as e:
-                log = traceback.format_exc()
-                args[0].context.get("logger").error(log)
-                raise e
-
-        return wrapper_function
-
-    return actual_decorator
 
 
 @retry(
@@ -187,7 +139,7 @@ def resolve_task_schedule_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> A
     # data_attributes_except_for_data_diff=data_attributes_except_for_data_diff,
     # activity_history_funct=None,
 )
-@purge_cache()
+@cache_purger_task_schedule
 def insert_update_task_schedule(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     task_uuid = kwargs.get("task_uuid")
     schedule_uuid = kwargs.get("schedule_uuid")
@@ -237,7 +189,7 @@ def insert_update_task_schedule(info: ResolveInfo, **kwargs: Dict[str, Any]) -> 
     },
     model_funct=get_task_schedule,
 )
-@purge_cache()
+@cache_purger_task_schedule
 def delete_task_schedule(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
     kwargs.get("entity").delete()
     return True

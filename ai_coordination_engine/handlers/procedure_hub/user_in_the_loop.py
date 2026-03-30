@@ -9,6 +9,7 @@ from typing import Any, Dict
 
 from graphene import ResolveInfo
 
+from ...exceptions import SessionAgentNotFoundError
 from ...models.session_agent import insert_update_session_agent, resolve_session_agent
 from ...types.session_agent import SessionAgentType
 from .procedure_hub_listener import invoke_next_iteration
@@ -32,7 +33,7 @@ def execute_for_user_input(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
 
         # Validate session agent exists
         if session_agent is None:
-            raise Exception("Session agent not found")
+            raise SessionAgentNotFoundError(kwargs["session_agent_uuid"])
 
         # Determine state based on action function presence
         session_agent.state = (

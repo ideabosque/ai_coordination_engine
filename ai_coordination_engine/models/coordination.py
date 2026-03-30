@@ -5,15 +5,13 @@ from __future__ import print_function
 __author__ = "bibow"
 
 
-import functools
 import traceback
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 import pendulum
 from graphene import ResolveInfo
 from pynamodb.attributes import (
     ListAttribute,
-    MapAttribute,
     UnicodeAttribute,
     UTCDateTimeAttribute,
 )
@@ -24,12 +22,13 @@ from silvaengine_dynamodb_base import (
     monitor_decorator,
     resolve_list_decorator,
 )
-from silvaengine_utility import Debugger, method_cache
+from silvaengine_utility import method_cache
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..handlers.config import Config
 from ..types.coordination import CoordinationListType, CoordinationType
 from ..utils.normalization import normalize_to_json
+from .decorators import cache_purger_coordination
 
 
 class CoordinationModel(BaseModel):
@@ -42,63 +41,19 @@ class CoordinationModel(BaseModel):
     part_id = UnicodeAttribute()
     coordination_name = UnicodeAttribute()
     coordination_description = UnicodeAttribute()
-    agents = ListAttribute(of=MapAttribute)
+    agents = ListAttribute(of=UnicodeAttribute, default=list)
     theme_uuid = UnicodeAttribute()
     updated_by = UnicodeAttribute()
     created_at = UTCDateTimeAttribute()
     updated_at = UTCDateTimeAttribute()
 
+    def get_agents(self) -> List[str]:
+        """Get the list of agent UUIDs.
 
-def purge_cache():
-    def actual_decorator(original_function):
-        @functools.wraps(original_function)
-        def wrapper_function(*args, **kwargs):
-            try:
-                # Execute original function first
-                result = original_function(*args, **kwargs)
-
-                # Then purge cache after successful operation
-                from ..models.cache import purge_entity_cascading_cache
-
-                # Get entity keys from kwargs or entity parameter
-                entity_keys = {}
-
-                # Try to get from entity parameter first (for updates)
-                entity = kwargs.get("entity")
-                if entity:
-                    entity_keys["coordination_uuid"] = getattr(
-                        entity, "coordination_uuid", None
-                    )
-                    entity_keys["partition_key"] = getattr(
-                        entity, "partition_key", None
-                    )
-
-                # Fallback to kwargs (for creates/deletes)
-                if not entity_keys.get("coordination_uuid"):
-                    entity_keys["coordination_uuid"] = kwargs.get("coordination_uuid")
-                    entity_keys["partition_key"] = kwargs.get("partition_key")
-
-                # Only purge if we have the required keys
-                if entity_keys.get("coordination_uuid") and entity_keys.get(
-                    "partition_key"
-                ):
-                    purge_entity_cascading_cache(
-                        args[0].context.get("logger"),
-                        entity_type="coordination",
-                        context_keys=None,
-                        entity_keys=entity_keys,
-                        cascade_depth=3,
-                    )
-
-                return result
-            except Exception as e:
-                log = traceback.format_exc()
-                args[0].context.get("logger").error(log)
-                raise e
-
-        return wrapper_function
-
-    return actual_decorator
+        Returns:
+            List of agent UUID strings
+        """
+        return self.agents or []
 
 
 @retry(
@@ -134,14 +89,37 @@ def resolve_coordination(
     info: ResolveInfo, **kwargs: Dict[str, Any]
 ) -> CoordinationType | None:
     partition_key = info.context.get("partition_key") or info.context.get("endpoint_id")
-    count = get_coordination_count(partition_key, kwargs["coordination_uuid"])
+    coordination_uuid = kwargs.get("coordination_uuid")
 
-    if count == 0:
+    print(f"DEBUG resolve_coordination:")
+    print(f"  partition_key: {partition_key}")
+    print(f"  coordination_uuid: {coordination_uuid}")
+    print(f"  info.context['partition_key']: {info.context.get('partition_key')}")
+    print(f"  info.context['endpoint_id']: {info.context.get('endpoint_id')}")
+    print(f"  info.context['part_id']: {info.context.get('part_id')}")
+
+    # 尝试不同的 partition_key 格式
+    possible_partition_keys = [
+        partition_key,
+        info.context.get("endpoint_id"),  # 可能是 "gpt"
+        "gpt",  # 可能只是 endpoint_id
+    ]
+
+    for pk in possible_partition_keys:
+        if pk:
+            count = get_coordination_count(pk, coordination_uuid)
+            print(f"  Trying partition_key='{pk}': count={count}")
+            if count > 0:
+                print(f"  ✅ Found with partition_key='{pk}'")
+                partition_key = pk
+                break
+    else:
+        print(f"  ❌ No matching record found")
         return None
 
     return get_coordination_type(
         info,
-        get_coordination(partition_key, kwargs["coordination_uuid"]),
+        get_coordination(partition_key, coordination_uuid),
     )
 
 
@@ -158,8 +136,6 @@ def resolve_coordination_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> An
     args = []
     inquiry_funct = CoordinationModel.scan
     count_funct = CoordinationModel.count
-
-    print("#" * 40, partition_key)
 
     if partition_key:
         args = [partition_key]
@@ -187,10 +163,8 @@ def resolve_coordination_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> An
     model_funct=get_coordination,
     count_funct=get_coordination_count,
     type_funct=get_coordination_type,
-    # data_attributes_except_for_data_diff=data_attributes_except_for_data_diff,
-    # activity_history_funct=None,
 )
-@purge_cache()
+@cache_purger_coordination
 def insert_update_coordination(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     partition_key = kwargs.get("partition_key")
     coordination_uuid = kwargs.get("coordination_uuid")
@@ -225,7 +199,6 @@ def insert_update_coordination(info: ResolveInfo, **kwargs: Dict[str, Any]) -> N
         CoordinationModel.updated_by.set(kwargs["updated_by"]),
         CoordinationModel.updated_at.set(pendulum.now("UTC")),
     ]
-    # Map of potential keys in kwargs to CoordinationModel attributes
     field_map = {
         "coordination_name": CoordinationModel.coordination_name,
         "coordination_description": CoordinationModel.coordination_description,
@@ -233,12 +206,10 @@ def insert_update_coordination(info: ResolveInfo, **kwargs: Dict[str, Any]) -> N
         "theme_uuid": CoordinationModel.theme_uuid,
     }
 
-    # Check if a key exists in kwargs before adding it to the update actions
     for key, field in field_map.items():
-        if key in kwargs:  # Only add to actions if the key exists in kwargs
+        if key in kwargs:
             actions.append(field.set(None if kwargs[key] == "null" else kwargs[key]))
 
-    # Update the coordination entity
     coordination.update(actions=actions)
     return
 
@@ -250,7 +221,7 @@ def insert_update_coordination(info: ResolveInfo, **kwargs: Dict[str, Any]) -> N
     },
     model_funct=get_coordination,
 )
-@purge_cache()
+@cache_purger_coordination
 def delete_coordination(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
     kwargs.get("entity").delete()
     return True

@@ -21,7 +21,7 @@ class InsertUpdateCoordination(Mutation):
         coordination_uuid = String(required=False)
         coordination_name = String(required=False)
         coordination_description = String(required=False)
-        agents = List(JSONCamelCase, required=False)
+        agents = List(String, required=False)
         theme_uuid = String(required=False)
         updated_by = String(required=True)
 

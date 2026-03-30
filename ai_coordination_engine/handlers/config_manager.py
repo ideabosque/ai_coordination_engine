@@ -72,6 +72,9 @@ class PerformanceConfig:
     enable_batch_session_agent_create: bool = field(
         default_factory=lambda: os.getenv("ENABLE_BATCH_SESSION_AGENT_CREATE", "true").lower() == "true"
     )
+    enable_event_driven_async_tasks: bool = field(
+        default_factory=lambda: os.getenv("ENABLE_EVENT_DRIVEN_ASYNC_TASKS", "true").lower() == "true"
+    )
 
     http_max_connections: int = field(
         default_factory=lambda: int(os.getenv("HTTP_MAX_CONNECTIONS", "100"))

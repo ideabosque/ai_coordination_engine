@@ -16,6 +16,7 @@ from silvaengine_utility.serializer import Serializer
 
 from ...handlers.config import Config
 from ...handlers.config_manager import get_performance_config
+from ...exceptions import AgentExecutionError, AgentNotFoundError, ValidationError
 from ...models.session import insert_update_session, resolve_session
 from ...models.session_agent import resolve_session_agent_list
 from ...types.session import SessionType
@@ -309,8 +310,8 @@ def invoke_next_iteration(
         },
     )
     params = {"coordination_uuid": coordination_uuid, "session_uuid": session_uuid}
-    if "" in info.context:
-        params.update({"connection_id": info.context[""]})
+    if "connection_id" in info.context and info.context["connection_id"]:
+        params.update({"connection_id": info.context["connection_id"]})
 
     invoker = info.context.get("aws_lambda_invoker")
 
@@ -446,7 +447,7 @@ def async_orchestrate_task_query(
     )
 
     if orchestrator_agent is None:
-        raise Exception("Orchestrator agent not found.")
+        raise AgentNotFoundError("orchestrator")
 
     if orchestrator_agent["agent_type"] == "decompose":
         # Create query for task decomposition
@@ -471,8 +472,10 @@ def async_orchestrate_task_query(
             "Return all results in structured JSON format."
         )
     else:
-        raise Exception(
-            f"Unknown orchestrator agent type: {orchestrator_agent['agent_type']}"
+        raise ValidationError(
+            field="agent_type",
+            value=orchestrator_agent["agent_type"],
+            reason=f"Unknown orchestrator agent type"
         )
 
     # Ask model to decompose task
@@ -777,8 +780,9 @@ def _execute_ready_agents(
                     )
                     # Propagate error by re-raising
                     if result.error:
-                        raise Exception(
-                            f"Agent {result.agent_uuid} execution failed: {result.error}"
+                        raise AgentExecutionError(
+                            agent_uuid=result.agent_uuid,
+                            original_error=result.error
                         )
     else:
         for session_agent in ready_session_agents:

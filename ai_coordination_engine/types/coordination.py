@@ -2,17 +2,20 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 
-from sys import modules
-from xml.parsers.expat import model
-
 __author__ = "bibow"
 
 from graphene import DateTime, Field, List, ObjectType, String
-from silvaengine_definitions import ThemeSettingLoader, ThemeSettingModel
+from silvaengine_definitions import (
+    AgentLoader,
+    AgentModel,
+    ThemeSettingLoader,
+    ThemeSettingModel,
+)
 from silvaengine_dynamodb_base import ListObjectType
 from silvaengine_utility import JSONCamelCase, Serializer
 
 ThemeSettingType = ThemeSettingModel.generate_graphql_type()
+AgentType = AgentModel.generate_graphql_type()
 
 
 class CoordinationType(ObjectType):
@@ -24,7 +27,7 @@ class CoordinationType(ObjectType):
     theme = Field(lambda: ThemeSettingType)
     coordination_name = String()
     coordination_description = String()
-    agents = List(JSONCamelCase)
+    agents = List(AgentType)
     updated_by = String()
     created_at = DateTime()
     updated_at = DateTime()
@@ -38,7 +41,6 @@ class CoordinationType(ObjectType):
         elif isinstance(existing, ThemeSettingType):
             return existing
 
-        # Case 2: Need to fetch using DataLoader
         partition_key = getattr(parent, "partition_key", None)
         theme_uuid = getattr(parent, "theme_uuid", None)
 
@@ -56,6 +58,20 @@ class CoordinationType(ObjectType):
                 )
             )
         )
+
+    @staticmethod
+    def resolve_agents(parent, info):
+        partition_key = getattr(parent, "partition_key", None)
+        agent_uuids = getattr(parent, "agents", None) or []
+
+        if not agent_uuids:
+            return []
+
+        if not partition_key:
+            return []
+
+        keys = [(partition_key, uuid) for uuid in agent_uuids]
+        return AgentLoader(info=info).load_many(keys)
 
 
 class CoordinationListType(ListObjectType):

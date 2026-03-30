@@ -38,8 +38,7 @@ def initialize_tables(logger: logging.Logger) -> None:
 
 
 def get_coordination(partition_key: str, coordination_uuid: str) -> Dict[str, Any]:
-    """
-    Get coordination as a dictionary for embedding purposes.
+    """Get coordination as a dictionary for embedding purposes.
 
     This is used in validation contexts where we need coordination data
     but don't need the full GraphQL type with nested resolvers.

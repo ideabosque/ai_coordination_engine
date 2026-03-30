@@ -4,8 +4,6 @@ from __future__ import print_function
 
 __author__ = "bibow"
 
-import functools
-import traceback
 from typing import Any, Dict
 
 import pendulum
@@ -29,8 +27,10 @@ from silvaengine_utility import method_cache
 from ..utils.normalization import normalize_to_json
 from tenacity import retry, stop_after_attempt, wait_exponential
 
+from ..constants import SessionStatus
 from ..handlers.config import Config
 from ..types.session import SessionListType, SessionType
+from .decorators import cache_purger_session
 
 
 class UserIdIndex(LocalSecondaryIndex):
@@ -76,63 +76,13 @@ class SessionModel(BaseModel):
     input_files = ListAttribute(of=MapAttribute)
     iteration_count = NumberAttribute(default=0)
     subtask_queries = ListAttribute(of=MapAttribute)
-    status = UnicodeAttribute(default="initial")
+    status = UnicodeAttribute(default=SessionStatus.INITIAL.value)
     logs = UnicodeAttribute(null=True)
     updated_by = UnicodeAttribute()
     created_at = UTCDateTimeAttribute()
     updated_at = UTCDateTimeAttribute()
     task_uuid_index = TaskUuidIndex()
     user_id_index = UserIdIndex()
-
-
-def purge_cache():
-    def actual_decorator(original_function):
-        @functools.wraps(original_function)
-        def wrapper_function(*args, **kwargs):
-            try:
-                # Execute original function first
-                result = original_function(*args, **kwargs)
-
-                # Then purge cache after successful operation
-                from ..models.cache import purge_entity_cascading_cache
-
-                # Get entity keys from kwargs or entity parameter
-                entity_keys = {}
-
-                # Try to get from entity parameter first (for updates)
-                entity = kwargs.get("entity")
-                if entity:
-                    entity_keys["session_uuid"] = getattr(entity, "session_uuid", None)
-                    entity_keys["coordination_uuid"] = getattr(
-                        entity, "coordination_uuid", None
-                    )
-
-                # Fallback to kwargs (for creates/deletes)
-                if not entity_keys.get("session_uuid"):
-                    entity_keys["session_uuid"] = kwargs.get("session_uuid")
-                    entity_keys["coordination_uuid"] = kwargs.get("coordination_uuid")
-
-                # Only purge if we have the required keys
-                if entity_keys.get("session_uuid") and entity_keys.get(
-                    "coordination_uuid"
-                ):
-                    purge_entity_cascading_cache(
-                        args[0].context.get("logger"),
-                        entity_type="session",
-                        context_keys=None,
-                        entity_keys=entity_keys,
-                        cascade_depth=3,
-                    )
-
-                return result
-            except Exception as e:
-                log = traceback.format_exc()
-                args[0].context.get("logger").error(log)
-                raise e
-
-        return wrapper_function
-
-    return actual_decorator
 
 
 @retry(
@@ -233,7 +183,7 @@ def resolve_session_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     count_funct=get_session_count,
     type_funct=get_session_type,
 )
-@purge_cache()
+@cache_purger_session
 def insert_update_session(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     coordination_uuid = kwargs.get("coordination_uuid")
     session_uuid = kwargs.get("session_uuid")
@@ -298,7 +248,7 @@ def insert_update_session(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     },
     model_funct=get_session,
 )
-@purge_cache()
+@cache_purger_session
 def delete_session(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
     kwargs.get("entity").delete()
     return True

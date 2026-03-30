@@ -15,17 +15,9 @@ import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, asdict
 from typing import Any, Callable, Dict, List, Optional, Set
-from enum import Enum
 
+from ...constants import EventBusType
 from ...handlers.config_manager import get_performance_config
-
-
-class EventBusType(Enum):
-    """Types of event bus implementations."""
-    MEMORY = "memory"
-    SQS = "sqs"
-    SNS = "sns"
-    REDIS = "redis"
 
 
 @dataclass

@@ -10,6 +10,7 @@ import uuid
 from typing import Any, Dict, List, Tuple
 
 from graphene import ResolveInfo
+from silvaengine_definitions import AgentLoader
 from silvaengine_utility.invoker import Invoker
 from silvaengine_utility.serializer import Serializer
 
@@ -74,28 +75,36 @@ def init_session_agents(
             f"Available keys: {list(task_data.keys())}"
         )
 
+    # Load full agent details using AgentLoader
+    agent_uuids = task_data["coordination"].get("agents", [])
+    partition_key = task_data["coordination"].get("partition_key")
+    agents = []
+    if agent_uuids and partition_key:
+        agent_keys = [(partition_key, uuid) for uuid in agent_uuids]
+        agents = AgentLoader(info=info).load_many(agent_keys)
+
     # Prepare agents data for batch creation
-    for agent in task_data["coordination"]["agents"]:
-        if agent["agent_type"] != "task":
+    for agent in agents:
+        if agent.agent_type != "task":
             continue
 
         # Create or update session agent
         for subtask_query in list(
             filter(
-                lambda x: x["agent_uuid"] == agent["agent_uuid"],
+                lambda x: x["agent_uuid"] == agent.agent_uuid,
                 session.subtask_queries,
             )
         ):
             session_agent_uuid = str(uuid.uuid4())
-            agent_uuid_to_session_agent_uuid[agent["agent_uuid"]] = session_agent_uuid
+            agent_uuid_to_session_agent_uuid[agent.agent_uuid] = session_agent_uuid
             
             agents_data.append({
                 "session_uuid": session.session_uuid,
                 "session_agent_uuid": session_agent_uuid,
                 "coordination_uuid": session.coordination_uuid,
-                "agent_uuid": agent["agent_uuid"],
+                "agent_uuid": agent.agent_uuid,
                 "agent_action": task_data["agent_actions"].get(
-                    agent["agent_uuid"], {}
+                    agent.agent_uuid, {}
                 ),
                 "updated_by": "procedure_hub",
             })

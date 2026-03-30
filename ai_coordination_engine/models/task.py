@@ -4,7 +4,6 @@ from __future__ import print_function
 
 __author__ = "bibow"
 
-import functools
 import traceback
 from typing import Any, Dict
 
@@ -29,6 +28,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..handlers.config import Config
 from ..types.task import TaskListType, TaskType
+from .decorators import cache_purger_task
 from .utils import get_coordination
 
 
@@ -47,56 +47,6 @@ class TaskModel(BaseModel):
     updated_by = UnicodeAttribute()
     created_at = UTCDateTimeAttribute()
     updated_at = UTCDateTimeAttribute()
-
-
-def purge_cache():
-    def actual_decorator(original_function):
-        @functools.wraps(original_function)
-        def wrapper_function(*args, **kwargs):
-            try:
-                # Execute original function first
-                result = original_function(*args, **kwargs)
-
-                # Then purge cache after successful operation
-                from ..models.cache import purge_entity_cascading_cache
-
-                # Get entity keys from kwargs or entity parameter
-                entity_keys = {}
-
-                # Try to get from entity parameter first (for updates)
-                entity = kwargs.get("entity")
-                if entity:
-                    entity_keys["task_uuid"] = getattr(entity, "task_uuid", None)
-                    entity_keys["coordination_uuid"] = getattr(
-                        entity, "coordination_uuid", None
-                    )
-
-                # Fallback to kwargs (for creates/deletes)
-                if not entity_keys.get("task_uuid"):
-                    entity_keys["task_uuid"] = kwargs.get("task_uuid")
-                    entity_keys["coordination_uuid"] = kwargs.get("coordination_uuid")
-
-                # Only purge if we have the required keys
-                if entity_keys.get("task_uuid") and entity_keys.get(
-                    "coordination_uuid"
-                ):
-                    purge_entity_cascading_cache(
-                        args[0].context.get("logger"),
-                        entity_type="task",
-                        context_keys=None,
-                        entity_keys=entity_keys,
-                        cascade_depth=3,
-                    )
-
-                return result
-            except Exception as e:
-                log = traceback.format_exc()
-                args[0].context.get("logger").error(log)
-                raise e
-
-        return wrapper_function
-
-    return actual_decorator
 
 
 @retry(
@@ -192,7 +142,7 @@ def resolve_task_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> Any:
     # data_attributes_except_for_data_diff=data_attributes_except_for_data_diff,
     # activity_history_funct=None,
 )
-@purge_cache()
+@cache_purger_task
 def insert_update_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     coordination_uuid = kwargs.get("coordination_uuid")
     task_uuid = kwargs.get("task_uuid")
@@ -200,23 +150,22 @@ def insert_update_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     if "subtask_queries" in kwargs or "agent_actions" in kwargs:
         partition_key = info.context.get("partition_key")
         coordination = get_coordination(partition_key, coordination_uuid)
-        valid_agent_uuids = [agent["agent_uuid"] for agent in coordination["agents"]]
+        valid_agent_uuids = coordination.agents or []
 
-        # Filter subtask queries
-        if "subtask_queries" in kwargs:
-            kwargs["subtask_queries"] = [
-                query
-                for query in kwargs["subtask_queries"]
-                if query["agent_uuid"] in valid_agent_uuids
-            ]
+        if valid_agent_uuids:
+            if "subtask_queries" in kwargs:
+                kwargs["subtask_queries"] = [
+                    query
+                    for query in kwargs["subtask_queries"]
+                    if query["agent_uuid"] in valid_agent_uuids
+                ]
 
-        # Filter agent actions
-        if "agent_actions" in kwargs:
-            kwargs["agent_actions"] = {
-                uuid: action
-                for uuid, action in kwargs["agent_actions"].items()
-                if uuid in valid_agent_uuids
-            }
+            if "agent_actions" in kwargs:
+                kwargs["agent_actions"] = {
+                    uuid: action
+                    for uuid, action in kwargs["agent_actions"].items()
+                    if uuid in valid_agent_uuids
+                }
 
     if kwargs.get("entity") is None:
         cols = {
@@ -273,7 +222,7 @@ def insert_update_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     },
     model_funct=get_task,
 )
-@purge_cache()
+@cache_purger_task
 def delete_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
     kwargs.get("entity").delete()
     return True

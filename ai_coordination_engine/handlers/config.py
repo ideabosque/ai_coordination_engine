@@ -11,6 +11,7 @@ import boto3
 from silvaengine_dynamodb_base.models import FunctionModel
 from silvaengine_utility import Debugger, Graphql
 
+from ..exceptions import ConfigurationError, ValidationError
 from ..models import utils
 
 
@@ -308,7 +309,11 @@ class Config:
             or not function_name
             or "aws_lambda_arn" not in context
         ):
-            raise Exception("Invalid required parameter(s)")
+            raise ValidationError(
+                field="context",
+                value=None,
+                reason="Invalid required parameter(s)"
+            )
 
         # Check if schema exists in cache, if not fetch and store it
         if Config.schemas.get(function_name) is None:

@@ -14,6 +14,8 @@ from silvaengine_utility.debugger import Debugger
 from silvaengine_utility.invoker import Invoker
 from silvaengine_utility.serializer import Serializer
 
+from silvaengine_definitions import AgentLoader
+
 from ...models.coordination import resolve_coordination
 from ...models.session import insert_update_session
 from ...models.session_run import insert_update_session_run
@@ -138,10 +140,18 @@ def ask_operation_hub(
             **{"coordination_uuid": coordination_uuid},
         )
 
-        if not coordination or not isinstance(coordination.agents, list):
+        if not coordination:
             raise ValueError("Not found any coordination")
 
-        agents = coordination.agents
+        agent_uuids = getattr(coordination, "agents", None) or []
+
+        if not agent_uuids:
+            raise ValueError("Not found any agents")
+
+        # Load full agent details using AgentLoader
+        partition_key = getattr(coordination, "partition_key", None)
+        agent_keys = [(partition_key, uuid) for uuid in agent_uuids]
+        agents = AgentLoader(info=info).load_many(agent_keys)
 
         # Step 2: Create/update session
         session = _handle_session(info, **kwargs)
@@ -262,17 +272,16 @@ def _handle_session(info: ResolveInfo, **kwargs: Dict[str, Any]) -> SessionType 
     return insert_update_session(info, **variables)
 
 
-def _select_agent(agents: List, agent_uuid: str) -> Dict[str, Any] | None:
+def _select_agent(agents: List, agent_uuid: str) -> Any | None:
     """
     Helper function to select appropriate agent.
 
     Args:
-        coordination (CoordinationType): Coordination object containing agent details
-        **kwargs: Request parameters including:
-            - agent_uuid: Optional agent identifier
+        agents: List of AgentType objects
+        agent_uuid: Optional agent identifier
 
     Returns:
-        Dict[str, Any]: Selected agent details or None if no matching agent found
+        AgentType object or None if no matching agent found
 
     Raises:
         ValueError: If no agents found for coordination
@@ -284,10 +293,10 @@ def _select_agent(agents: List, agent_uuid: str) -> Dict[str, Any] | None:
     agent_triage_type = AgentType.TRIAGE.value
 
     for agent in agents:
-        if agent.get("agent_uuid") == agent_uuid:
+        if agent.agent_uuid == agent_uuid:
             return agent
 
-        if triage_agent is None and agent.get("agent_type") == agent_triage_type:
+        if triage_agent is None and agent.agent_type == agent_triage_type:
             triage_agent = agent
 
     return triage_agent
@@ -296,7 +305,7 @@ def _select_agent(agents: List, agent_uuid: str) -> Dict[str, Any] | None:
 def _process_query(
     info: ResolveInfo,
     user_query: str,
-    selected_agent: Dict[str, Any],
+    selected_agent: Any,
     agents: List,
 ) -> str:
     """
@@ -305,29 +314,26 @@ def _process_query(
     Args:
         info (ResolveInfo): GraphQL context and metadata
         user_query (str): Original user query
-        agent (Dict[str, Any]): Selected agent details
-        coordination (CoordinationType): Coordination object containing agent details
+        selected_agent: AgentType object
+        agents: List of AgentType objects
 
     Returns:
         str: Processed query string with enhanced context for triage agents
     """
     agent_triage_type = AgentType.TRIAGE.value
 
-    if not (
-        isinstance(selected_agent, dict)
-        and selected_agent.get("agent_type") == agent_triage_type
-    ):
+    if selected_agent.agent_type != agent_triage_type:
         return user_query
 
     agent_task_type = AgentType.TASK.value
     task_agents = [
         {
-            "agent_uuid": agent.get("agent_uuid"),
-            "agent_name": agent.get("agent_name"),
-            "agent_description": agent.get("agent_description"),
+            "agent_uuid": agent.agent_uuid,
+            "agent_name": agent.agent_name,
+            "agent_description": agent.agent_description,
         }
         for agent in agents
-        if agent.get("agent_type") == agent_task_type
+        if agent.agent_type == agent_task_type
     ]
 
     return f"""
@@ -340,7 +346,7 @@ def _process_query(
 
 def _handle_connection_routing(
     info: ResolveInfo,
-    agent: Dict[str, Any],
+    agent: Any,
     **kwargs: Dict[str, Any],
 ) -> Optional[str]:
     """
@@ -348,7 +354,7 @@ def _handle_connection_routing(
 
     Args:
         info (ResolveInfo): GraphQL context and metadata
-        agent (Dict[str, Any]): Selected agent details
+        agent: AgentType object
         **kwargs: Request parameters including:
             - receiver_email: Optional email for routing
 
@@ -357,7 +363,7 @@ def _handle_connection_routing(
     """
     connection_id = info.context.get("connection_id")
 
-    if "receiver_email" in kwargs and agent["agent_type"] != "triage":
+    if "receiver_email" in kwargs and agent.agent_type != "triage":
         receiver_connection = get_connection_by_email(
             info.context.get("logger"),
             info.context.get("endpoint_id"),
@@ -372,7 +378,7 @@ def _trigger_async_update(
     info: ResolveInfo,
     session_run: SessionRunType,
     connection_id: str,
-    agent: Dict[str, Any],
+    agent: Any,
     **kwargs: Dict[str, Any],
 ) -> None:
     """
@@ -382,7 +388,7 @@ def _trigger_async_update(
         info (ResolveInfo): GraphQL context and metadata
         session_run (SessionRunType): Current session run details
         connection_id (str): Connection ID for routing
-        agent (Dict[str, Any]): Selected agent details
+        agent: AgentType object
         **kwargs: Request parameters including:
             - receiver_email: Optional email for routing
     """
@@ -399,7 +405,7 @@ def _trigger_async_update(
     if (
         not connection_id
         and "receiver_email" in kwargs
-        and agent["agent_type"] != "triage"
+        and agent.agent_type != "triage"
     ):
         params["receiver_email"] = kwargs["receiver_email"]
 
