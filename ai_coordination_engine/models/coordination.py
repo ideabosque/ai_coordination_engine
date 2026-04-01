@@ -49,68 +49,68 @@ class CoordinationModel(BaseModel):
     updated_at = UTCDateTimeAttribute()
 
 
-# def purge_cache():
-#     def actual_decorator(original_function):
-#         @functools.wraps(original_function)
-#         def wrapper_function(*args, **kwargs):
-#             try:
-#                 # Execute original function first
-#                 result = original_function(*args, **kwargs)
+def purge_cache():
+    def actual_decorator(original_function):
+        @functools.wraps(original_function)
+        def wrapper_function(*args, **kwargs):
+            try:
+                # Execute original function first
+                result = original_function(*args, **kwargs)
 
-#                 # Then purge cache after successful operation
-#                 from ..models.cache import purge_entity_cascading_cache
+                # Then purge cache after successful operation
+                from ..models.cache import purge_entity_cascading_cache
 
-#                 # Get entity keys from kwargs or entity parameter
-#                 entity_keys = {}
+                # Get entity keys from kwargs or entity parameter
+                entity_keys = {}
 
-#                 # Try to get from entity parameter first (for updates)
-#                 entity = kwargs.get("entity")
-#                 if entity:
-#                     entity_keys["coordination_uuid"] = getattr(
-#                         entity, "coordination_uuid", None
-#                     )
-#                     entity_keys["partition_key"] = getattr(
-#                         entity, "partition_key", None
-#                     )
+                # Try to get from entity parameter first (for updates)
+                entity = kwargs.get("entity")
+                if entity:
+                    entity_keys["coordination_uuid"] = getattr(
+                        entity, "coordination_uuid", None
+                    )
+                    entity_keys["partition_key"] = getattr(
+                        entity, "partition_key", None
+                    )
 
-#                 # Fallback to kwargs (for creates/deletes)
-#                 if not entity_keys.get("coordination_uuid"):
-#                     entity_keys["coordination_uuid"] = kwargs.get("coordination_uuid")
-#                     entity_keys["partition_key"] = kwargs.get("partition_key")
+                # Fallback to kwargs (for creates/deletes)
+                if not entity_keys.get("coordination_uuid"):
+                    entity_keys["coordination_uuid"] = kwargs.get("coordination_uuid")
+                    entity_keys["partition_key"] = kwargs.get("partition_key")
 
-#                 # Only purge if we have the required keys
-#                 if entity_keys.get("coordination_uuid") and entity_keys.get(
-#                     "partition_key"
-#                 ):
-#                     purge_entity_cascading_cache(
-#                         args[0].context.get("logger"),
-#                         entity_type="coordination",
-#                         context_keys=None,
-#                         entity_keys=entity_keys,
-#                         cascade_depth=3,
-#                     )
+                # Only purge if we have the required keys
+                if entity_keys.get("coordination_uuid") and entity_keys.get(
+                    "partition_key"
+                ):
+                    purge_entity_cascading_cache(
+                        args[0].context.get("logger"),
+                        entity_type="coordination",
+                        context_keys=None,
+                        entity_keys=entity_keys,
+                        cascade_depth=3,
+                    )
 
-#                 return result
-#             except Exception as e:
-#                 log = traceback.format_exc()
-#                 args[0].context.get("logger").error(log)
-#                 raise e
+                return result
+            except Exception as e:
+                log = traceback.format_exc()
+                args[0].context.get("logger").error(log)
+                raise e
 
-#         return wrapper_function
+        return wrapper_function
 
-#     return actual_decorator
+    return actual_decorator
 
 
-# @retry(
-#     reraise=True,
-#     wait=wait_exponential(multiplier=1, max=60),
-#     stop=stop_after_attempt(5),
-# )
-# @method_cache(
-#     ttl=Config.get_cache_ttl(),
-#     cache_name=Config.get_cache_name("models", "coordination"),
-#     cache_enabled=False,
-# )
+@retry(
+    reraise=True,
+    wait=wait_exponential(multiplier=1, max=60),
+    stop=stop_after_attempt(5),
+)
+@method_cache(
+    ttl=Config.get_cache_ttl(),
+    cache_name=Config.get_cache_name("models", "coordination"),
+    cache_enabled=False,
+)
 def get_coordination(partition_key: str, coordination_uuid: str) -> CoordinationModel:
     return CoordinationModel.get(partition_key, coordination_uuid)
 
