@@ -164,14 +164,11 @@ def get_session_run_type(
 def resolve_session_run(
     info: ResolveInfo, **kwargs: Dict[str, Any]
 ) -> SessionRunType | None:
-    count = get_session_run_count(kwargs["session_uuid"], kwargs["run_uuid"])
-    if count == 0:
+    try:
+        session_run = get_session_run(kwargs["session_uuid"], kwargs["run_uuid"])
+        return get_session_run_type(info, session_run)
+    except SessionRunModel.DoesNotExist:
         return None
-
-    return get_session_run_type(
-        info,
-        get_session_run(kwargs["session_uuid"], kwargs["run_uuid"]),
-    )
 
 
 @monitor_decorator

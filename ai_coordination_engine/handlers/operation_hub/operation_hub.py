@@ -4,6 +4,7 @@ from __future__ import print_function
 
 __author__ = "bibow"
 
+import logging
 import time
 import traceback
 from typing import Any, Dict, Optional
@@ -23,6 +24,19 @@ from ...types.session import SessionType
 from ...types.session_run import SessionRunType
 from ..ai_coordination_utility import get_connection_by_email, invoke_ask_model
 from ..config import Config
+
+
+def _log_step(logger, step: str, elapsed: float, **extra):
+    """Structured logging helper for step timing."""
+    if logger:
+        logger.info(
+            f"ask_operation_hub step completed",
+            extra={
+                "step": step,
+                "elapsed_seconds": round(elapsed, 3),
+                **extra,
+            },
+        )
 
 """System Instructions:
 Name: Triage Agent
@@ -125,6 +139,7 @@ def ask_operation_hub(
     """
     try:
         start_time = time.perf_counter()
+        logger = info.context.get("logger")
         # Start async task and get identifiers
         # Step 1: Initialize and validate coordination
         coordination = resolve_coordination(
@@ -134,17 +149,16 @@ def ask_operation_hub(
             },
         )
 
-        print(
-            f"{'>' * 20} Execute function `resolve_coordination` spent {time.perf_counter() - start_time} s."
-        )
+        if coordination is None:
+            raise ValueError("Not found the specified coordination")
+
+        _log_step(logger, "resolve_coordination", time.perf_counter() - start_time)
         start_time = time.perf_counter()
 
         # Step 2: Create/update session
         session = _handle_session(info, **kwargs)
 
-        print(
-            f"{'>' * 20} Execute function `_handle_session` spent {time.perf_counter() - start_time} s."
-        )
+        _log_step(logger, "_handle_session", time.perf_counter() - start_time)
         start_time = time.perf_counter()
 
         # Step 3: Select and validate agent
@@ -153,24 +167,18 @@ def ask_operation_hub(
         if not agent:
             raise ValueError("Not found the specified agent")
 
-        print(
-            f"{'>' * 20} Execute function `_select_agent` spent {time.perf_counter() - start_time} s."
-        )
+        _log_step(logger, "_select_agent", time.perf_counter() - start_time)
         start_time = time.perf_counter()
 
         # Step 4: Process query and handle routing
         user_query = _process_query(info, kwargs["user_query"], agent, coordination)
 
-        print(
-            f"{'>' * 20} Execute function `_process_query` spent {time.perf_counter() - start_time} s."
-        )
+        _log_step(logger, "_process_query", time.perf_counter() - start_time)
         start_time = time.perf_counter()
 
         connection_id = _handle_connection_routing(info, agent, **kwargs)
 
-        print(
-            f"{'>' * 20} Execute function `_handle_connection_routing` spent {time.perf_counter() - start_time} s."
-        )
+        _log_step(logger, "_handle_connection_routing", time.perf_counter() - start_time)
         start_time = time.perf_counter()
 
         # Step 5: Execute AI model and record session run
@@ -195,9 +203,7 @@ def ask_operation_hub(
 
         ask_model = invoke_ask_model(context=info.context, **variables)
 
-        print(
-            f"{'>' * 20} Execute function `invoke_ask_model` spent {time.perf_counter() - start_time} s."
-        )
+        _log_step(logger, "invoke_ask_model", time.perf_counter() - start_time)
         start_time = time.perf_counter()
 
         session_run: SessionRunType = insert_update_session_run(
@@ -213,17 +219,13 @@ def ask_operation_hub(
             },
         )
 
-        print(
-            f"{'>' * 20} Execute function `insert_update_session_run` spent {time.perf_counter() - start_time} s."
-        )
+        _log_step(logger, "insert_update_session_run", time.perf_counter() - start_time)
         start_time = time.perf_counter()
 
         # Step 6: Handle async updates
         _trigger_async_update(info, session_run, connection_id, agent, **kwargs)
 
-        print(
-            f"{'>' * 20} Execute function `_trigger_async_update` spent {time.perf_counter() - start_time} s."
-        )
+        _log_step(logger, "_trigger_async_update", time.perf_counter() - start_time)
 
         # Step 7: Return response
         return AskOperationHubType(
@@ -300,21 +302,17 @@ def _select_agent(
     """
     assert len(coordination.agents) > 0, "No agent found for the coordination."
 
-    return next(
-        (
-            agent
-            for agent in coordination.agents
-            if agent.get("agent_uuid") == kwargs.get("agent_uuid")
-        ),
-        next(
-            (
-                agent
-                for agent in coordination.agents
-                if agent.get("agent_type") == "triage"
-            ),
-            None,
-        ),
-    )
+    agent_uuid = kwargs.get("agent_uuid")
+    if agent_uuid:
+        for agent in coordination.agents:
+            if agent.get("agent_uuid") == agent_uuid:
+                return agent
+
+    for agent in coordination.agents:
+        if agent.get("agent_type") == "triage":
+            return agent
+
+    return None
 
 
 def _process_query(
@@ -335,15 +333,15 @@ def _process_query(
     Returns:
         str: Processed query string with enhanced context for triage agents
     """
-    if type(agent) is dict and agent.get("agent_type") == "triage":
+    if isinstance(agent, dict) and agent.get("agent_type") == "triage":
         available_task_agents = [
             {
-                "agent_uuid": agent["agent_uuid"],
-                "agent_name": agent["agent_name"],
-                "agent_description": agent["agent_description"],
+                "agent_uuid": coord_agent["agent_uuid"],
+                "agent_name": coord_agent["agent_name"],
+                "agent_description": coord_agent["agent_description"],
             }
-            for agent in coordination.agents
-            if agent.get("agent_type") == "task"
+            for coord_agent in coordination.agents
+            if coord_agent.get("agent_type") == "task"
         ]
 
         user_query = (

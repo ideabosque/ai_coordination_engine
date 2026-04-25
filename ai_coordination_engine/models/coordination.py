@@ -133,15 +133,11 @@ def resolve_coordination(
     info: ResolveInfo, **kwargs: Dict[str, Any]
 ) -> CoordinationType | None:
     partition_key = info.context.get("partition_key") or info.context.get("endpoint_id")
-    count = get_coordination_count(partition_key, kwargs["coordination_uuid"])
-
-    if count == 0:
+    try:
+        coordination = get_coordination(partition_key, kwargs["coordination_uuid"])
+        return get_coordination_type(info, coordination)
+    except CoordinationModel.DoesNotExist:
         return None
-
-    return get_coordination_type(
-        info,
-        get_coordination(partition_key, kwargs["coordination_uuid"]),
-    )
 
 
 @monitor_decorator

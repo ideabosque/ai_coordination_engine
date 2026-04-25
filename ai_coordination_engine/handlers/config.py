@@ -34,6 +34,10 @@ class Config:
     CACHE_TTL = 1800  # 30 minutes default TTL
     CACHE_ENABLED = True
 
+    # Timeout Configuration (in seconds)
+    GRAPHQL_TIMEOUT = 30  # Default timeout for GraphQL requests
+    ASYNC_TASK_TIMEOUT = 60  # Timeout for async task polling
+
     # Cache name patterns for different modules
     CACHE_NAMES = {
         "models": "ai_coordination_engine.models",
@@ -170,6 +174,14 @@ class Config:
         # Set cache enabled flag (defaults to True if not specified)
         if "cache_enabled" in setting:
             cls.CACHE_ENABLED = setting.get("cache_enabled", True)
+
+        if "graphql_timeout" in setting:
+            cls.GRAPHQL_TIMEOUT = int(setting.get("graphql_timeout", cls.GRAPHQL_TIMEOUT))
+
+        if "async_task_timeout" in setting:
+            cls.ASYNC_TASK_TIMEOUT = int(
+                setting.get("async_task_timeout", cls.ASYNC_TASK_TIMEOUT)
+            )
 
     @classmethod
     def _setup_function_paths(cls, setting: Dict[str, Any]) -> None:

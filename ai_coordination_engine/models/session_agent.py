@@ -147,16 +147,13 @@ def get_session_agent_type(
 def resolve_session_agent(
     info: ResolveInfo, **kwargs: Dict[str, Any]
 ) -> SessionAgentType | None:
-    count = get_session_agent_count(
-        kwargs["session_uuid"], kwargs["session_agent_uuid"]
-    )
-    if count == 0:
+    try:
+        session_agent = get_session_agent(
+            kwargs["session_uuid"], kwargs["session_agent_uuid"]
+        )
+        return get_session_agent_type(info, session_agent)
+    except SessionAgentModel.DoesNotExist:
         return None
-
-    return get_session_agent_type(
-        info,
-        get_session_agent(kwargs["session_uuid"], kwargs["session_agent_uuid"]),
-    )
 
 
 @monitor_decorator
