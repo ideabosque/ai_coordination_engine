@@ -404,7 +404,9 @@ def _trigger_async_update(
         params["receiver_email"] = kwargs["receiver_email"]
 
     invoker = info.context.get("aws_lambda_invoker")
-
+    info.context.get("logger").info("<<<<<<<<<<<<<<<<<debug<<<<<<<<<<<<<<<<<<<<<<<<")
+    info.context.get("logger").info(info.context)
+    info.context.get("logger").info(invoker)
     if callable(invoker):
         invoker(
             function_name=info.context.get("aws_lambda_arn"),
