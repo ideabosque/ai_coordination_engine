@@ -14,7 +14,6 @@ from graphene import ResolveInfo
 from silvaengine_utility.invoker import Invoker
 from silvaengine_utility.serializer import Serializer
 
-from ...handlers.config import Config
 from ...models.repositories import get_repo
 from ...types.session import SessionType
 from ...types.session_agent import SessionAgentListType, SessionAgentType
@@ -309,11 +308,11 @@ def invoke_next_iteration(
     if "" in info.context:
         params.update({"connection_id": info.context[""]})
 
-    Invoker.invoke_funct_on_aws_lambda(
-        info.context,
+    Invoker.invoke_funct_on_local(
+        info.context.get("logger"),
+        info.context.get("setting"),
         "async_execute_procedure_task_session",
-        params=params,
-        aws_lambda=Config.aws_lambda,
+        **params,
     )
 
 

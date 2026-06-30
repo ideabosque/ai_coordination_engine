@@ -264,3 +264,43 @@ class AICoordinationEngine(Graphql):
             mutation=Mutations,
             types=type_class(),
         )
+
+
+# ---------------------------------------------------------------------------
+# Module-level dispatch functions for gateway integration
+# ---------------------------------------------------------------------------
+# These are called by silvaengine_gateway via the route manifest's
+# ``dispatch`` field (e.g. "ai_coordination_engine.main:dispatch_graphql").
+# They create a short-lived AICoordinationEngine instance using the
+# already-initialized Config singleton.
+# ---------------------------------------------------------------------------
+
+
+def dispatch_graphql(**params: Any) -> Any:
+    """Execute a GraphQL query/mutation against the AI Coordination Engine.
+
+    Requires Config.initialize() to have been called (done by gateway startup).
+
+    On the PostgreSQL backend, ``Config.db_session`` is a module-level
+    ``scoped_session`` reused across requests on the same thread. If any
+    statement fails without a rollback, the session is left in an aborted
+    state and every subsequent request raises ``InFailedSqlTransaction``
+    until the process restarts. Guard the request boundary: roll back on
+    error and always ``remove()`` the scoped session so each request starts
+    from a clean connection. (No-op on the DynamoDB backend, where
+    ``db_session`` is ``None``.)
+    """
+    from .handlers.config import Config
+
+    logger = Config.get_logger()
+    instance = AICoordinationEngine(logger, **Config.get_setting())
+    db_session = Config.db_session
+    try:
+        return instance.ai_coordination_graphql(**params)
+    except Exception:
+        if db_session is not None:
+            db_session.rollback()
+        raise
+    finally:
+        if db_session is not None:
+            db_session.remove()

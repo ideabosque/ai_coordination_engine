@@ -9,7 +9,6 @@ from typing import Any, Dict, List
 from urllib.parse import quote_plus
 
 import boto3
-from silvaengine_dynamodb_base.models import FunctionModel
 from silvaengine_utility import Debugger, Graphql
 
 
@@ -34,6 +33,11 @@ class Config:
     db_session = None  # PostgreSQL scoped_session (only set in PG mode)
     _db_engine = None
     PG_TABLE_PREFIX = ""
+
+    # Initialization state (for gateway dispatch_graphql)
+    _initialized = False
+    _setting: Dict[str, Any] = {}
+    _logger = None
 
     # Cache Configuration
     CACHE_TTL = 1800  # 30 minutes default TTL
@@ -172,6 +176,8 @@ class Config:
             **setting (Dict[str, Any]): Configuration keyword arguments.
         """
         try:
+            cls._setting = setting
+            cls._logger = logger
             cls._set_parameters(setting)
             cls._setup_function_paths(setting)
 
@@ -192,6 +198,7 @@ class Config:
             if setting.get("initialize_tables"):
                 cls._initialize_tables(logger)
             logger.info("Configuration initialized successfully.")
+            cls._initialized = True
         except Exception as e:
             logger.exception("Failed to initialize configuration.")
             raise e
@@ -385,6 +392,12 @@ class Config:
             raise Exception("Invalid required parameter(s)")
 
         if Config.schemas.get(function_name) is None:
+            # Imported lazily: FunctionModel lives in the shared platform
+            # function table and is only needed on this legacy schema-fetch
+            # path. Keeping it out of module scope avoids breaking engine
+            # import when an older silvaengine_dynamodb_base build is present.
+            from silvaengine_dynamodb_base.models import FunctionModel
+
             function = FunctionModel.get(
                 hash_key=context.get("aws_lambda_arn"),
                 range_key=function_name,
@@ -410,3 +423,17 @@ class Config:
                 )
                 raise e
         return Config.schemas[function_name]
+
+    @classmethod
+    def get_setting(cls) -> Dict[str, Any]:
+        """Return the setting dict stored at initialization time."""
+        if not cls._initialized:
+            raise RuntimeError("Config not initialized")
+        return cls._setting
+
+    @classmethod
+    def get_logger(cls) -> logging.Logger:
+        """Return the logger stored at initialization time."""
+        if cls._logger:
+            return cls._logger
+        return logging.getLogger()

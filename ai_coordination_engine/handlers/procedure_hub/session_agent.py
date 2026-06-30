@@ -22,7 +22,6 @@ from ..ai_coordination_utility import (
     get_async_task,
     invoke_ask_model,
 )
-from ..config import Config
 
 
 def init_session_agents(
@@ -500,12 +499,12 @@ def execute_session_agent(info: ResolveInfo, session_agent: SessionAgentType) ->
         if "connection_id" in info.context:
             params.update({"connection_id": info.context["connection_id"]})
 
-        # Invoke async update function on AWS Lambda
-        Invoker.invoke_funct_on_aws_lambda(
-            info.context,
+        # Invoke async update function in-process (local invoke)
+        Invoker.invoke_funct_on_local(
+            info.context.get("logger"),
+            info.context.get("setting"),
             "async_update_session_agent",
-            params=params,
-            aws_lambda=Config.aws_lambda,
+            **params,
         )
         return
 

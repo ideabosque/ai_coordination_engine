@@ -162,7 +162,7 @@ cython_debug/
 #.idea/
 
 .vscode/
-tests/
 .zed
 .claude/
 test_results/
+*.xlsx

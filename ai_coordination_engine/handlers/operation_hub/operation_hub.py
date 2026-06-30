@@ -7,10 +7,9 @@ __author__ = "bibow"
 import logging
 import time
 import traceback
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, cast
 
 from graphene import ResolveInfo
-from silvaengine_constants import InvocationType
 from silvaengine_utility.debugger import Debugger
 from silvaengine_utility.invoker import Invoker
 from silvaengine_utility.serializer import Serializer
@@ -35,6 +34,7 @@ def _log_step(logger, step: str, elapsed: float, **extra):
                 **extra,
             },
         )
+
 
 """System Instructions:
 Name: Triage Agent
@@ -119,7 +119,7 @@ def ask_operation_hub(
     3. Processes and enhances user queries for triage scenarios
     4. Manages connection IDs and receiver email routing
     5. Invokes AI model and creates session runs
-    6. Triggers asynchronous session updates via Lambda
+    6. Triggers asynchronous session updates via in-process local invoke
 
     Args:
         info (ResolveInfo): GraphQL context and metadata
@@ -176,7 +176,9 @@ def ask_operation_hub(
 
         connection_id = _handle_connection_routing(info, agent, **kwargs)
 
-        _log_step(logger, "_handle_connection_routing", time.perf_counter() - start_time)
+        _log_step(
+            logger, "_handle_connection_routing", time.perf_counter() - start_time
+        )
         start_time = time.perf_counter()
 
         # Step 5: Execute AI model and record session run
@@ -249,7 +251,7 @@ def ask_operation_hub(
         raise e
 
 
-def _handle_session(info: ResolveInfo, **kwargs: Dict[str, Any]) -> SessionType | None:
+def _handle_session(info: ResolveInfo, **kwargs: Dict[str, Any]) -> SessionType:
     """
     Helper function to create or update a session.
 
@@ -262,7 +264,9 @@ def _handle_session(info: ResolveInfo, **kwargs: Dict[str, Any]) -> SessionType 
             - agent_uuid: Optional agent identifier
 
     Returns:
-        SessionType: Session object with updated details
+        SessionType: Session object with updated details. ``insert_update``
+        always returns the persisted session type (it raises on failure rather
+        than returning ``None``), so the result is non-optional.
     """
     variables = {
         "coordination_uuid": kwargs["coordination_uuid"],
@@ -278,7 +282,7 @@ def _handle_session(info: ResolveInfo, **kwargs: Dict[str, Any]) -> SessionType 
     if "session_uuid" in kwargs:
         variables.update({"session_uuid": kwargs["session_uuid"]})
 
-    return get_repo("session").insert_update(info, **variables)
+    return cast(SessionType, get_repo("session").insert_update(info, **variables))
 
 
 def _select_agent(
@@ -331,12 +335,18 @@ def _process_query(
     Returns:
         str: Processed query string with enhanced context for triage agents
     """
-    if isinstance(agent, dict) and (agent.get("agent_type") or agent.get("agentType")) == "triage":
+    if (
+        isinstance(agent, dict)
+        and (agent.get("agent_type") or agent.get("agentType")) == "triage"
+    ):
         available_task_agents = [
             {
-                "agent_uuid": coord_agent.get("agent_uuid") or coord_agent.get("agentUuid"),
-                "agent_name": coord_agent.get("agent_name") or coord_agent.get("agentName"),
-                "agent_description": coord_agent.get("agent_description") or coord_agent.get("agentDescription"),
+                "agent_uuid": coord_agent.get("agent_uuid")
+                or coord_agent.get("agentUuid"),
+                "agent_name": coord_agent.get("agent_name")
+                or coord_agent.get("agentName"),
+                "agent_description": coord_agent.get("agent_description")
+                or coord_agent.get("agentDescription"),
             }
             for coord_agent in coordination.agents
             if (coord_agent.get("agent_type") or coord_agent.get("agentType")) == "task"
@@ -416,30 +426,10 @@ def _trigger_async_update(
     ):
         params["receiver_email"] = kwargs["receiver_email"]
 
-    invoker = info.context.get("aws_lambda_invoker")
-
-    if callable(invoker):
-        invoker(
-            function_name=info.context.get("aws_lambda_arn"),
-            invocation_type=InvocationType.EVENT,
-            payload=Invoker.build_invoker_payload(
-                context=info.context,
-                module_name="ai_coordination_engine",
-                function_name="async_insert_update_session",
-                class_name="AICoordinationEngine",
-                parameters=params,
-            ),
-        )
-
-    # Invoker.execute_async_task(
-    #     task=Invoker.resolve_proxied_callable(
-    #         module_name="ai_coordination_engine",
-    #         function_name="async_insert_update_session",
-    #         class_name="AICoordinationEngine",
-    #         constructor_parameters={
-    #             "logger": info.context.get("logger"),
-    #             **info.context.get("setting", {}),
-    #         },
-    #     ),
-    #     parameters=params,
-    # )
+    # Invoke async update function in-process (local invoke)
+    Invoker.invoke_funct_on_local(
+        info.context.get("logger"),
+        info.context.get("setting"),
+        "async_insert_update_session",
+        **params,
+    )
