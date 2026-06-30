@@ -10,7 +10,7 @@ from typing import Any, Dict
 from graphene import Boolean, Field, List, Mutation, String
 from silvaengine_utility import JSONCamelCase
 
-from ..models.task_schedule import delete_task_schedule, insert_update_task_schedule
+from ..models.repositories import get_repo
 from ..types.task_schedule import TaskScheduleType
 
 
@@ -19,6 +19,7 @@ class InsertUpdateTaskSchedule(Mutation):
 
     class Arguments:
         task_uuid = String(required=True)
+        schedule_uuid = String(required=False)
         task_schedule = JSONCamelCase(required=False)
         coordination_uuid = String(required=False)
         schedule = String(required=False)
@@ -30,7 +31,7 @@ class InsertUpdateTaskSchedule(Mutation):
         root: Any, info: Any, **kwargs: Dict[str, Any]
     ) -> "InsertUpdateTaskSchedule":
         try:
-            task_schedule = insert_update_task_schedule(info, **kwargs)
+            task_schedule = get_repo("task_schedule").insert_update(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
             info.context.get("logger").error(log)
@@ -49,7 +50,7 @@ class DeleteTaskSchedule(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "DeleteTaskSchedule":
         try:
-            ok = delete_task_schedule(info, **kwargs)
+            ok = get_repo("task_schedule").delete(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
             info.context.get("logger").error(log)

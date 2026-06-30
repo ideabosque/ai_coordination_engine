@@ -11,8 +11,7 @@ from graphene import ResolveInfo
 from silvaengine_utility.invoker import Invoker
 from silvaengine_utility.serializer import Serializer
 
-from ...models.session import insert_update_session
-from ...models.task import resolve_task
+from ...models.repositories import get_repo
 from ...types.procedure_hub import ProcedureTaskSessionType
 from ...types.session import SessionType
 from ..config import Config
@@ -40,7 +39,7 @@ def execute_procedure_task_session(
     """
 
     # Fetch task details and extract relevant information
-    task = resolve_task(
+    task = get_repo("task").resolve_single(
         info,
         **{
             "coordination_uuid": kwargs["coordination_uuid"],
@@ -61,7 +60,7 @@ def execute_procedure_task_session(
         variables["subtask_queries"] = task.subtask_queries
     if "user_id" in kwargs:
         variables["user_id"] = kwargs["user_id"]
-    session: SessionType = insert_update_session(
+    session: SessionType = get_repo("session").insert_update(
         info,
         **variables,
     )
@@ -90,7 +89,7 @@ def execute_procedure_task_session(
             aws_lambda=Config.aws_lambda,
         )
     else:
-        session: SessionType = insert_update_session(
+        session: SessionType = get_repo("session").insert_update(
             info,
             **{
                 "coordination_uuid": session.coordination_uuid,

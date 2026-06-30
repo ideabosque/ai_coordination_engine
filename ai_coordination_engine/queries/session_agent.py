@@ -10,14 +10,14 @@ from graphene import ResolveInfo
 from silvaengine_utility import method_cache
 
 from ..handlers.config import Config
-from ..models import session_agent
+from ..models.repositories import get_repo
 from ..types.session_agent import SessionAgentListType, SessionAgentType
 
 
 def resolve_session_agent(
     info: ResolveInfo, **kwargs: Dict[str, Any]
 ) -> SessionAgentType | None:
-    return session_agent.resolve_session_agent(info, **kwargs)
+    return get_repo("session_agent").resolve_single(info, **kwargs)
 
 
 @method_cache(
@@ -28,4 +28,4 @@ def resolve_session_agent(
 def resolve_session_agent_list(
     info: ResolveInfo, **kwargs: Dict[str, Any]
 ) -> SessionAgentListType:
-    return session_agent.resolve_session_agent_list(info, **kwargs)
+    return get_repo("session_agent").list(info, **kwargs)

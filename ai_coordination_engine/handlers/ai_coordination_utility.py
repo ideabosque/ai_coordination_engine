@@ -357,7 +357,7 @@ def batch_get_coordination_data(
         for session in sessions:
             coord_data = coord_map[session.coordination_uuid]
     """
-    from ..models.batch_loaders import get_loaders
+    from ..models.repositories import get_loaders
 
     # Collect all unique coordination keys needed using direct property access
     coordination_keys = set()
@@ -411,7 +411,7 @@ def batch_get_task_data(sessions: List, info: ResolveInfo) -> Dict[str, Dict[str
             task_data = task_map[session.task_uuid]
             agent_actions = task_data.get("agent_actions", {})
     """
-    from ..models.batch_loaders import get_loaders
+    from ..models.repositories import get_loaders
 
     # Collect all unique task keys needed using direct property access
     task_keys = set()
@@ -496,7 +496,7 @@ def ensure_coordination_data(session, info: ResolveInfo = None) -> Dict[str, Any
 
     # Path 3: Use batch loader if info available
     if info is not None:
-        from ..models.batch_loaders import get_loaders
+        from ..models.repositories import get_loaders
 
         coordination_uuid = getattr(session, "coordination_uuid", None)
         endpoint_id = getattr(session, "endpoint_id", None)
@@ -549,7 +549,7 @@ def _normalize_task_object(task) -> Dict[str, Any]:
 
 
 def _load_task_from_loader(session, info) -> Optional[Dict[str, Any]]:
-    from ..models.batch_loaders import get_loaders
+    from ..models.repositories import get_loaders
 
     task_uuid = getattr(session, "task_uuid", None)
     coordination_uuid = getattr(session, "coordination_uuid", None)
@@ -580,7 +580,7 @@ def _resolve_coordination(session, task_dict, info) -> Dict[str, Any]:
     )
 
     if info is not None and coord_uuid and partition_key:
-        from ..models.batch_loaders import get_loaders
+        from ..models.repositories import get_loaders
 
         loaders = get_loaders(info.context)
         coord_dict = loaders.coordination_loader.load((partition_key, coord_uuid)).get()

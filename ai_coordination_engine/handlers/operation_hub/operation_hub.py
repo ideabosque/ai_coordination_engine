@@ -15,9 +15,7 @@ from silvaengine_utility.debugger import Debugger
 from silvaengine_utility.invoker import Invoker
 from silvaengine_utility.serializer import Serializer
 
-from ...models.coordination import resolve_coordination
-from ...models.session import insert_update_session
-from ...models.session_run import insert_update_session_run
+from ...models.repositories import get_repo
 from ...types.coordination import CoordinationType
 from ...types.operation_hub import AskOperationHubType
 from ...types.session import SessionType
@@ -142,7 +140,7 @@ def ask_operation_hub(
         logger = info.context.get("logger")
         # Start async task and get identifiers
         # Step 1: Initialize and validate coordination
-        coordination = resolve_coordination(
+        coordination = get_repo("coordination").resolve_single(
             info,
             **{
                 "coordination_uuid": kwargs["coordination_uuid"],
@@ -206,7 +204,7 @@ def ask_operation_hub(
         _log_step(logger, "invoke_ask_model", time.perf_counter() - start_time)
         start_time = time.perf_counter()
 
-        session_run: SessionRunType = insert_update_session_run(
+        session_run: SessionRunType = get_repo("session_run").insert_update(
             info,
             **{
                 "session_uuid": session.session_uuid,
@@ -280,7 +278,7 @@ def _handle_session(info: ResolveInfo, **kwargs: Dict[str, Any]) -> SessionType 
     if "session_uuid" in kwargs:
         variables.update({"session_uuid": kwargs["session_uuid"]})
 
-    return insert_update_session(info, **variables)
+    return get_repo("session").insert_update(info, **variables)
 
 
 def _select_agent(
@@ -333,15 +331,15 @@ def _process_query(
     Returns:
         str: Processed query string with enhanced context for triage agents
     """
-    if isinstance(agent, dict) and agent.get("agent_type") == "triage":
+    if isinstance(agent, dict) and (agent.get("agent_type") or agent.get("agentType")) == "triage":
         available_task_agents = [
             {
-                "agent_uuid": coord_agent["agent_uuid"],
-                "agent_name": coord_agent["agent_name"],
-                "agent_description": coord_agent["agent_description"],
+                "agent_uuid": coord_agent.get("agent_uuid") or coord_agent.get("agentUuid"),
+                "agent_name": coord_agent.get("agent_name") or coord_agent.get("agentName"),
+                "agent_description": coord_agent.get("agent_description") or coord_agent.get("agentDescription"),
             }
             for coord_agent in coordination.agents
-            if coord_agent.get("agent_type") == "task"
+            if (coord_agent.get("agent_type") or coord_agent.get("agentType")) == "task"
         ]
 
         user_query = (

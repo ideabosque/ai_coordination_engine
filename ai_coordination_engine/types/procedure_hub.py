@@ -39,7 +39,7 @@ class ProcedureTaskSessionType(ProcedureTaskSessionBaseType):
         """
         Resolve nested Coordination for this procedure task session using DataLoader.
         """
-        from ..models.batch_loaders import get_loaders
+        from ..models.repositories import get_loaders
 
         existing = getattr(parent, "coordination", None)
         if isinstance(existing, dict):
@@ -68,7 +68,7 @@ class ProcedureTaskSessionType(ProcedureTaskSessionBaseType):
         """
         Resolve nested Session for this procedure task session using DataLoader.
         """
-        from ..models.batch_loaders import get_loaders
+        from ..models.repositories import get_loaders
 
         existing = getattr(parent, "session", None)
         if isinstance(existing, dict):
@@ -95,7 +95,7 @@ class ProcedureTaskSessionType(ProcedureTaskSessionBaseType):
         """
         Resolve nested Task for this procedure task session using DataLoader.
         """
-        from ..models.batch_loaders import get_loaders
+        from ..models.repositories import get_loaders
 
         existing = getattr(parent, "task", None)
         if isinstance(existing, dict):

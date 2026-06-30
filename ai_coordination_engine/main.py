@@ -9,7 +9,6 @@ from typing import Any, Dict, List
 
 from graphene import Schema
 
-from silvaengine_dynamodb_base import BaseModel
 from silvaengine_utility import Debugger, Graphql
 
 from .handlers.config import Config
@@ -153,16 +152,9 @@ class AICoordinationEngine(Graphql):
     def __init__(self, logger: logging.Logger, **setting: Dict[str, Any]) -> None:
         Graphql.__init__(self, logger, **setting)
 
-        if (
-            setting.get("region_name")
-            and setting.get("aws_access_key_id")
-            and setting.get("aws_secret_access_key")
-        ):
-            BaseModel.Meta.region = setting.get("region_name")
-            BaseModel.Meta.aws_access_key_id = setting.get("aws_access_key_id")
-            BaseModel.Meta.aws_secret_access_key = setting.get("aws_secret_access_key")
-
         # Initialize configuration via the Config class
+        # (Config.initialize handles BaseModel.Meta setup in DynamoDB mode,
+        #  and db_session setup in PostgreSQL mode)
         Config.initialize(logger, **setting)
 
     def _apply_partition_defaults(self, params: Dict[str, Any]) -> None:
@@ -253,7 +245,17 @@ class AICoordinationEngine(Graphql):
 
         self._apply_partition_defaults(params)
 
-        return self.execute(self.__class__.build_graphql_schema(), **params)
+        # Set RLS context for PostgreSQL backend
+        partition_key = params.get("context", {}).get("partition_key")
+        if partition_key and Config.DB_BACKEND == "postgresql":
+            Config._set_rls_context(partition_key)
+
+        try:
+            return self.execute(self.__class__.build_graphql_schema(), **params)
+        finally:
+            # Clean up scoped_session after request
+            if Config.DB_BACKEND == "postgresql" and Config.db_session:
+                Config.db_session.remove()
 
     @staticmethod
     def build_graphql_schema() -> Schema:

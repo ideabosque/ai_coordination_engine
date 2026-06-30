@@ -9,8 +9,7 @@ from typing import Any, Dict
 
 from silvaengine_utility import Serializer
 
-from ...models.session import insert_update_session, resolve_session
-from ...models.session_run import resolve_session_run
+from ...models.repositories import get_repo
 from ...utils.listener import create_listener_info
 from ..ai_coordination_utility import get_async_task
 from ..config import Config
@@ -40,7 +39,7 @@ def async_insert_update_session(
     info = create_listener_info(logger, "insert_update_session", setting, **kwargs)
 
     # Resolve the session run using session and run UUIDs
-    session_run = resolve_session_run(
+    session_run = get_repo("session_run").resolve_single(
         info,
         **{
             "session_uuid": kwargs["session_uuid"],
@@ -71,7 +70,7 @@ def async_insert_update_session(
             async_task["status"] in ("failed", "completed")
             or time.time() - start_time > polling_timeout
         ):
-            session = resolve_session(
+            session = get_repo("session").resolve_single(
                 info,
                 **{
                     "coordination_uuid": kwargs["coordination_uuid"],
@@ -116,7 +115,7 @@ def async_insert_update_session(
             if status is not None:
                 update_kwargs["status"] = status
 
-            insert_update_session(info, **update_kwargs)
+            get_repo("session").insert_update(info, **update_kwargs)
 
             logger.info(
                 f"Async task finished",
