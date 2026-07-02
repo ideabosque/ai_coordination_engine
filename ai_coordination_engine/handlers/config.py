@@ -5,6 +5,9 @@ __author__ = "bibow"
 
 import logging
 import os
+import sys
+import threading
+import traceback
 from typing import Any, Dict, List
 from urllib.parse import quote_plus
 
@@ -36,6 +39,7 @@ class Config:
 
     # Initialization state (for gateway dispatch_graphql)
     _initialized = False
+    _lock: threading.RLock = threading.RLock()
     _setting: Dict[str, Any] = {}
     _logger = None
 
@@ -170,38 +174,67 @@ class Config:
     @classmethod
     def initialize(cls, logger: logging.Logger, **setting: Dict[str, Any]) -> None:
         """
-        Initialize configuration setting.
+        Initialize configuration from the deployment ``setting``.
+
+        Idempotent and thread-safe: the first successful call wires up the
+        configuration and every later call is a no-op. This matters because
+        ``dispatch_graphql`` constructs a fresh ``AICoordinationEngine`` per
+        request (and each local async invoke does the same), so without the
+        guard the AWS clients and the SQLAlchemy engine would be rebuilt on
+        every call.
+
+        Backend selection (``db_backend``) only affects the *persistence* layer:
+        DynamoDB mode primes the PynamoDB ``BaseModel.Meta`` credentials, while
+        PostgreSQL mode builds the SQLAlchemy ``scoped_session``. The AWS
+        service clients are backend-independent and are initialized the same way
+        for both — see ``_initialize_aws_services``.
+
         Args:
             logger (logging.Logger): Logger instance for logging.
             **setting (Dict[str, Any]): Configuration keyword arguments.
         """
-        try:
-            cls._setting = setting
-            cls._logger = logger
-            cls._set_parameters(setting)
-            cls._setup_function_paths(setting)
+        if not setting:
+            raise RuntimeError("`setting` is required")
+        if cls._initialized:
+            return
 
-            # Backend selection
-            cls.DB_BACKEND = str(setting.get("db_backend", "dynamodb")).lower()
-            if cls.DB_BACKEND not in ("dynamodb", "postgresql"):
-                raise ValueError(f"Unknown db_backend: {cls.DB_BACKEND}")
+        with cls._lock:
+            if cls._initialized:
+                return
+            try:
+                cls._logger = logger
+                cls._setting = setting
+                cls._set_parameters(setting)
+                cls._setup_function_paths(setting)
 
-            cls.PG_TABLE_PREFIX = str(setting.get("pg_table_prefix", ""))
+                # Backend selection (deployment-time, not per request)
+                cls.DB_BACKEND = str(setting.get("db_backend", "dynamodb")).lower()
+                if cls.DB_BACKEND not in ("dynamodb", "postgresql"):
+                    raise ValueError(f"Unknown db_backend: {cls.DB_BACKEND}")
 
-            if cls.DB_BACKEND == "dynamodb":
+                cls.PG_TABLE_PREFIX = str(setting.get("pg_table_prefix", ""))
+
+                # Persistence layer — the only backend-specific wiring.
+                if cls.DB_BACKEND == "dynamodb":
+                    cls._initialize_dynamodb_meta(setting)
+                else:
+                    cls._initialize_db_session(setting)
+
+                # AWS service clients are backend-independent.
                 cls._initialize_aws_services(setting)
-                cls._initialize_dynamodb_meta(setting)
-            else:
-                cls._initialize_optional_aws_services(setting)
-                cls._initialize_db_session(setting)
 
-            if setting.get("initialize_tables"):
-                cls._initialize_tables(logger)
-            logger.info("Configuration initialized successfully.")
-            cls._initialized = True
-        except Exception as e:
-            logger.exception("Failed to initialize configuration.")
-            raise e
+                if setting.get("initialize_tables"):
+                    cls._initialize_tables(logger)
+
+                cls._initialized = True
+                logger.info(
+                    f"Configuration initialized successfully (db_backend={cls.DB_BACKEND})."
+                )
+            except Exception as e:
+                sys.stderr.write(f"Config Initialize Error: {e}\n")
+                traceback.print_exc(file=sys.stderr)
+                logger.exception("Failed to initialize configuration.")
+                raise e
 
     @classmethod
     def _set_parameters(cls, setting: Dict[str, Any]) -> None:
@@ -255,37 +288,27 @@ class Config:
 
     @classmethod
     def _initialize_aws_services(cls, setting: Dict[str, Any]) -> None:
-        """Initialize AWS services (Lambda, DynamoDB, SES, S3) — DynamoDB mode."""
+        """Initialize AWS service clients — the same for every backend.
+
+        These clients are *not* the entity persistence layer (that is handled
+        per-backend by ``_initialize_dynamodb_meta`` / ``_initialize_db_session``).
+        They back platform-level concerns that exist regardless of whether ACE's
+        own entities live in DynamoDB or PostgreSQL:
+
+        - ``dynamodb`` resource — reads the shared ``se-wss-connections`` table
+          for WebSocket ``receiver_email`` routing (``get_connection_by_email``).
+        - ``aws_ses`` — sends notification email (``send_email``).
+        - ``aws_s3`` — downloads packaged function modules (``get_action_function``).
+        - ``aws_lambda`` — retained for the legacy GraphQL-over-Lambda helper;
+          async dispatch itself no longer uses it (it runs in-process).
+
+        When the three AWS credentials are not all present, the clients fall
+        back to boto3's default credential chain (IAM role / env / shared config).
+        """
         if all(
             setting.get(k)
             for k in ["region_name", "aws_access_key_id", "aws_secret_access_key"]
         ):
-            aws_credentials = {
-                "region_name": setting["region_name"],
-                "aws_access_key_id": setting["aws_access_key_id"],
-                "aws_secret_access_key": setting["aws_secret_access_key"],
-            }
-        else:
-            aws_credentials = {}
-
-        cls.aws_lambda = boto3.client("lambda", **aws_credentials)
-        cls.dynamodb = boto3.resource("dynamodb", **aws_credentials)
-        cls.aws_ses = boto3.client("ses", **aws_credentials)
-        cls.aws_s3 = boto3.client("s3", **aws_credentials)
-
-    @classmethod
-    def _initialize_optional_aws_services(cls, setting: Dict[str, Any]) -> None:
-        """Initialize AWS services only when credentials are present — PG mode.
-
-        ACE uses Lambda for async dispatch, S3 for module downloads, SES for email,
-        and DynamoDB for FunctionModel (shared platform table). These are likely
-        mandatory even in PG mode, so we build the clients when creds are available.
-        """
-        creds_present = all(
-            setting.get(k)
-            for k in ["region_name", "aws_access_key_id", "aws_secret_access_key"]
-        )
-        if creds_present:
             aws_credentials = {
                 "region_name": setting["region_name"],
                 "aws_access_key_id": setting["aws_access_key_id"],
