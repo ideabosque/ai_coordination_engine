@@ -35,7 +35,7 @@ class Config:
     DB_BACKEND = "dynamodb"
     db_session = None  # PostgreSQL scoped_session (only set in PG mode)
     _db_engine = None
-    PG_TABLE_PREFIX = ""
+    PG_TABLE_PREFIX: str = "ace_"
 
     # Initialization state (for gateway dispatch_graphql)
     _initialized = False
@@ -212,7 +212,9 @@ class Config:
                 if cls.DB_BACKEND not in ("dynamodb", "postgresql"):
                     raise ValueError(f"Unknown db_backend: {cls.DB_BACKEND}")
 
-                cls.PG_TABLE_PREFIX = str(setting.get("pg_table_prefix", ""))
+                cls.PG_TABLE_PREFIX = str(
+                    setting.get("pg_table_prefix", "ace_")
+                ).strip()
 
                 # Persistence layer — the only backend-specific wiring.
                 if cls.DB_BACKEND == "dynamodb":
@@ -245,7 +247,9 @@ class Config:
             cls.CACHE_ENABLED = setting.get("cache_enabled", True)
 
         if "graphql_timeout" in setting:
-            cls.GRAPHQL_TIMEOUT = int(setting.get("graphql_timeout", cls.GRAPHQL_TIMEOUT))
+            cls.GRAPHQL_TIMEOUT = int(
+                setting.get("graphql_timeout", cls.GRAPHQL_TIMEOUT)
+            )
 
         if "async_task_timeout" in setting:
             cls.ASYNC_TASK_TIMEOUT = int(
@@ -357,9 +361,11 @@ class Config:
         """Initialize database tables — dispatched by backend."""
         if cls.DB_BACKEND == "dynamodb":
             from ..models.dynamodb.utils import initialize_tables
+
             initialize_tables(logger)
         elif cls.DB_BACKEND == "postgresql":
             from ..models.postgresql.utils import initialize_tables as pg_init
+
             pg_init(logger, cls.db_session, cls._db_engine)
 
     @classmethod
@@ -367,6 +373,7 @@ class Config:
         """Set the RLS tenant context for the current PostgreSQL session."""
         if cls.DB_BACKEND == "postgresql" and cls.db_session:
             from sqlalchemy import text
+
             cls.db_session.execute(
                 text("SET LOCAL app.tenant_id = :tenant"),
                 {"tenant": partition_key},
