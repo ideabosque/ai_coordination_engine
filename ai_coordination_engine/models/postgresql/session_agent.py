@@ -24,7 +24,7 @@ class SessionAgentModel(Base):
     # partition_key is NOT in the DynamoDB model — added in PG for RLS.
     # Populated from the parent session's partition_key on insert.
     partition_key = Column(String(128), nullable=False)
-    coordination_uuid = Column(UUID(as_uuid=True), nullable=False)
+    coordination_uuid = Column(String, nullable=False)
     agent_uuid = Column(String, nullable=False)
     agent_action = Column(JSONB, nullable=True)
     user_input = Column(Text, nullable=True)

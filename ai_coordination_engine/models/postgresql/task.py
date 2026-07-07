@@ -18,7 +18,7 @@ from .base import Base
 class TaskModel(Base):
     __tablename__ = "ace_tasks"
 
-    coordination_uuid = Column(UUID(as_uuid=True), primary_key=True)
+    coordination_uuid = Column(String, primary_key=True)
     task_uuid = Column(UUID(as_uuid=True), primary_key=True, server_default=text("uuid_generate_v4()"))
     partition_key = Column(String(128), nullable=False)
     task_name = Column(String, nullable=False)

@@ -170,12 +170,13 @@ def migrate_coordinations():
     for item in items:
         rows.append((
             item.get("partition_key"),
-            to_uuid(item.get("coordination_uuid")),
+            item.get("coordination_uuid"),  # VARCHAR now — store raw string as-is
             item.get("endpoint_id"),
             item.get("part_id"),
             item.get("coordination_name"),
             item.get("coordination_description"),
             to_jsonb(item.get("agents", [])),
+            item.get("theme_uuid"),
             item.get("updated_by"),
             to_timestamp(item.get("created_at")),
             to_timestamp(item.get("updated_at")),
@@ -186,7 +187,7 @@ def migrate_coordinations():
             INSERT INTO ace_coordinations
                 (partition_key, coordination_uuid, endpoint_id, part_id,
                  coordination_name, coordination_description, agents,
-                 updated_by, created_at, updated_at)
+                 theme_uuid, updated_by, created_at, updated_at)
             VALUES %s
             ON CONFLICT (partition_key, coordination_uuid) DO NOTHING
         """, rows)
@@ -208,7 +209,7 @@ def migrate_tasks():
             # Derive from coordination's partition_key or use default
             pk = "gpt#nestaging"
         rows.append((
-            to_uuid(item.get("coordination_uuid")),
+            item.get("coordination_uuid"),  # VARCHAR now — raw string
             to_uuid(item.get("task_uuid")),
             pk,
             item.get("task_name"),
@@ -250,7 +251,7 @@ def migrate_task_schedules():
         rows.append((
             to_uuid(item.get("task_uuid")),
             to_uuid(item.get("schedule_uuid")),
-            to_uuid(item.get("coordination_uuid")),
+            item.get("coordination_uuid"),  # VARCHAR now — raw string
             pk,
             item.get("schedule"),
             item.get("status", "initial"),
@@ -284,7 +285,7 @@ def migrate_sessions():
         if not pk:
             pk = "gpt#nestaging"
         rows.append((
-            to_uuid(item.get("coordination_uuid")),
+            item.get("coordination_uuid"),  # VARCHAR now — raw string
             to_uuid(item.get("session_uuid")),
             pk,
             to_uuid(item.get("task_uuid")),
@@ -338,7 +339,7 @@ def migrate_session_agents():
             to_uuid(item.get("session_uuid")),
             to_uuid(item.get("session_agent_uuid")),
             pk,
-            to_uuid(item.get("coordination_uuid")),
+            item.get("coordination_uuid"),  # VARCHAR now — raw string
             item.get("agent_uuid"),
             to_jsonb(item.get("agent_action")),
             item.get("user_input"),
@@ -385,7 +386,7 @@ def migrate_session_runs():
             pk,
             to_uuid(item.get("thread_uuid")),
             item.get("agent_uuid"),
-            to_uuid(item.get("coordination_uuid")),
+            item.get("coordination_uuid"),  # VARCHAR now — raw string
             item.get("async_task_uuid"),
             to_uuid(item.get("session_agent_uuid")),
             item.get("updated_by"),

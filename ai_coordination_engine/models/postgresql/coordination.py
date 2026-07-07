@@ -5,7 +5,7 @@ from __future__ import print_function
 __author__ = "bibow"
 
 from sqlalchemy import Column, Index, String, Text, TIMESTAMP, text
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import deferred
 
 from .base import Base, prefixed_table
@@ -15,7 +15,7 @@ class CoordinationModel(Base):
     __tablename__ = "ace_coordinations"
 
     partition_key = Column(String(128), primary_key=True)
-    coordination_uuid = Column(UUID(as_uuid=True), primary_key=True, server_default=text("uuid_generate_v4()"))
+    coordination_uuid = Column(String, primary_key=True)
     endpoint_id = Column(String, nullable=False)
     part_id = Column(String, nullable=False)
     coordination_name = Column(String, nullable=False)

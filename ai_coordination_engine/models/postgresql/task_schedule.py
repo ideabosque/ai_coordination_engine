@@ -20,7 +20,7 @@ class TaskScheduleModel(Base):
 
     task_uuid = Column(UUID(as_uuid=True), primary_key=True)
     schedule_uuid = Column(UUID(as_uuid=True), primary_key=True, server_default=text("uuid_generate_v4()"))
-    coordination_uuid = Column(UUID(as_uuid=True), nullable=False)
+    coordination_uuid = Column(String, nullable=False)
     partition_key = Column(String(128), nullable=False)
     schedule = Column(String, nullable=False)
     status = Column(String, default="initial")

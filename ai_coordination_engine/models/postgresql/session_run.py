@@ -24,7 +24,7 @@ class SessionRunModel(Base):
     partition_key = Column(String(128), nullable=True)
     thread_uuid = Column(UUID(as_uuid=True), nullable=False)
     agent_uuid = Column(String, nullable=False)
-    coordination_uuid = Column(UUID(as_uuid=True), nullable=False)
+    coordination_uuid = Column(String, nullable=False)
     async_task_uuid = Column(String, nullable=False)
     session_agent_uuid = Column(UUID(as_uuid=True), nullable=True)
     updated_by = Column(String, nullable=False)

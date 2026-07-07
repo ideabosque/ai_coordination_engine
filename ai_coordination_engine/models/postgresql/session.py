@@ -19,7 +19,7 @@ from .base import Base
 class SessionModel(Base):
     __tablename__ = "ace_sessions"
 
-    coordination_uuid = Column(UUID(as_uuid=True), primary_key=True)
+    coordination_uuid = Column(String, primary_key=True)
     session_uuid = Column(UUID(as_uuid=True), primary_key=True, server_default=text("uuid_generate_v4()"))
     partition_key = Column(String(128), nullable=False)
     task_uuid = Column(UUID(as_uuid=True), nullable=True)
