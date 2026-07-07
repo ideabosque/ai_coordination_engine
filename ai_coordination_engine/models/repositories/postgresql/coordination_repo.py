@@ -95,6 +95,7 @@ class CoordinationPGRepository(EntityRepository):
                     coordination_name=kwargs.get("coordination_name", ""),
                     coordination_description=kwargs.get("coordination_description"),
                     agents=kwargs.get("agents", []),
+                    theme_uuid=kwargs.get("theme_uuid"),
                     updated_by=kwargs["updated_by"],
                 )
                 session.add(row)
@@ -107,6 +108,8 @@ class CoordinationPGRepository(EntityRepository):
                     existing.coordination_description = kwargs["coordination_description"]
                 if "agents" in kwargs:
                     existing.agents = kwargs["agents"]
+                if "theme_uuid" in kwargs:
+                    existing.theme_uuid = kwargs["theme_uuid"]
                 existing.updated_by = kwargs["updated_by"]
                 existing.updated_at = pendulum.now("UTC")
                 session.commit()

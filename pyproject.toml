@@ -31,6 +31,7 @@ dependencies = [
     "boto3",
     "pyhumps",
     "promise",
+    "silvaengine-definitions",
     "silvaengine-dynamodb-base",
     "silvaengine-utility",
     "tenacity",

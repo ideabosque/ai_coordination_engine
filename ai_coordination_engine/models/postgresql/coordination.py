@@ -21,6 +21,7 @@ class CoordinationModel(Base):
     coordination_name = Column(String, nullable=False)
     coordination_description = Column(Text)
     agents = Column(JSONB, default=list)
+    theme_uuid = Column(String, nullable=True)
     updated_by = Column(String, nullable=False)
     created_at = Column(TIMESTAMP(timezone=True), server_default=text("NOW()"))
     updated_at = Column(TIMESTAMP(timezone=True), server_default=text("NOW()"))
