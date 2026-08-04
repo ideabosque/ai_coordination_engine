@@ -5,6 +5,7 @@ Provides:
 - set_rls_context(session, partition_key): sets SET LOCAL app.tenant_id
 - create_rls_policies(engine): applies RLS policies to all partition-keyed tables
 """
+
 from __future__ import print_function
 
 __author__ = "bibow"
@@ -18,12 +19,12 @@ logger = logging.getLogger(__name__)
 
 # All tables that should have RLS policies (all 6 ACE tables)
 _RLS_TABLES = [
-    "ace_coordinations",
-    "ace_sessions",
-    "ace_session_agents",
-    "ace_session_runs",
-    "ace_tasks",
-    "ace_task_schedules",
+    "coordinations",
+    "sessions",
+    "session_agents",
+    "session_runs",
+    "tasks",
+    "task_schedules",
 ]
 
 
@@ -54,14 +55,20 @@ def create_rls_policies(engine: Any) -> None:
         for table_name in _RLS_TABLES:
             actual_name = prefixed_table(table_name)
             try:
-                conn.execute(text(f"ALTER TABLE {actual_name} ENABLE ROW LEVEL SECURITY"))
+                conn.execute(
+                    text(f"ALTER TABLE {actual_name} ENABLE ROW LEVEL SECURITY")
+                )
                 # Drop existing policy if any (idempotent)
-                conn.execute(text(f"DROP POLICY IF EXISTS tenant_isolation ON {actual_name}"))
+                conn.execute(
+                    text(f"DROP POLICY IF EXISTS tenant_isolation ON {actual_name}")
+                )
                 # Create the tenant isolation policy
-                conn.execute(text(
-                    f"CREATE POLICY tenant_isolation ON {actual_name} "
-                    f"USING (partition_key = current_setting('app.tenant_id', true))"
-                ))
+                conn.execute(
+                    text(
+                        f"CREATE POLICY tenant_isolation ON {actual_name} "
+                        f"USING (partition_key = current_setting('app.tenant_id', true))"
+                    )
+                )
                 logger.debug(f"RLS policy applied to {actual_name}")
             except Exception as exc:
                 logger.warning(f"Failed to apply RLS to {actual_name}: {exc}")
