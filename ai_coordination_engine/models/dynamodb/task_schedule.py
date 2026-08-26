@@ -50,7 +50,7 @@ def purge_cache():
                 result = original_function(*args, **kwargs)
 
                 # Then purge cache after successful operation
-                from ...models.cache import purge_entity_cascading_cache
+                from .cache import purge_entity_cascading_cache
 
                 # Get entity keys from kwargs or entity parameter
                 entity_keys = {}
