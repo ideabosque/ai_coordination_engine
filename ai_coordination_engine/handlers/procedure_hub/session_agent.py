@@ -12,13 +12,8 @@ from graphene import ResolveInfo
 from silvaengine_utility.invoker import Invoker
 from silvaengine_utility.serializer import Serializer
 
-from ...models.session import insert_update_session
-from ...models.session_agent import (
-    insert_update_session_agent,
-    resolve_session_agent,
-    resolve_session_agent_list,
-)
-from ...models.session_run import insert_update_session_run, resolve_session_run_list
+from ...models.repositories import get_repo
+from ...queries.session_agent import resolve_session_agent_list
 from ...types.session import SessionType
 from ...types.session_agent import SessionAgentType
 from ..ai_coordination_utility import (
@@ -27,7 +22,6 @@ from ..ai_coordination_utility import (
     get_async_task,
     invoke_ask_model,
 )
-from ..config import Config
 
 
 def init_session_agents(
@@ -70,7 +64,7 @@ def init_session_agents(
                 session.subtask_queries,
             )
         ):
-            session_agent = insert_update_session_agent(
+            session_agent = get_repo("session_agent").insert_update(
                 info,
                 **{
                     "session_uuid": session.session_uuid,
@@ -110,7 +104,7 @@ def init_session_agents(
             # Add session agent details to list
             session_agents.append(session_agent)
 
-    session = insert_update_session(
+    session = get_repo("session").insert_update(
         info,
         **{
             "coordination_uuid": session.coordination_uuid,
@@ -168,7 +162,7 @@ def init_in_degree(
 
         updated_session_agents = []
         for agent_update in updated_agents:
-            updated_session_agent: SessionAgentType = insert_update_session_agent(
+            updated_session_agent: SessionAgentType = get_repo("session_agent").insert_update(
                 info, **agent_update
             )
 
@@ -199,7 +193,7 @@ def decrement_in_degree(info: ResolveInfo, session_agent: SessionAgentType) -> N
     try:
         if session_agent.in_degree > 0:
             session_agent.in_degree -= 1
-            insert_update_session_agent(
+            get_repo("session_agent").insert_update(
                 info,
                 **{
                     "session_uuid": session_agent.session_uuid,
@@ -260,7 +254,7 @@ def handle_session_agent_completion(
     except Exception as e:
         log = traceback.format_exc()
         info.context["logger"].error(log)
-        insert_update_session(
+        get_repo("session").insert_update(
             info,
             **{
                 "coordination_uuid": session_agent.coordination_uuid,
@@ -283,7 +277,7 @@ def update_session_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
     """
     try:
         # Retrieve the session agent
-        session_agent = resolve_session_agent(
+        session_agent = get_repo("session_agent").resolve_single(
             info,
             session_uuid=kwargs["session_uuid"],
             session_agent_uuid=kwargs["session_agent_uuid"],
@@ -339,7 +333,7 @@ def update_session_agent(info: ResolveInfo, **kwargs: Dict[str, Any]) -> None:
         session_agent.notes = log
 
     # Update session agent in database
-    session_agent = insert_update_session_agent(
+    session_agent = get_repo("session_agent").insert_update(
         info,
         **{
             "session_uuid": session_agent.session_uuid,
@@ -428,9 +422,7 @@ def execute_session_agent(info: ResolveInfo, session_agent: SessionAgentType) ->
     """
     try:
         # Resolve the session first to access its properties
-        from ...models.session import resolve_session
-
-        session = resolve_session(
+        session = get_repo("session").resolve_single(
             info,
             coordination_uuid=session_agent.coordination_uuid,
             session_uuid=session_agent.session_uuid,
@@ -442,7 +434,7 @@ def execute_session_agent(info: ResolveInfo, session_agent: SessionAgentType) ->
             info, session_agent, session, predecessors
         )
 
-        session_agent = insert_update_session_agent(
+        session_agent = get_repo("session_agent").insert_update(
             info,
             **{
                 "session_uuid": session_agent.session_uuid,
@@ -507,12 +499,12 @@ def execute_session_agent(info: ResolveInfo, session_agent: SessionAgentType) ->
         if "connection_id" in info.context:
             params.update({"connection_id": info.context["connection_id"]})
 
-        # Invoke async update function on AWS Lambda
-        Invoker.invoke_funct_on_aws_lambda(
-            info.context,
+        # Invoke async update function in-process (local invoke)
+        Invoker.invoke_funct_on_local(
+            info.context.get("logger"),
+            info.context.get("setting"),
             "async_update_session_agent",
-            params=params,
-            aws_lambda=Config.aws_lambda,
+            **params,
         )
         return
 
@@ -520,7 +512,7 @@ def execute_session_agent(info: ResolveInfo, session_agent: SessionAgentType) ->
         # Handle any exceptions by logging error and updating task session status
         log = traceback.format_exc()
         info.context["logger"].error(log)
-        insert_update_session(
+        get_repo("session").insert_update(
             info,
             **{
                 "coordination_uuid": session_agent.coordination_uuid,

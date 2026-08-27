@@ -53,7 +53,7 @@ class SessionRunType(SessionRunBaseType):
         Returns:
             Dict containing async task data or Promise resolving to dict or None
         """
-        from ..models.batch_loaders import get_loaders
+        from ..models.repositories import get_loaders
 
         # Case 1: Already embedded as dict
         existing = getattr(parent, "async_task", None)
@@ -84,7 +84,7 @@ class SessionRunType(SessionRunBaseType):
         Returns:
             SessionType object or Promise resolving to SessionType or None
         """
-        from ..models.batch_loaders import get_loaders
+        from ..models.repositories import get_loaders
 
         # Case 1: Already embedded as dict
         existing = getattr(parent, "session", None)
@@ -120,7 +120,7 @@ class SessionRunType(SessionRunBaseType):
         Returns:
             SessionAgentType object or Promise resolving to SessionAgentType or None
         """
-        from ..models.batch_loaders import get_loaders
+        from ..models.repositories import get_loaders
 
         # Case 1: Already embedded as dict
         existing = getattr(parent, "session_agent", None)

@@ -1,6 +1,6 @@
 # AI Coordination Engine: Comprehensive Development Plan
 
-> **Project Status**: 🟢 Production-Ready Core | 🟡 75% Complete | **Last Updated**: Dec 01, 2024
+> **Project Status**: Production-ready core | partition-key migration largely implemented | **Last Updated**: May 01, 2026
 >
 > **Quick Links**: [Current Status](#implementation-status) | [Roadmap](#development-roadmap) | [Architecture](#system-architecture)
 
@@ -17,8 +17,8 @@ Multi-Agent System:   ███████████████████�
 Session Management:   ████████████████████ 100% ✅ Complete
 Operation Hub:        ███████████████████░  95% 🟡 Near Complete
 Procedure Hub:        ██████████████░░░░░░  70% 🟡 In Progress
-Nested Resolvers:     ████████████░░░░░░░░  60% 🟡 In Progress
-Batch Loading:        ░░░░░░░░░░░░░░░░░░░░   0% ⏳ Not Started
+Nested Resolvers:     ################....  80% Stabilizing
+Batch Loading:        ################....  80% Implemented, needs consistency hardening
 Testing Framework:    ████░░░░░░░░░░░░░░░░  20% 🟡 In Progress
 Code Quality:         ░░░░░░░░░░░░░░░░░░░░   0% ⏳ Not Started
 Documentation:        ████████░░░░░░░░░░░░  40% 🟡 Fair
@@ -30,9 +30,9 @@ Overall Progress:     ███████████████░░░░�
 
 **Technology Stack:**
 - **GraphQL Server**: Graphene-based schema with strongly-typed resolvers
-- **Database**: AWS DynamoDB with multi-tenant partitioning via `endpoint_id`
+- **Database**: AWS DynamoDB with multi-tenant partitioning via composite `partition_key`
 - **Lazy Loading**: Field-level resolvers for on-demand data fetching
-- **Batch Optimization**: DataLoader pattern (planned) to eliminate N+1 queries
+- **Batch Optimization**: Request-scoped DataLoaders are implemented for nested resolver paths; remaining work is key-contract and cache-invalidation consistency
 - **WebSocket**: Real-time bidirectional communication via API Gateway
 - **Serverless**: AWS Lambda with SilvaEngine framework
 - **Multi-Agent Orchestration**: Coordination-based agent workflow management
@@ -47,7 +47,7 @@ Overall Progress:     ███████████████░░░░�
 4. **Task Decomposition**: Breaking complex tasks into subtasks with dependencies
 5. **Lazy Loading**: Nested entities resolved on-demand via GraphQL field resolvers
 6. **Asynchronous Processing**: SQS-based task queue for non-blocking operations
-7. **Multi-tenancy**: All models partition by `endpoint_id` for tenant isolation
+7. **Multi-tenancy**: Coordination data is keyed by composite `partition_key = "{endpoint_id}#{part_id}"`; related models store `partition_key` where needed for tenant-scoped filtering and nested loading
 8. **Audit Trail**: Comprehensive tracking via SessionRun and SessionAgent models
 9. **Cascading Cache**: Hierarchical cache purging for data consistency
 
@@ -208,8 +208,10 @@ erDiagram
     SessionRunModel }o--|| CoordinationModel : "references"
 
     CoordinationModel {
-        string endpoint_id PK
+        string partition_key PK
         string coordination_uuid PK
+        string endpoint_id
+        string part_id
         string coordination_name
         string coordination_description
         list agents
@@ -221,6 +223,7 @@ erDiagram
     TaskModel {
         string coordination_uuid PK
         string task_uuid PK
+        string partition_key
         string task_name
         string task_description
         string initial_task_query
@@ -234,6 +237,8 @@ erDiagram
     TaskScheduleModel {
         string task_uuid PK
         string schedule_uuid PK
+        string coordination_uuid
+        string partition_key
         string schedule
         string status
         datetime updated_at
@@ -244,9 +249,9 @@ erDiagram
     SessionModel {
         string coordination_uuid PK
         string session_uuid PK
+        string partition_key
         string task_uuid
         string user_id
-        string endpoint_id
         string task_query
         list input_files
         int iteration_count
@@ -421,22 +426,17 @@ Session (Context Holder)
 
 #### 🟡 In Progress (60-95%)
 
-**Nested Resolver Architecture** (🟡 **IN PROGRESS** - 60% Complete)
-- [x] GraphQL types with JSON fields for nested data
-- [x] Model type converters return nested JSON structures
-- [ ] Field resolvers for lazy-loading relationships (planned)
-  - [ ] `SessionType.resolve_coordination` - Load full Coordination object
-  - [ ] `SessionType.resolve_task` - Load full Task object
-  - [ ] `SessionAgentType.resolve_session` - Load full Session object
-  - [ ] `SessionRunType.resolve_session` - Load full Session object
-  - [ ] `SessionRunType.resolve_session_agent` - Load full SessionAgent object
-  - [ ] `SessionRunType.resolve_async_task` - Load full AsyncTask object
-  - [ ] `TaskType.resolve_coordination` - Load full Coordination object
-- [ ] Convert JSON fields to strongly-typed Field() definitions
-- **Current Pattern**: JSON fields contain pre-fetched nested data
-- **Target Pattern**: Field resolvers for on-demand lazy loading
-- **Status**: 🟡 Currently using JSON, resolver migration planned
-- **Next Step**: Implement lazy-loading field resolvers with type-safe objects
+**Nested Resolver Architecture** (IN PROGRESS - 80% Complete)
+- [x] GraphQL types expose strongly typed nested fields for the main relationship paths
+- [x] Field resolvers use request-scoped DataLoaders for coordination, task, session, session agent, session run, and async task lookups
+- [x] DataLoader container is initialized lazily through `models.batch_loaders.get_loaders(info.context)`
+- [x] Legacy JSON/dict helper paths remain available for listener and embedded-data flows
+- [ ] Stabilize remaining helper paths that still use `endpoint_id` where a DataLoader expects `partition_key`
+- [ ] Add focused tests for nested resolver and helper fallback paths using composite `partition_key` values
+- **Current Pattern**: Typed field resolvers are implemented, with compatibility helpers for dict/JSON data in listener flows
+- **Target Pattern**: All nested resolver and helper paths use the same key contract: `(partition_key, entity_uuid)` where applicable
+- **Status**: Implemented but requires consistency hardening before being considered complete
+- **Next Step**: Fix key-contract inconsistencies and add regression tests for partition-key propagation
 
 **Operation Hub** (🟡 **IN PROGRESS** - 95% Complete)
 - [x] Operation hub query resolver (`ask_operation_hub`)
@@ -479,29 +479,20 @@ Session (Context Holder)
 
 ---
 
-#### ⏳ Planned (0%)
+#### Remaining Stabilization Work
 
-**Batch Loading Optimization** (⏳ **PLANNED** - 0% Complete)
-- [ ] Create `batch_loaders.py` module
-- [ ] Implement DataLoader pattern with `promise` library
-- [ ] Create model-specific loaders:
-  - [ ] `CoordinationLoader` - Batch load coordinations by coordination_uuid
-  - [ ] `TaskLoader` - Batch load tasks by task_uuid
-  - [ ] `SessionLoader` - Batch load sessions by session_uuid
-  - [ ] `SessionAgentLoader` - Batch load session agents by session_agent_uuid
-  - [ ] `SessionRunLoader` - Batch load session runs by run_uuid
-  - [ ] `TaskScheduleLoader` - Batch load task schedules by schedule_uuid
-- [ ] Implement `RequestLoaders` container for per-request loader instances
-- [ ] Integrate with HybridCacheEngine for cache-aware batching
-- [ ] Update nested resolvers to use batch loaders
-- [ ] Add batch loading for cross-entity queries (e.g., all sessions for coordination)
-- **Status**: ⏳ Not started - Phase 2 priority
-- **Expected Impact**: 70-85% reduction in DynamoDB queries for nested queries
-- **Implementation Plan**:
-  1. Create DataLoader instances for each model type
-  2. Implement batch loading functions with cache integration
-  3. Update field resolvers to use loaders instead of direct queries
-  4. Add request-scoped loader context to GraphQL info object
+**Batch Loading Optimization** (IMPLEMENTED - 80% Complete)
+- [x] `models/batch_loaders/` package exists with model-specific loaders
+- [x] `RequestLoaders` provides per-request DataLoader instances
+- [x] Coordination, task, session, session agent, session run, session-agents-by-session, session-runs-by-session, and async-task loaders are present
+- [x] Nested GraphQL type resolvers call loaders through `get_loaders(info.context)`
+- [x] Loaders include cache-aware lookup behavior
+- [ ] Align cache invalidation keys with loader keys, especially coordination cache invalidation using `partition_key` instead of `endpoint_id`
+- [ ] Align helper fallback paths in `handlers/ai_coordination_utility.py` so loader calls use `(partition_key, uuid)` consistently
+- [ ] Add tests that prove batched nested resolver paths do not fall back to old `(endpoint_id, uuid)` keys
+- **Status**: Implemented for the main nested resolver paths; not yet complete because key-contract consistency gaps remain
+- **Expected Impact**: Prevent N+1 query behavior for nested GraphQL selections while preserving request-local cache reuse
+- **Primary Risk**: Mixed `endpoint_id` and `partition_key` cache/loader keys can cause missed cache invalidations or failed nested loads
 
 **Advanced Features**
 - [ ] Redis-backed caching for cross-request persistence
@@ -556,77 +547,54 @@ Session (Context Holder)
 
 ### GraphQL Query Optimization Strategy
 
-The AI Coordination Engine implements a multi-layered approach to optimize GraphQL query performance:
+The current implementation uses typed GraphQL fields and request-scoped DataLoaders for the main nested resolver paths. The next optimization work is not to introduce DataLoader from scratch; it is to make every resolver, helper, and cache invalidation path obey the same key contract.
 
-#### Current Implementation (JSON-Based Nested Data)
-
-**Pattern:**
-```python
-class SessionType(ObjectType):
-    coordination = JSON()  # Pre-fetched coordination data
-    task = JSON()          # Pre-fetched task data
-    session_uuid = String()
-    # ... other fields
-```
-
-**Pros:**
-- ✅ Simple implementation
-- ✅ Single database query per session
-- ✅ No N+1 query problem for basic queries
-
-**Cons:**
-- ❌ Always fetches nested data even when not requested
-- ❌ No lazy loading capability
-- ❌ Less type-safe (JSON instead of typed objects)
-- ❌ Client cannot request specific nested fields
-
-#### Target Implementation (Lazy-Loading Resolvers)
+#### Current Implementation
 
 **Pattern:**
 ```python
 class SessionType(ObjectType):
-    coordination = Field(CoordinationType)  # Lazy-loaded via resolver
-    task = Field(TaskType)                   # Lazy-loaded via resolver
-    session_uuid = String()
-    # ... other fields
+    coordination = Field(CoordinationType)
+    task = Field(TaskType)
 
-    def resolve_coordination(self, info):
-        # Only fetch if explicitly requested in query
-        return coordination_loader.load(self.coordination_uuid)
-
-    def resolve_task(self, info):
-        # Only fetch if explicitly requested in query
-        return task_loader.load(self.task_uuid)
+    def resolve_coordination(parent, info):
+        loaders = get_loaders(info.context)
+        return loaders.coordination_loader.load(
+            (parent.partition_key, parent.coordination_uuid)
+        )
 ```
 
-**Benefits:**
-- ✅ Fetch data only when explicitly requested
-- ✅ Type-safe nested objects
-- ✅ Fine-grained field selection
-- ✅ Ready for DataLoader batch optimization
+**Implemented:**
+- Typed nested resolvers exist across session, task, task schedule, session agent, session run, operation hub, and procedure hub response types.
+- `models/batch_loaders/` provides request-scoped DataLoaders through `RequestLoaders` and `get_loaders(info.context)`.
+- Loader keys use composite IDs where needed, especially `(partition_key, coordination_uuid)` for coordination loading.
+- Legacy dict/JSON helper functions remain for listener paths and pre-embedded nested data.
 
-#### Future Implementation (DataLoader Batching)
+**Remaining Consistency Gaps:**
+- `RequestLoaders.invalidate_cache()` still builds the coordination cache key from `endpoint_id`; it should use `partition_key` to match `CoordinationLoader`.
+- `ensure_coordination_data()` still has a helper fallback that loads coordination with `(endpoint_id, coordination_uuid)`; it should use `(partition_key, coordination_uuid)`.
+- `_load_task_from_loader()` uses `(coordination_uuid, task_uuid)` while the task loader contract should be checked and documented against current model keys.
+- Batch helper maps currently key results by UUID only; if the same UUID can exist under multiple `partition_key` values, result maps should use composite keys.
 
-**Pattern:**
+**Near-Term Target:**
+- Keep the typed resolver and DataLoader design.
+- Standardize all loader and cache keys.
+- Add regression tests for nested resolver paths under at least two different `partition_key` values.
+- Measure query counts and cache hit/miss behavior before adding new cache layers.
+
+### Partition Key Architecture
+
+`partition_key` is the authoritative tenant boundary for coordination-scoped reads and writes. It is assembled once in `AICoordinationEngine._apply_partition_defaults()` from `endpoint_id` and `part_id` and then passed through GraphQL context.
+
 ```python
-# Batch loader collects all coordination_uuids in the request
-coordination_loader = DataLoader(batch_load_fn=batch_load_coordinations)
-
-async def batch_load_coordinations(coordination_uuids):
-    # Single batched query for all coordinations
-    coordinations = await fetch_coordinations_by_uuids(coordination_uuids)
-    return coordinations
-
-# Usage in resolver
-def resolve_coordination(self, info):
-    return info.context.loaders.coordination_loader.load(self.coordination_uuid)
+partition_key = f"{endpoint_id}#{part_id}"
 ```
 
-**Benefits:**
-- ✅ Eliminates N+1 query problem
-- ✅ Batches multiple individual requests
-- ✅ Integrates with cache layer
-- ✅ 70-85% reduction in database queries
+Rules:
+- Use `partition_key` for coordination hash-key access.
+- Keep `endpoint_id` and `part_id` as denormalized attributes for compatibility, filtering, and operational visibility.
+- Do not pass `endpoint_id` to a loader that expects `partition_key`.
+- Cache keys for coordination-scoped entities must include `partition_key`, not just `endpoint_id` or entity UUID.
 
 ### Cache Management Architecture
 
@@ -690,62 +658,36 @@ Coordination
 - Database queries per request: 1-2 (with batching)
 - Cache hit rate: >80%
 
-### Nested Resolver Migration Roadmap
+### Nested Resolver and DataLoader Stabilization Roadmap
 
 ```mermaid
 graph LR
-    A[Phase 1: JSON Fields<br/>Current State] --> B[Phase 2: Dual Support<br/>JSON + Field Resolvers]
-    B --> C[Phase 3: Field Only<br/>Remove JSON]
-    C --> D[Phase 4: DataLoader<br/>Batch Optimization]
-
-    style A fill:#90EE90
-    style B fill:#FFD700
-    style C fill:#FFA500
-    style D fill:#FF6347
+    A[Implemented: Typed nested resolvers] --> B[Implemented: Request-scoped DataLoaders]
+    B --> C[Current: partition_key consistency hardening]
+    C --> D[Next: regression tests and query-count baselines]
+    D --> E[Future: measured cache or event-driven optimizations]
 ```
 
-**Phase Details:**
+**Current Phase Details:**
 
-| Phase | Timeline | Status | Changes | Breaking |
-|-------|----------|--------|---------|----------|
-| **Phase 1** | Current | ✅ Complete | JSON fields only | N/A |
-| **Phase 2** | Q1 2025 | ⏳ Planned | Add Field() + resolvers | No |
-| **Phase 3** | Q2 2025 | ⏳ Planned | Remove JSON fields | Yes |
-| **Phase 4** | Q3 2025 | ⏳ Planned | Add DataLoader | No |
+| Phase | Status | Changes | Breaking |
+|-------|--------|---------|----------|
+| Typed nested resolvers | Implemented | GraphQL types expose nested fields for related entities | No |
+| Request-scoped DataLoaders | Implemented | `RequestLoaders` and model-specific loaders batch nested loads | No |
+| Partition-key consistency | In progress | Align every loader/cache/helper key to `partition_key` contracts | No |
+| Regression tests | Pending | Add multi-tenant nested resolver and cache invalidation tests | No |
+| Additional caching | Pending measurement | Add only after cache hit rates and query counts justify it | No |
 
-**Example Migration:**
+**Resolver Key Pattern:**
 
 ```python
-# Phase 1 (Current)
-class SessionType(ObjectType):
-    coordination = JSON()  # Pre-fetched, always loaded
-
-# Phase 2 (Dual Support)
-class SessionType(ObjectType):
-    coordination_json = JSON()  # Deprecated, for compatibility
-    coordination = Field(CoordinationType)  # New, lazy-loaded
-
-    def resolve_coordination(self, info):
-        # Only fetch if requested
-        return get_coordination_type(...)
-
-# Phase 3 (Field Only)
-class SessionType(ObjectType):
-    coordination = Field(CoordinationType)  # Lazy-loaded
-
-    def resolve_coordination(self, info):
-        return get_coordination_type(...)
-
-# Phase 4 (DataLoader)
-class SessionType(ObjectType):
-    coordination = Field(CoordinationType)  # Batch-loaded
-
-    def resolve_coordination(self, info):
-        # Uses DataLoader for batching
-        return info.context.loaders.coordination.load(
-            self.coordination_uuid
-        )
+def resolve_coordination(parent, info):
+    loaders = get_loaders(info.context)
+    partition_key = getattr(parent, "partition_key", None) or info.context.get("partition_key")
+    return loaders.coordination_loader.load((partition_key, parent.coordination_uuid))
 ```
+
+**Stabilization Rule:** Any code path that loads coordination data must use `partition_key`, not `endpoint_id`, as the first part of the loader/cache key.
 
 ---
 
@@ -775,67 +717,28 @@ class SessionType(ObjectType):
 
 ### Planned Optimizations ⏳
 
-#### 1. Nested Resolver Migration
-- **Status:** ⏳ Planned (Phase 2)
-- **Expected Impact:** On-demand data fetching, reduced unnecessary queries
-- **Pattern:** Convert JSON fields to Field() with lazy-loading resolvers
+#### 1. Partition-Key and DataLoader Consistency Hardening
+- **Status:** In progress
+- **Expected Impact:** Correct tenant isolation, reliable nested resolver behavior, and predictable cache invalidation
+- **Pattern:** Use `partition_key` consistently for coordination-scoped loader and cache keys
 - **Implementation Steps:**
-  1. **Phase 1**: Add Field() definitions alongside existing JSON fields
-     ```python
-     class SessionType(ObjectType):
-         coordination_json = JSON()  # Keep for backward compatibility
-         coordination = Field(CoordinationType)  # New field resolver
-     ```
-  2. **Phase 2**: Implement field resolvers
-     ```python
-     def resolve_coordination(self, info):
-         return get_coordination_type(info, get_coordination(
-             self.endpoint_id, self.coordination_uuid
-         ))
-     ```
-  3. **Phase 3**: Update clients to use new fields
-  4. **Phase 4**: Remove deprecated JSON fields
-- **Timeline:** 2-3 development cycles
+  1. Update coordination cache invalidation to use `partition_key`.
+  2. Update `ensure_coordination_data()` and related helpers to call loaders with `(partition_key, uuid)`.
+  3. Audit task/session helper loader keys against each loader class contract.
+  4. Add tests with two `part_id` values under the same `endpoint_id` to catch tenant leakage.
+  5. Record query-count and cache-hit baselines before introducing new cache layers.
+- **Timeline:** Immediate stabilization work before further optimization
 
-#### 2. DataLoader Batch Optimization
-- **Status:** ⏳ Planned (Phase 2/3)
-- **Expected Impact:** 70-85% reduction in database queries
-- **Pattern:** Implement DataLoader for batch + cache entity loading
+#### 2. Nested Resolver Coverage Completion
+- **Status:** Implemented for main paths; pending regression coverage
+- **Expected Impact:** Safer typed GraphQL relationships without N+1 regressions
+- **Pattern:** Keep typed field resolvers backed by request-scoped DataLoaders
 - **Implementation Steps:**
-  1. **Install dependencies**: Add `promise` library for DataLoader
-  2. **Create batch_loaders.py**:
-     ```python
-     from promise import Promise
-     from promise.dataloader import DataLoader
-
-     class CoordinationLoader(DataLoader):
-         def batch_load_fn(self, coordination_uuids):
-             # Batch query all coordinations
-             coordinations = batch_get_coordinations(coordination_uuids)
-             return Promise.resolve(coordinations)
-     ```
-  3. **Add RequestLoaders container**:
-     ```python
-     class RequestLoaders:
-         def __init__(self):
-             self.coordination = CoordinationLoader()
-             self.task = TaskLoader()
-             self.session = SessionLoader()
-             # ... other loaders
-     ```
-  4. **Integrate with GraphQL context**:
-     ```python
-     info.context['loaders'] = RequestLoaders()
-     ```
-  5. **Update resolvers to use loaders**:
-     ```python
-     def resolve_coordination(self, info):
-         return info.context['loaders'].coordination.load(
-             self.coordination_uuid
-         )
-     ```
-- **Cache Integration**: Loaders check cache before database query
-- **Timeline:** 3-4 development cycles after nested resolvers
+  1. Add unit tests for session -> coordination/task.
+  2. Add unit tests for session run -> session/session agent/async task.
+  3. Add integration tests that verify nested selections work with composite `partition_key`.
+  4. Preserve compatibility helper behavior for async listener flows that receive embedded dicts.
+- **Timeline:** Same cycle as key consistency hardening
 
 #### 3. Parallel Agent Execution
 - **Status:** ⏳ Planned (Phase 2)
@@ -994,6 +897,8 @@ AWS_SECRET_ACCESS_KEY=<secret>
 
 # Endpoint Configuration
 ENDPOINT_ID=<endpoint_id>
+PART_ID=<part_id>
+# Runtime context assembles partition_key as `${ENDPOINT_ID}#${PART_ID}`
 CONNECTION_ID=<connection_id>
 EXECUTE_MODE=local|lambda
 
@@ -1101,14 +1006,14 @@ INITIALIZE_TABLES=0|1
 
 - **API Gateway:** WebSocket authentication
 - **IAM Roles:** Lambda execution roles with least privilege
-- **Endpoint Isolation:** Multi-tenant via `endpoint_id`
+- **Tenant Isolation:** Multi-tenant coordination access via composite `partition_key`
 - **Session Security:** User-session association via `user_id`
 
 ### Data Protection
 
 - **Encryption at Rest:** DynamoDB encryption enabled
 - **Encryption in Transit:** TLS 1.2+ for all communications
-- **Session Data Isolation:** Per endpoint and user
+- **Session Data Isolation:** Per `partition_key` and user
 - **Input File Security:** Secure handling of file uploads
 - **Data Retention:** Configurable retention policies
 
@@ -1274,40 +1179,26 @@ pytest ai_coordination_engine/tests/ -v
 - Clear separation of concerns
 - Independent scaling and optimization
 
-**Why Start with JSON Fields Instead of Nested Resolvers?**
-- **Pragmatic Approach**: Faster initial implementation
-- **No N+1 Problem**: Pre-fetching avoids multiple round trips
-- **Backward Compatible**: Easy to migrate incrementally
-- **Future-Proof**: Can add Field() resolvers alongside JSON fields
-- **Trade-off**: Accepts some over-fetching for simplicity
+**Why Use Composite `partition_key`?**
+- Separates platform endpoint identity (`endpoint_id`) from business tenant identity (`part_id`).
+- Keeps the DynamoDB hash key explicit for coordination-scoped access.
+- Allows `endpoint_id` and `part_id` to remain denormalized for filtering, diagnostics, and compatibility.
+- Reduces tenant-isolation risk when multiple business partitions share one endpoint.
 
-**Migration Path to Nested Resolvers:**
-1. **Phase 1** (Current): JSON fields with pre-fetched data
-2. **Phase 2** (Next): Add Field() resolvers alongside JSON (dual support)
-3. **Phase 3** (Future): Clients migrate to use Field() resolvers
-4. **Phase 4** (Long-term): Remove JSON fields, add DataLoader batching
+**Current Nested Resolver and DataLoader Path:**
+1. **Implemented**: Typed nested GraphQL fields for main relationships.
+2. **Implemented**: Request-scoped DataLoaders in `models/batch_loaders/`.
+3. **Current stabilization**: Align every helper, resolver, and cache invalidation path to the same `partition_key` key contract.
+4. **Next**: Add regression tests for multi-tenant nested resolver paths and collect query-count baselines.
 
-**Why DataLoader is Essential for Nested Resolvers?**
-- **N+1 Problem Prevention**: Without DataLoader, nested resolvers create N+1 queries
-- **Example Scenario**:
-  ```graphql
-  query {
-    sessionList(limit: 10) {
-      sessionList {
-        sessionUuid
-        coordination { coordinationName }  # Without DataLoader: 10 queries
-        task { taskName }                   # Without DataLoader: 10 queries
-      }
-    }
-  }
-  ```
-  - **Without DataLoader**: 1 (sessions) + 10 (coordinations) + 10 (tasks) = 21 queries
-  - **With DataLoader**: 1 (sessions) + 1 (batch coordinations) + 1 (batch tasks) = 3 queries
-- **Result**: 85% reduction in database queries
-
+**Why DataLoader Still Matters:**
+- Nested resolvers can still create N+1 query patterns when list queries request related objects.
+- Request-scoped DataLoaders batch repeated nested loads and reuse request-local cache entries.
+- The implemented loaders only stay correct if all callers use the same key shape, for example `(partition_key, coordination_uuid)` for coordination data.
+- The highest-priority remaining work is consistency hardening, not adding another DataLoader abstraction.
 ---
 
-**Document Version:** 1.0
-**Last Updated:** 2024-12-01
+**Document Version:** 1.1
+**Last Updated:** 2026-05-01
 **Status:** Active Development
 **Maintainer:** AI Coordination Engine Team

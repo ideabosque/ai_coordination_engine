@@ -59,7 +59,7 @@ class SessionType(SessionBaseType):
         Returns:
             CoordinationType object or Promise resolving to CoordinationType
         """
-        from ..models.batch_loaders import get_loaders
+        from ..models.repositories import get_loaders
 
         # Case 1: Already embedded as dict
         existing = getattr(parent, "coordination", None)
@@ -99,7 +99,7 @@ class SessionType(SessionBaseType):
         Returns:
             TaskType object or Promise resolving to TaskType or None
         """
-        from ..models.batch_loaders import get_loaders
+        from ..models.repositories import get_loaders
 
         # Case 1: Already embedded as dict
         existing = getattr(parent, "task", None)
@@ -133,7 +133,7 @@ class SessionType(SessionBaseType):
         Returns:
             List of session agent dicts or Promise resolving to list
         """
-        from ..models.batch_loaders import get_loaders
+        from ..models.repositories import get_loaders
 
         # Check if already embedded
         existing = getattr(parent, "session_agents", None)
@@ -162,7 +162,7 @@ class SessionType(SessionBaseType):
         Returns:
             List of session run dicts or Promise resolving to list
         """
-        from ..models.batch_loaders import get_loaders
+        from ..models.repositories import get_loaders
 
         # Check if already embedded
         existing = getattr(parent, "session_runs", None)

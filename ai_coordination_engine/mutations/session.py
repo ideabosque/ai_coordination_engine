@@ -10,7 +10,7 @@ from typing import Any, Dict
 from graphene import Boolean, Field, Int, List, Mutation, String
 from silvaengine_utility import JSONCamelCase
 
-from ..models.session import delete_session, insert_update_session
+from ..models.repositories import get_repo
 from ..types.session import SessionType
 
 
@@ -33,7 +33,7 @@ class InsertUpdateSession(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "InsertUpdateSession":
         try:
-            session = insert_update_session(info, **kwargs)
+            session = get_repo("session").insert_update(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
             info.context.get("logger").error(log)
@@ -52,7 +52,7 @@ class DeleteSession(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "DeleteSession":
         try:
-            ok = delete_session(info, **kwargs)
+            ok = get_repo("session").delete(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
             info.context.get("logger").error(log)

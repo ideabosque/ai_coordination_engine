@@ -14,9 +14,7 @@ from graphene import ResolveInfo
 from silvaengine_utility.invoker import Invoker
 from silvaengine_utility.serializer import Serializer
 
-from ...handlers.config import Config
-from ...models.session import insert_update_session, resolve_session
-from ...models.session_agent import resolve_session_agent_list
+from ...models.repositories import get_repo
 from ...types.session import SessionType
 from ...types.session_agent import SessionAgentListType, SessionAgentType
 from ...utils.listener import create_listener_info
@@ -297,7 +295,7 @@ def invoke_next_iteration(
     Returns:
         None
     """
-    insert_update_session(
+    get_repo("session").insert_update(
         info,
         **{
             "coordination_uuid": coordination_uuid,
@@ -310,11 +308,11 @@ def invoke_next_iteration(
     if "" in info.context:
         params.update({"connection_id": info.context[""]})
 
-    Invoker.invoke_funct_on_aws_lambda(
-        info.context,
+    Invoker.invoke_funct_on_local(
+        info.context.get("logger"),
+        info.context.get("setting"),
         "async_execute_procedure_task_session",
-        params=params,
-        aws_lambda=Config.aws_lambda,
+        **params,
     )
 
 
@@ -400,7 +398,7 @@ def async_orchestrate_task_query(
     info = create_listener_info(
         logger, "async_orchestrate_task_query", setting, **kwargs
     )
-    session = resolve_session(
+    session = get_repo("session").resolve_single(
         info,
         coordination_uuid=kwargs["coordination_uuid"],
         session_uuid=kwargs["session_uuid"],
@@ -487,7 +485,7 @@ def async_orchestrate_task_query(
         },
     )
 
-    session = insert_update_session(info, **variables)
+    session = get_repo("session").insert_update(info, **variables)
     # Initialize session agents for all active agents
     session_agents = init_session_agents(info, session)
 
@@ -496,7 +494,7 @@ def async_orchestrate_task_query(
     info.context["logger"].info(
         f"Updated session agents: {Serializer.json_dumps(updated_session_agents)}"
     )
-    session = insert_update_session(
+    session = get_repo("session").insert_update(
         info,
         **{
             "coordination_uuid": session.coordination_uuid,
@@ -535,14 +533,14 @@ def _check_session_status(
     timeout_seconds = 60
 
     while time.time() - start < timeout_seconds:
-        session = resolve_session(
+        session = get_repo("session").resolve_single(
             info,
             coordination_uuid=kwargs["coordination_uuid"],
             session_uuid=kwargs["session_uuid"],
         )
 
         if session.status == "dispatched":
-            session = insert_update_session(
+            session = get_repo("session").insert_update(
                 info,
                 coordination_uuid=session.coordination_uuid,
                 session_uuid=session.session_uuid,
@@ -579,7 +577,7 @@ def _handle_no_ready_agents(
     """
 
     if any(agent.state == "failed" for agent in session_agent_list.session_agent_list):
-        insert_update_session(
+        get_repo("session").insert_update(
             info,
             **{
                 "coordination_uuid": session.coordination_uuid,
@@ -612,7 +610,7 @@ def _handle_no_ready_agents(
     ):
         _handle_pending_agents(info, session)
     else:
-        insert_update_session(
+        get_repo("session").insert_update(
             info,
             **{
                 "coordination_uuid": session.coordination_uuid,
@@ -645,7 +643,7 @@ def _handle_pending_agents(info: ResolveInfo, session: SessionType) -> None:
         info.context["logger"].error(
             f"Maximum iterations ({MAX_ITERATIONS}) reached - possible infinite loop detected"
         )
-        insert_update_session(
+        get_repo("session").insert_update(
             info,
             **{
                 "coordination_uuid": session.coordination_uuid,
@@ -663,7 +661,7 @@ def _handle_pending_agents(info: ResolveInfo, session: SessionType) -> None:
         )
         return
 
-    insert_update_session(
+    get_repo("session").insert_update(
         info,
         **{
             "coordination_uuid": session.coordination_uuid,
@@ -731,7 +729,7 @@ def async_execute_procedure_task_session(
         if session is None:
             return
 
-        session_agent_list = resolve_session_agent_list(
+        session_agent_list = get_repo("session_agent").list(
             info,
             **{
                 "session_uuid": session.session_uuid,

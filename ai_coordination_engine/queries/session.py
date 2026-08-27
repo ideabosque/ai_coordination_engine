@@ -10,12 +10,12 @@ from graphene import ResolveInfo
 from silvaengine_utility import method_cache
 
 from ..handlers.config import Config
-from ..models import session
+from ..models.repositories import get_repo
 from ..types.session import SessionListType, SessionType
 
 
 def resolve_session(info: ResolveInfo, **kwargs: Dict[str, Any]) -> SessionType | None:
-    return session.resolve_session(info, **kwargs)
+    return get_repo("session").resolve_single(info, **kwargs)
 
 
 @method_cache(
@@ -26,4 +26,4 @@ def resolve_session(info: ResolveInfo, **kwargs: Dict[str, Any]) -> SessionType 
 def resolve_session_list(
     info: ResolveInfo, **kwargs: Dict[str, Any]
 ) -> SessionListType:
-    return session.resolve_session_list(info, **kwargs)
+    return get_repo("session").list(info, **kwargs)

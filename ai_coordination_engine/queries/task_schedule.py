@@ -10,14 +10,14 @@ from graphene import ResolveInfo
 from silvaengine_utility import method_cache
 
 from ..handlers.config import Config
-from ..models import task_schedule
+from ..models.repositories import get_repo
 from ..types.task_schedule import TaskScheduleListType, TaskScheduleType
 
 
 def resolve_task_schedule(
     info: ResolveInfo, **kwargs: Dict[str, Any]
 ) -> TaskScheduleType | None:
-    return task_schedule.resolve_task_schedule(info, **kwargs)
+    return get_repo("task_schedule").resolve_single(info, **kwargs)
 
 
 @method_cache(
@@ -28,4 +28,4 @@ def resolve_task_schedule(
 def resolve_task_schedule_list(
     info: ResolveInfo, **kwargs: Dict[str, Any]
 ) -> TaskScheduleListType:
-    return task_schedule.resolve_task_schedule_list(info, **kwargs)
+    return get_repo("task_schedule").list(info, **kwargs)

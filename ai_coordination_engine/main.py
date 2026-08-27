@@ -8,7 +8,7 @@ import logging
 from typing import Any, Dict, List
 
 from graphene import Schema
-from silvaengine_dynamodb_base import BaseModel
+
 from silvaengine_utility import Debugger, Graphql
 
 from .handlers.config import Config
@@ -152,16 +152,9 @@ class AICoordinationEngine(Graphql):
     def __init__(self, logger: logging.Logger, **setting: Dict[str, Any]) -> None:
         Graphql.__init__(self, logger, **setting)
 
-        if (
-            setting.get("region_name")
-            and setting.get("aws_access_key_id")
-            and setting.get("aws_secret_access_key")
-        ):
-            BaseModel.Meta.region = setting.get("region_name")
-            BaseModel.Meta.aws_access_key_id = setting.get("aws_access_key_id")
-            BaseModel.Meta.aws_secret_access_key = setting.get("aws_secret_access_key")
-
         # Initialize configuration via the Config class
+        # (Config.initialize handles BaseModel.Meta setup in DynamoDB mode,
+        #  and db_session setup in PostgreSQL mode)
         Config.initialize(logger, **setting)
 
     def _apply_partition_defaults(self, params: Dict[str, Any]) -> None:
@@ -193,9 +186,9 @@ class AICoordinationEngine(Graphql):
                 self.logger.error(
                     f"Missing endpoint_id or part_id: endpoint_id={endpoint_id}, part_id={part_id}"
                 )
-                # Only create partition key if both values are present
-                if endpoint_id and part_id:
-                    params["context"]["partition_key"] = f"{endpoint_id}#{part_id}"
+                raise ValueError(
+                    "Both 'endpoint_id' and 'part_id' are required to generate 'partition_key'."
+                )
             else:
                 params["context"]["partition_key"] = f"{endpoint_id}#{part_id}"
 
@@ -252,7 +245,17 @@ class AICoordinationEngine(Graphql):
 
         self._apply_partition_defaults(params)
 
-        return self.execute(self.__class__.build_graphql_schema(), **params)
+        # Set RLS context for PostgreSQL backend
+        partition_key = params.get("context", {}).get("partition_key")
+        if partition_key and Config.DB_BACKEND == "postgresql":
+            Config._set_rls_context(partition_key)
+
+        try:
+            return self.execute(self.__class__.build_graphql_schema(), **params)
+        finally:
+            # Clean up scoped_session after request
+            if Config.DB_BACKEND == "postgresql" and Config.db_session:
+                Config.db_session.remove()
 
     @staticmethod
     def build_graphql_schema() -> Schema:
@@ -261,3 +264,43 @@ class AICoordinationEngine(Graphql):
             mutation=Mutations,
             types=type_class(),
         )
+
+
+# ---------------------------------------------------------------------------
+# Module-level dispatch functions for gateway integration
+# ---------------------------------------------------------------------------
+# These are called by silvaengine_gateway via the route manifest's
+# ``dispatch`` field (e.g. "ai_coordination_engine.main:dispatch_graphql").
+# They create a short-lived AICoordinationEngine instance using the
+# already-initialized Config singleton.
+# ---------------------------------------------------------------------------
+
+
+def dispatch_graphql(**params: Any) -> Any:
+    """Execute a GraphQL query/mutation against the AI Coordination Engine.
+
+    Requires Config.initialize() to have been called (done by gateway startup).
+
+    On the PostgreSQL backend, ``Config.db_session`` is a module-level
+    ``scoped_session`` reused across requests on the same thread. If any
+    statement fails without a rollback, the session is left in an aborted
+    state and every subsequent request raises ``InFailedSqlTransaction``
+    until the process restarts. Guard the request boundary: roll back on
+    error and always ``remove()`` the scoped session so each request starts
+    from a clean connection. (No-op on the DynamoDB backend, where
+    ``db_session`` is ``None``.)
+    """
+    from .handlers.config import Config
+
+    logger = Config.get_logger()
+    instance = AICoordinationEngine(logger, **Config.get_setting())
+    db_session = Config.db_session
+    try:
+        return instance.ai_coordination_graphql(**params)
+    except Exception:
+        if db_session is not None:
+            db_session.rollback()
+        raise
+    finally:
+        if db_session is not None:
+            db_session.remove()

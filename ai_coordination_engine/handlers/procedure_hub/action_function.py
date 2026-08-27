@@ -8,7 +8,7 @@ import traceback
 
 from graphene import ResolveInfo
 
-from ...models.session_agent import insert_update_session_agent
+from ...models.repositories import get_repo
 from ...types.session_agent import SessionAgentType
 from ..ai_coordination_utility import get_action_function
 from .session_agent import get_successors, handle_session_agent_completion
@@ -32,12 +32,12 @@ def execute_action_function(info: ResolveInfo, session_agent: SessionAgentType) 
         session_agent.state = "failed"
         session_agent.notes = log
 
-    session_agent = insert_update_session_agent(
+    session_agent = get_repo("session_agent").insert_update(
         info,
         **{
-            "session_uuid": session_agent.session_uuid,
-            "session_agent_uuid": session_agent.session_agent_uuid,
-            "agent_output": session_agent.agent_output,
+           "session_uuid": session_agent.session_uuid,
+           "session_agent_uuid": session_agent.session_agent_uuid,
+           "agent_output": session_agent.agent_output,
             "state": session_agent.state,
             "notes": session_agent.notes if session_agent.state == "failed" else None,
             "updated_by": "procedure_hub",

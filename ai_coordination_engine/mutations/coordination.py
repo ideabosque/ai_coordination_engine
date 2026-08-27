@@ -10,7 +10,7 @@ from typing import Any, Dict
 from graphene import Boolean, Field, List, Mutation, String
 from silvaengine_utility import JSONCamelCase
 
-from ..models.coordination import delete_coordination, insert_update_coordination
+from ..models.repositories import get_repo
 from ..types.coordination import CoordinationType
 
 
@@ -22,6 +22,7 @@ class InsertUpdateCoordination(Mutation):
         coordination_name = String(required=False)
         coordination_description = String(required=False)
         agents = List(JSONCamelCase, required=False)
+        theme_uuid = String(required=False)
         updated_by = String(required=True)
 
     @staticmethod
@@ -29,7 +30,7 @@ class InsertUpdateCoordination(Mutation):
         root: Any, info: Any, **kwargs: Dict[str, Any]
     ) -> "InsertUpdateCoordination":
         try:
-            coordination = insert_update_coordination(info, **kwargs)
+            coordination = get_repo("coordination").insert_update(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
             info.context.get("logger").error(log)
@@ -47,7 +48,7 @@ class DeleteCoordination(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "DeleteCoordination":
         try:
-            ok = delete_coordination(info, **kwargs)
+            ok = get_repo("coordination").delete(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
             info.context.get("logger").error(log)
