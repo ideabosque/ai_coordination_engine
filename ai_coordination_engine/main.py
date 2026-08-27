@@ -61,6 +61,10 @@ def deploy() -> List:
                             "action": "threadList",
                             "label": "View Coordination Message List",
                         },
+                        {
+                            "action": "askOperationHub",
+                            "label": "Ask Operation Hub",
+                        },
                     ],
                     "mutation": [
                         {
@@ -175,8 +179,10 @@ class AICoordinationEngine(Graphql):
 
         if "endpoint_id" not in params["context"]:
             params["context"]["endpoint_id"] = endpoint_id
+
         if "part_id" not in params["context"]:
             params["context"]["part_id"] = part_id
+
         if "connection_id" not in params:
             params["connection_id"] = self.setting.get("connection_id")
 
@@ -194,14 +200,6 @@ class AICoordinationEngine(Graphql):
 
     def async_insert_update_session(self, **params: Dict[str, Any]) -> Any:
         self._apply_partition_defaults(params)
-
-        Debugger.info(
-            variable=params,
-            stage=f"{__file__}.async_insert_update_session",
-            delimiter="()",
-            setting=self.setting,
-            enabled_trace=False,
-        )
 
         operation_hub_listener.async_insert_update_session(
             self.logger, self.setting, **params

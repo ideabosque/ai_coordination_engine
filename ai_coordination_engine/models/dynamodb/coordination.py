@@ -25,11 +25,11 @@ from silvaengine_dynamodb_base import (
     resolve_list_decorator,
 )
 from silvaengine_utility import Debugger, method_cache
-from ...utils.normalization import normalize_to_json
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ...handlers.config import Config
 from ...types.coordination import CoordinationListType, CoordinationType
+from ...utils.normalization import normalize_to_json
 
 
 class CoordinationModel(BaseModel):
@@ -43,7 +43,7 @@ class CoordinationModel(BaseModel):
     coordination_name = UnicodeAttribute()
     coordination_description = UnicodeAttribute()
     agents = ListAttribute(of=MapAttribute)
-    theme_uuid = UnicodeAttribute()
+    theme_uuid = UnicodeAttribute(null=True)
     updated_by = UnicodeAttribute()
     created_at = UTCDateTimeAttribute()
     updated_at = UTCDateTimeAttribute()
@@ -109,7 +109,7 @@ def purge_cache():
 @method_cache(
     ttl=Config.get_cache_ttl(),
     cache_name=Config.get_cache_name("models", "coordination"),
-    cache_enabled=Config.is_cache_enabled,
+    cache_enabled=False,
 )
 def get_coordination(partition_key: str, coordination_uuid: str) -> CoordinationModel:
     return CoordinationModel.get(partition_key, coordination_uuid)
@@ -143,7 +143,7 @@ def resolve_coordination(
 
 @monitor_decorator
 @resolve_list_decorator(
-    attributes_to_get=["endpoint_id", "coordination_uuid"],
+    attributes_to_get=["endpoint_id", "coordination_uuid", "partition_key"],
     list_type_class=CoordinationListType,
     type_funct=get_coordination_type,
 )
@@ -154,11 +154,15 @@ def resolve_coordination_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> An
     args = []
     inquiry_funct = CoordinationModel.scan
     count_funct = CoordinationModel.count
+
+    print("#" * 40, partition_key)
+
     if partition_key:
         args = [partition_key, None]
         inquiry_funct = CoordinationModel.query
 
     the_filters = None  # We can add filters for the query.
+
     if coordination_name is not None:
         the_filters &= CoordinationModel.coordination_name.contains(coordination_name)
     if coordination_description is not None:
@@ -195,6 +199,7 @@ def insert_update_coordination(info: ResolveInfo, **kwargs: Dict[str, Any]) -> N
             "created_at": pendulum.now("UTC"),
             "updated_at": pendulum.now("UTC"),
         }
+
         for key in [
             "coordination_name",
             "coordination_description",

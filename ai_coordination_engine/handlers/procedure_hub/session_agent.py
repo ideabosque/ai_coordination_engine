@@ -506,6 +506,7 @@ def execute_session_agent(info: ResolveInfo, session_agent: SessionAgentType) ->
             "async_update_session_agent",
             **params,
         )
+
         return
 
     except Exception as e:
