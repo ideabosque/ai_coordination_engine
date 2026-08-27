@@ -51,7 +51,7 @@ class TaskType(TaskBaseType):
         Returns:
             CoordinationType object or Promise resolving to CoordinationType or None
         """
-        from ..models.batch_loaders import get_loaders
+        from ..models.repositories import get_loaders
 
         # Case 1: Already embedded as dict
         existing = getattr(parent, "coordination", None)

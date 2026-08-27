@@ -10,7 +10,7 @@ from typing import Any, Dict
 from graphene import Boolean, Field, List, Mutation, String
 from silvaengine_utility import JSONCamelCase
 
-from ..models.task import delete_task, insert_update_task
+from ..models.repositories import get_repo
 from ..types.task import TaskType
 
 
@@ -30,7 +30,7 @@ class InsertUpdateTask(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "InsertUpdateTask":
         try:
-            task = insert_update_task(info, **kwargs)
+            task = get_repo("task").insert_update(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
             info.context.get("logger").error(log)
@@ -49,7 +49,7 @@ class DeleteTask(Mutation):
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "DeleteTask":
         try:
-            ok = delete_task(info, **kwargs)
+            ok = get_repo("task").delete(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
             info.context.get("logger").error(log)

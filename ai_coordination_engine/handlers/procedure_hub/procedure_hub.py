@@ -10,11 +10,9 @@ from graphene import ResolveInfo
 from silvaengine_utility.invoker import Invoker
 from silvaengine_utility.serializer import Serializer
 
-from ...models.session import insert_update_session
-from ...models.task import resolve_task
+from ...models.repositories import get_repo
 from ...types.procedure_hub import ProcedureTaskSessionType
 from ...types.session import SessionType
-from ..config import Config
 from .session_agent import init_in_degree, init_session_agents
 
 
@@ -39,7 +37,7 @@ def execute_procedure_task_session(
     """
 
     # Fetch task details and extract relevant information
-    task = resolve_task(
+    task = get_repo("task").resolve_single(
         info,
         **{
             "coordination_uuid": kwargs["coordination_uuid"],
@@ -60,7 +58,7 @@ def execute_procedure_task_session(
         variables["subtask_queries"] = task.subtask_queries
     if "user_id" in kwargs:
         variables["user_id"] = kwargs["user_id"]
-    session: SessionType = insert_update_session(
+    session: SessionType = get_repo("session").insert_update(
         info,
         **variables,
     )
@@ -80,22 +78,16 @@ def execute_procedure_task_session(
     # 5. Optimizing subtask distribution for parallel execution where possible
     # 6. Storing subtask assignments and metadata in the session for tracking    # This involves:
 
-    # Invoke async update function on AWS Lambda
+    # Invoke async update function in-process (local invoke)
     if not session.subtask_queries:
-        invoker = info.context.get("aws_lambda_invoker")
-
-        if callable(invoker):
-            invoker(
-                payload=Invoker.build_invoker_payload(
-                    context=info.context,
-                    module_name="ai_coordination_engine",
-                    class_name="AICoordinationEngine",
-                    function_name="async_orchestrate_task_query",
-                    parameters=params,
-                ),
-            )
+        Invoker.invoke_funct_on_local(
+            info.context.get("logger"),
+            info.context.get("setting"),
+            "async_orchestrate_task_query",
+            **params,
+        )
     else:
-        session: SessionType = insert_update_session(
+        session: SessionType = get_repo("session").insert_update(
             info,
             **{
                 "coordination_uuid": session.coordination_uuid,
@@ -113,19 +105,13 @@ def execute_procedure_task_session(
             f"Updated session agents: {Serializer.json_dumps(updated_session_agents)}"
         )
 
-    # Invoke async update function on AWS Lambda
-    invoker = info.context.get("aws_lambda_invoker")
-
-    if callable(invoker):
-        invoker(
-            payload=Invoker.build_invoker_payload(
-                context=info.context,
-                module_name="ai_coordination_engine",
-                class_name="AICoordinationEngine",
-                function_name="async_execute_procedure_task_session",
-                parameters=params,
-            ),
-        )
+    # Invoke async update function in-process (local invoke)
+    Invoker.invoke_funct_on_local(
+        info.context.get("logger"),
+        info.context.get("setting"),
+        "async_execute_procedure_task_session",
+        **params,
+    )
 
     return ProcedureTaskSessionType(
         **{

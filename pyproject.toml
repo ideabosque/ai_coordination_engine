@@ -31,8 +31,17 @@ dependencies = [
     "boto3",
     "pyhumps",
     "promise",
+    "silvaengine-definitions",
     "silvaengine-dynamodb-base",
     "silvaengine-utility",
+    "tenacity",
+]
+
+[project.optional-dependencies]
+postgresql = [
+    "SQLAlchemy>=1.4",
+    "psycopg2-binary>=2.9",
+    "alembic>=1.10",
 ]
 
 [project.urls]
@@ -46,6 +55,12 @@ zip-safe = false
 where = ["."]
 include = ["ai_coordination_engine*"]
 exclude = ["tests*", "*.tests*"]
+
+[tool.pytest.ini_options]
+markers = [
+    "integration: integration tests (requires live PostgreSQL or DynamoDB)",
+]
+testpaths = ["ai_coordination_engine/tests"]
 
 [tool.pyright]
 typeCheckingMode = "basic"

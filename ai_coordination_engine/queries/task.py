@@ -10,12 +10,12 @@ from graphene import ResolveInfo
 from silvaengine_utility import method_cache
 
 from ..handlers.config import Config
-from ..models import task
+from ..models.repositories import get_repo
 from ..types.task import TaskListType, TaskType
 
 
 def resolve_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> TaskType | None:
-    return task.resolve_task(info, **kwargs)
+    return get_repo("task").resolve_single(info, **kwargs)
 
 
 @method_cache(
@@ -24,4 +24,4 @@ def resolve_task(info: ResolveInfo, **kwargs: Dict[str, Any]) -> TaskType | None
     cache_enabled=Config.is_cache_enabled,
 )
 def resolve_task_list(info: ResolveInfo, **kwargs: Dict[str, Any]) -> TaskListType:
-    return task.resolve_task_list(info, **kwargs)
+    return get_repo("task").list(info, **kwargs)
