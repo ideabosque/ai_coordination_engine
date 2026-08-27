@@ -7,9 +7,10 @@ __author__ = "bibow"
 import logging
 import time
 import traceback
-from typing import Any, Dict, Optional, cast
+from typing import Any, Dict, List, Optional, cast
 
 from graphene import ResolveInfo
+from silvaengine_constants import AgentType
 from silvaengine_utility.debugger import Debugger
 from silvaengine_utility.invoker import Invoker
 from silvaengine_utility.serializer import Serializer
@@ -138,17 +139,27 @@ def ask_operation_hub(
     try:
         start_time = time.perf_counter()
         logger = info.context.get("logger")
+
+        coordination_uuid = kwargs.get("coordination_uuid")
+        agent_uuid = kwargs.get("agent_uuid")
+        user_query = kwargs.get("user_query")
+
+        if not all([coordination_uuid, agent_uuid, user_query]):
+            raise ValueError("Missing required parameter(s)")
+
         # Start async task and get identifiers
         # Step 1: Initialize and validate coordination
         coordination = get_repo("coordination").resolve_single(
             info,
             **{
-                "coordination_uuid": kwargs["coordination_uuid"],
+                "coordination_uuid": coordination_uuid,
             },
         )
 
-        if coordination is None:
-            raise ValueError("Not found the specified coordination")
+        if not coordination or not isinstance(coordination.agents, list):
+            raise ValueError("Not found any coordination")
+
+        agents = coordination.agents
 
         _log_step(logger, "resolve_coordination", time.perf_counter() - start_time)
         start_time = time.perf_counter()
@@ -160,7 +171,7 @@ def ask_operation_hub(
         start_time = time.perf_counter()
 
         # Step 3: Select and validate agent
-        agent = _select_agent(coordination, **kwargs)
+        agent = _select_agent(agents=agents, agent_uuid=agent_uuid)
 
         if not agent:
             raise ValueError("Not found the specified agent")
@@ -169,7 +180,12 @@ def ask_operation_hub(
         start_time = time.perf_counter()
 
         # Step 4: Process query and handle routing
-        user_query = _process_query(info, kwargs["user_query"], agent, coordination)
+        user_query = _process_query(
+            info=info,
+            user_query=user_query,
+            selected_agent=agent,
+            agents=agents,
+        )
 
         _log_step(logger, "_process_query", time.perf_counter() - start_time)
         start_time = time.perf_counter()
@@ -285,9 +301,7 @@ def _handle_session(info: ResolveInfo, **kwargs: Dict[str, Any]) -> SessionType:
     return cast(SessionType, get_repo("session").insert_update(info, **variables))
 
 
-def _select_agent(
-    coordination: CoordinationType, **kwargs: Dict[str, Any]
-) -> Dict[str, Any] | None:
+def _select_agent(agents: List, agent_uuid: str) -> Dict[str, Any] | None:
     """
     Helper function to select appropriate agent.
 
@@ -297,31 +311,32 @@ def _select_agent(
             - agent_uuid: Optional agent identifier
 
     Returns:
-        Dict[str, Any]: Selected agent details
+        Dict[str, Any]: Selected agent details or None if no matching agent found
 
     Raises:
-        AssertionError: If no agents found for coordination
+        ValueError: If no agents found for coordination
     """
-    assert len(coordination.agents) > 0, "No agent found for the coordination."
+    if not agents:
+        raise ValueError("No agent found for the coordination.")
 
-    agent_uuid = kwargs.get("agent_uuid")
-    if agent_uuid:
-        for agent in coordination.agents:
-            if agent.get("agent_uuid") == agent_uuid:
-                return agent
+    triage_agent = None
+    agent_triage_type = AgentType.TRIAGE.value
 
-    for agent in coordination.agents:
-        if agent.get("agent_type") == "triage":
+    for agent in agents:
+        if agent.get("agent_uuid") == agent_uuid:
             return agent
 
-    return None
+        if triage_agent is None and agent.get("agent_type") == agent_triage_type:
+            triage_agent = agent
+
+    return triage_agent
 
 
 def _process_query(
     info: ResolveInfo,
     user_query: str,
-    agent: Dict[str, Any],
-    coordination: CoordinationType,
+    selected_agent: Dict[str, Any],
+    agents: List,
 ) -> str:
     """
     Helper function to process and enhance user queries.
@@ -335,31 +350,31 @@ def _process_query(
     Returns:
         str: Processed query string with enhanced context for triage agents
     """
-    if (
-        isinstance(agent, dict)
-        and (agent.get("agent_type") or agent.get("agentType")) == "triage"
-    ):
-        available_task_agents = [
-            {
-                "agent_uuid": coord_agent.get("agent_uuid")
-                or coord_agent.get("agentUuid"),
-                "agent_name": coord_agent.get("agent_name")
-                or coord_agent.get("agentName"),
-                "agent_description": coord_agent.get("agent_description")
-                or coord_agent.get("agentDescription"),
-            }
-            for coord_agent in coordination.agents
-            if (coord_agent.get("agent_type") or coord_agent.get("agentType")) == "task"
-        ]
+    agent_triage_type = AgentType.TRIAGE.value
 
-        user_query = (
-            f"Based on the following user query, please analyze and select the most appropriate agent:\n"
-            f"User Query: {user_query}\n"
-            f"Available Agents: {Serializer.json_dumps(available_task_agents)}\n"
-            f"Please assess the intent behind the query and align it with the agent's most appropriate capabilities, then export the results in JSON format."
-        )
-        info.context.get("logger").info(f"Enhanced triage request: {user_query}")
-    return user_query
+    if not (
+        isinstance(selected_agent, dict)
+        and selected_agent.get("agent_type") == agent_triage_type
+    ):
+        return user_query
+
+    agent_task_type = AgentType.TASK.value
+    task_agents = [
+        {
+            "agent_uuid": agent.get("agent_uuid"),
+            "agent_name": agent.get("agent_name"),
+            "agent_description": agent.get("agent_description"),
+        }
+        for agent in agents
+        if agent.get("agent_type") == agent_task_type
+    ]
+
+    return f"""
+    Based on the following user query, please analyze and select the most appropriate agent:
+    User Query: {user_query}
+    Available Agents: {Serializer.json_dumps(task_agents)}
+    Please assess the intent behind the query and align it with the agent's most appropriate capabilities, then export the results in JSON format.
+    """
 
 
 def _handle_connection_routing(
@@ -380,6 +395,7 @@ def _handle_connection_routing(
         Optional[str]: Connection ID for routing messages
     """
     connection_id = info.context.get("connection_id")
+
     if "receiver_email" in kwargs and agent["agent_type"] != "triage":
         receiver_connection = get_connection_by_email(
             info.context.get("logger"),
@@ -420,7 +436,7 @@ def _trigger_async_update(
         params["connection_id"] = connection_id
 
     if (
-        connection_id is None
+        not connection_id
         and "receiver_email" in kwargs
         and agent["agent_type"] != "triage"
     ):

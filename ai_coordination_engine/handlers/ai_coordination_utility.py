@@ -17,6 +17,7 @@ import humps
 from boto3.dynamodb.conditions import Attr, Key
 from graphene import ResolveInfo
 from promise import Promise
+from silvaengine_dynamodb_base.models import GraphqlSchemaModel
 from silvaengine_utility import Debugger, Graphql, Invoker, Serializer
 
 from .config import Config
