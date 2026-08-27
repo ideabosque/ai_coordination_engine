@@ -10,7 +10,7 @@ from typing import Any, Dict
 from graphene import Boolean, Field, Int, Mutation, String
 from silvaengine_utility import JSONCamelCase
 
-from ..models.session_run import delete_session_run, insert_update_session_run
+from ..models.repositories import get_repo
 from ..types.session_run import SessionRunType
 
 
@@ -32,7 +32,7 @@ class InsertUpdateSessionRun(Mutation):
         root: Any, info: Any, **kwargs: Dict[str, Any]
     ) -> "InsertUpdateSessionRun":
         try:
-            session_run = insert_update_session_run(info, **kwargs)
+            session_run = get_repo("session_run").insert_update(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
             info.context.get("logger").error(log)
@@ -47,11 +47,12 @@ class DeleteSessionRun(Mutation):
     class Arguments:
         coordination_uuid = String(required=True)
         session_uuid = String(required=True)
+        run_uuid = String(required=True)
 
     @staticmethod
     def mutate(root: Any, info: Any, **kwargs: Dict[str, Any]) -> "DeleteSessionRun":
         try:
-            ok = delete_session_run(info, **kwargs)
+            ok = get_repo("session_run").delete(info, **kwargs)
         except Exception as e:
             log = traceback.format_exc()
             info.context.get("logger").error(log)

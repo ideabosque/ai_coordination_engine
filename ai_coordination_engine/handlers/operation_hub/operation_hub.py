@@ -4,25 +4,38 @@ from __future__ import print_function
 
 __author__ = "bibow"
 
+import logging
 import time
 import traceback
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, cast
 
 from graphene import ResolveInfo
-from silvaengine_constants import AgentType, InvocationType
+from silvaengine_constants import AgentType
 from silvaengine_utility.debugger import Debugger
 from silvaengine_utility.invoker import Invoker
 from silvaengine_utility.serializer import Serializer
 
-from ...models.coordination import resolve_coordination
-from ...models.session import insert_update_session
-from ...models.session_run import insert_update_session_run
+from ...models.repositories import get_repo
 from ...types.coordination import CoordinationType
 from ...types.operation_hub import AskOperationHubType
 from ...types.session import SessionType
 from ...types.session_run import SessionRunType
 from ..ai_coordination_utility import get_connection_by_email, invoke_ask_model
 from ..config import Config
+
+
+def _log_step(logger, step: str, elapsed: float, **extra):
+    """Structured logging helper for step timing."""
+    if logger:
+        logger.info(
+            f"ask_operation_hub step completed",
+            extra={
+                "step": step,
+                "elapsed_seconds": round(elapsed, 3),
+                **extra,
+            },
+        )
+
 
 """System Instructions:
 Name: Triage Agent
@@ -107,7 +120,7 @@ def ask_operation_hub(
     3. Processes and enhances user queries for triage scenarios
     4. Manages connection IDs and receiver email routing
     5. Invokes AI model and creates session runs
-    6. Triggers asynchronous session updates via Lambda
+    6. Triggers asynchronous session updates via in-process local invoke
 
     Args:
         info (ResolveInfo): GraphQL context and metadata
@@ -124,6 +137,9 @@ def ask_operation_hub(
         AskOperationHubType: Structured response with session details and run metadata
     """
     try:
+        start_time = time.perf_counter()
+        logger = info.context.get("logger")
+
         coordination_uuid = kwargs.get("coordination_uuid")
         agent_uuid = kwargs.get("agent_uuid")
         user_query = kwargs.get("user_query")
@@ -133,9 +149,11 @@ def ask_operation_hub(
 
         # Start async task and get identifiers
         # Step 1: Initialize and validate coordination
-        coordination = resolve_coordination(
-            info=info,
-            **{"coordination_uuid": coordination_uuid},
+        coordination = get_repo("coordination").resolve_single(
+            info,
+            **{
+                "coordination_uuid": coordination_uuid,
+            },
         )
 
         if not coordination or not isinstance(coordination.agents, list):
@@ -143,14 +161,23 @@ def ask_operation_hub(
 
         agents = coordination.agents
 
+        _log_step(logger, "resolve_coordination", time.perf_counter() - start_time)
+        start_time = time.perf_counter()
+
         # Step 2: Create/update session
         session = _handle_session(info, **kwargs)
+
+        _log_step(logger, "_handle_session", time.perf_counter() - start_time)
+        start_time = time.perf_counter()
 
         # Step 3: Select and validate agent
         agent = _select_agent(agents=agents, agent_uuid=agent_uuid)
 
         if not agent:
             raise ValueError("Not found the specified agent")
+
+        _log_step(logger, "_select_agent", time.perf_counter() - start_time)
+        start_time = time.perf_counter()
 
         # Step 4: Process query and handle routing
         user_query = _process_query(
@@ -160,7 +187,15 @@ def ask_operation_hub(
             agents=agents,
         )
 
-        # connection_id = _handle_connection_routing(info, agent, **kwargs)
+        _log_step(logger, "_process_query", time.perf_counter() - start_time)
+        start_time = time.perf_counter()
+
+        connection_id = _handle_connection_routing(info, agent, **kwargs)
+
+        _log_step(
+            logger, "_handle_connection_routing", time.perf_counter() - start_time
+        )
+        start_time = time.perf_counter()
 
         # Step 5: Execute AI model and record session run
         variables = {
@@ -184,7 +219,10 @@ def ask_operation_hub(
 
         ask_model = invoke_ask_model(context=info.context, **variables)
 
-        session_run: SessionRunType = insert_update_session_run(
+        _log_step(logger, "invoke_ask_model", time.perf_counter() - start_time)
+        start_time = time.perf_counter()
+
+        session_run: SessionRunType = get_repo("session_run").insert_update(
             info,
             **{
                 "session_uuid": session.session_uuid,
@@ -197,14 +235,13 @@ def ask_operation_hub(
             },
         )
 
+        _log_step(logger, "insert_update_session_run", time.perf_counter() - start_time)
+        start_time = time.perf_counter()
+
         # Step 6: Handle async updates
-        _trigger_async_update(
-            info=info,
-            session_run=session_run,
-            connection_id=info.context.get("connection_id"),
-            agent=agent,
-            **kwargs,
-        )
+        _trigger_async_update(info, session_run, connection_id, agent, **kwargs)
+
+        _log_step(logger, "_trigger_async_update", time.perf_counter() - start_time)
 
         # Step 7: Return response
         return AskOperationHubType(
@@ -230,7 +267,7 @@ def ask_operation_hub(
         raise e
 
 
-def _handle_session(info: ResolveInfo, **kwargs: Dict[str, Any]) -> SessionType | None:
+def _handle_session(info: ResolveInfo, **kwargs: Dict[str, Any]) -> SessionType:
     """
     Helper function to create or update a session.
 
@@ -243,7 +280,9 @@ def _handle_session(info: ResolveInfo, **kwargs: Dict[str, Any]) -> SessionType 
             - agent_uuid: Optional agent identifier
 
     Returns:
-        SessionType: Session object with updated details
+        SessionType: Session object with updated details. ``insert_update``
+        always returns the persisted session type (it raises on failure rather
+        than returning ``None``), so the result is non-optional.
     """
     variables = {
         "coordination_uuid": kwargs["coordination_uuid"],
@@ -259,7 +298,7 @@ def _handle_session(info: ResolveInfo, **kwargs: Dict[str, Any]) -> SessionType 
     if "session_uuid" in kwargs:
         variables.update({"session_uuid": kwargs["session_uuid"]})
 
-    return insert_update_session(info, **variables)
+    return cast(SessionType, get_repo("session").insert_update(info, **variables))
 
 
 def _select_agent(agents: List, agent_uuid: str) -> Dict[str, Any] | None:
@@ -403,17 +442,10 @@ def _trigger_async_update(
     ):
         params["receiver_email"] = kwargs["receiver_email"]
 
-    invoker = info.context.get("aws_lambda_invoker")
-
-    if callable(invoker):
-        invoker(
-            function_name=info.context.get("aws_lambda_arn"),
-            invocation_type=InvocationType.EVENT,
-            payload=Invoker.build_invoker_payload(
-                context=info.context,
-                module_name="ai_coordination_engine",
-                function_name="async_insert_update_session",
-                class_name="AICoordinationEngine",
-                parameters=params,
-            ),
-        )
+    # Invoke async update function in-process (local invoke)
+    Invoker.invoke_funct_on_local(
+        info.context.get("logger"),
+        info.context.get("setting"),
+        "async_insert_update_session",
+        **params,
+    )

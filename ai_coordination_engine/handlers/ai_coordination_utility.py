@@ -10,6 +10,7 @@ import sys
 import time
 import traceback
 import zipfile
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
 from typing import Any, Callable, Dict, List, Optional
 
 import humps
@@ -91,24 +92,115 @@ def get_action_function(
         raise e
 
 
+def _execute_graphql_with_monitoring(
+    context: Dict[str, Any],
+    module_name: str,
+    function_name: str,
+    operation_type: str,
+    operation_name: str,
+    class_name: str,
+    variables: Dict[str, Any],
+    operation_label: str,
+) -> Dict[str, Any]:
+    """Execute GraphQL request with timeout enforcement and structured logging."""
+    start_time = time.perf_counter()
+    timeout_seconds = context.get("graphql_timeout", Config.GRAPHQL_TIMEOUT)
+
+    logger = context.get("logger")
+    if logger:
+        logger.info(
+            f"Executing GraphQL operation",
+            extra={
+                "operation": operation_label,
+                "operation_name": operation_name,
+                "timeout_seconds": timeout_seconds,
+            },
+        )
+
+    try:
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(
+                Graphql.request_graphql,
+                context=context,
+                module_name=module_name,
+                function_name=function_name,
+                class_name=class_name,
+                operation_type=operation_type,
+                operation_name=operation_name,
+                variables=variables,
+            )
+            result = future.result(timeout=timeout_seconds)
+
+        elapsed = time.perf_counter() - start_time
+        if logger:
+            logger.info(
+                f"GraphQL operation completed",
+                extra={
+                    "operation": operation_label,
+                    "elapsed_seconds": round(elapsed, 3),
+                    "timeout_seconds": timeout_seconds,
+                },
+            )
+
+        if logger and elapsed > timeout_seconds:
+            logger.warning(
+                f"GraphQL operation exceeded timeout threshold",
+                extra={
+                    "operation": operation_label,
+                    "elapsed_seconds": round(elapsed, 3),
+                    "timeout_seconds": timeout_seconds,
+                    "exceeded_by": round(elapsed - timeout_seconds, 3),
+                }
+            )
+
+        return result
+
+    except FutureTimeoutError as exc:
+        elapsed = time.perf_counter() - start_time
+        if logger:
+            logger.error(
+                f"GraphQL operation timed out",
+                extra={
+                    "operation": operation_label,
+                    "elapsed_seconds": round(elapsed, 3),
+                    "timeout_seconds": timeout_seconds,
+                },
+            )
+        raise TimeoutError(
+            f"{operation_label} exceeded timeout of {timeout_seconds} seconds"
+        ) from exc
+    except Exception as e:
+        elapsed = time.perf_counter() - start_time
+        if logger:
+            logger.error(
+                f"GraphQL operation failed",
+                extra={
+                    "operation": operation_label,
+                    "elapsed_seconds": round(elapsed, 3),
+                    "error": str(e),
+                },
+            )
+        raise
+
+
 def invoke_ask_model(
     context: Dict[str, Any],
     **variables: Dict[str, Any],
 ) -> Dict[str, Any]:
-    """Call AI model for assistance via GraphQL query."""
+    """Call AI model for assistance via GraphQL query with timeout monitoring."""
     try:
-        return humps.decamelize(
-            Graphql.request_graphql(
-                context=context,
-                module_name="ai_agent_core_engine",
-                function_name="ai_agent_core_graphql",
-                class_name="AIAgentCoreEngine",
-                operation_name="askModel",
-                variables=variables,
-                # operation_type="Query",
-                # query=query,
-            )
+        ask_model = _execute_graphql_with_monitoring(
+            context=context,
+            module_name="ai_agent_core_engine",
+            function_name="ai_agent_core_graphql",
+            class_name="AIAgentCoreEngine",
+            operation_type="Query",
+            operation_name="askModel",
+            variables=variables,
+            operation_label="invoke_ask_model",
         )
+
+        return humps.decamelize(ask_model)
     except Exception as e:
         Debugger.info(
             variable=e,
@@ -123,28 +215,31 @@ def get_async_task(
     context: Dict[str, Any],
     **variables: Dict[str, Any],
 ) -> Dict[str, Any]:
-    """Call AI model for assistance via GraphQL query."""
-    async_task = Graphql.request_graphql(
-        context=context,
-        module_name="ai_agent_core_engine",
-        function_name="ai_agent_core_graphql",
-        # operation_type="Query",
-        operation_name="asyncTask",
-        class_name="AIAgentCoreEngine",
-        variables=variables,
-    )
+    """Call AI model for assistance via GraphQL query with timeout monitoring."""
+    try:
+        async_task = _execute_graphql_with_monitoring(
+            context=context,
+            module_name="ai_agent_core_engine",
+            function_name="ai_agent_core_graphql",
+            class_name="AIAgentCoreEngine",
+            operation_type="Query",
+            operation_name="asyncTask",
+            variables=variables,
+            operation_label="get_async_task",
+        )
 
-    if isinstance(async_task, dict) and "asyncTask" in async_task:
-        async_task = async_task.get("asyncTask", {})
+        if isinstance(async_task, dict) and "asyncTask" in async_task:
+            async_task = async_task.get("asyncTask", {})
 
-    # async_task = execute_graphql_query(
-    #     context,
-    #     "ai_agent_core_graphql",
-    #     "asyncTask",
-    #     "Query",
-    #     variables,
-    # )["asyncTask"]
-    return humps.decamelize(async_task)
+        return humps.decamelize(async_task)
+    except Exception as e:
+        Debugger.info(
+            variable=e,
+            stage=__name__,
+            logger=context.get("logger"),
+            setting=context.get("setting"),
+        )
+        raise
 
 
 # Updated function to use Boto3 to get the latest connection by email without an index
@@ -163,7 +258,7 @@ def get_connection_by_email(
         Dict containing connection information or None if not found
     """
     try:
-        table = Config.aws_dynamodb.Table("se-wss-connections")
+        table = Config.dynamodb.Table("se-wss-connections")
 
         # Query without using an index
         response = table.query(
@@ -263,7 +358,7 @@ def batch_get_coordination_data(
         for session in sessions:
             coord_data = coord_map[session.coordination_uuid]
     """
-    from ..models.batch_loaders import get_loaders
+    from ..models.repositories import get_loaders
 
     # Collect all unique coordination keys needed using direct property access
     coordination_keys = set()
@@ -317,7 +412,7 @@ def batch_get_task_data(sessions: List, info: ResolveInfo) -> Dict[str, Dict[str
             task_data = task_map[session.task_uuid]
             agent_actions = task_data.get("agent_actions", {})
     """
-    from ..models.batch_loaders import get_loaders
+    from ..models.repositories import get_loaders
 
     # Collect all unique task keys needed using direct property access
     task_keys = set()
@@ -402,7 +497,7 @@ def ensure_coordination_data(session, info: ResolveInfo = None) -> Dict[str, Any
 
     # Path 3: Use batch loader if info available
     if info is not None:
-        from ..models.batch_loaders import get_loaders
+        from ..models.repositories import get_loaders
 
         coordination_uuid = getattr(session, "coordination_uuid", None)
         endpoint_id = getattr(session, "endpoint_id", None)
@@ -455,7 +550,7 @@ def _normalize_task_object(task) -> Dict[str, Any]:
 
 
 def _load_task_from_loader(session, info) -> Optional[Dict[str, Any]]:
-    from ..models.batch_loaders import get_loaders
+    from ..models.repositories import get_loaders
 
     task_uuid = getattr(session, "task_uuid", None)
     coordination_uuid = getattr(session, "coordination_uuid", None)
@@ -486,7 +581,7 @@ def _resolve_coordination(session, task_dict, info) -> Dict[str, Any]:
     )
 
     if info is not None and coord_uuid and partition_key:
-        from ..models.batch_loaders import get_loaders
+        from ..models.repositories import get_loaders
 
         loaders = get_loaders(info.context)
         coord_dict = loaders.coordination_loader.load((partition_key, coord_uuid)).get()

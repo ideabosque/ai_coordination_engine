@@ -31,7 +31,7 @@ class CoordinationType(ObjectType):
 
     @staticmethod
     def resolve_theme(parent, info):
-        existing = getattr(parent, "task", None)
+        existing = getattr(parent, "theme", None)
 
         if isinstance(existing, dict):
             return ThemeSettingType(**Serializer.json_normalize(existing))

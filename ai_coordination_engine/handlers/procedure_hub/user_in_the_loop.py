@@ -9,7 +9,7 @@ from typing import Any, Dict
 
 from graphene import ResolveInfo
 
-from ...models.session_agent import insert_update_session_agent, resolve_session_agent
+from ...models.repositories import get_repo
 from ...types.session_agent import SessionAgentType
 from .procedure_hub_listener import invoke_next_iteration
 from .session_agent import handle_session_agent_completion
@@ -22,13 +22,13 @@ def execute_for_user_input(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
     """
     try:
         # Retrieve the session agent
-        session_agent = resolve_session_agent(
-            info,
-            **{
-                "session_uuid": kwargs["session_uuid"],
-                "session_agent_uuid": kwargs["session_agent_uuid"],
-            },
-        )
+        session_agent = get_repo("session_agent").resolve_single(
+           info,
+           **{
+               "session_uuid": kwargs["session_uuid"],
+               "session_agent_uuid": kwargs["session_agent_uuid"],
+           },
+       )
 
         # Validate session agent exists
         if session_agent is None:
@@ -54,12 +54,12 @@ def execute_for_user_input(info: ResolveInfo, **kwargs: Dict[str, Any]) -> bool:
         session_agent.notes = log
 
     # Persist session agent updates
-    session_agent: SessionAgentType = insert_update_session_agent(
-        info,
-        **{
-            "session_uuid": session_agent.session_uuid,
-            "session_agent_uuid": session_agent.session_agent_uuid,
-            "user_input": session_agent.user_input,
+    session_agent: SessionAgentType = get_repo("session_agent").insert_update(
+       info,
+       **{
+           "session_uuid": session_agent.session_uuid,
+           "session_agent_uuid": session_agent.session_agent_uuid,
+           "user_input": session_agent.user_input,
             "state": session_agent.state,
             "notes": session_agent.notes if session_agent.state == "failed" else None,
             "updated_by": "procedure_hub",
